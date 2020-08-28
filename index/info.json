@@ -1,0 +1,18 @@
+{
+	"author": [
+		"Twentysix (Twentysix#5252)",
+        "jack1142 (Jackenmen#6607)"
+	],
+    "description": "Browse, search and install repos / cogs from a Red-Index",
+    "install_msg": "Thanks for installing Index. This cog allows you to browse a Red-Index repo/cog index, helping you easily discover new repos and cogs.\nThe default Red-Index link points to the official one, and while we try to vet all its content remember that this is all content made by 3rd parties, you are ultimately responsible for what you install: **don't trust the source? Don't install it**. Have fun!\n<https://github.com/Cog-Creators/Red-Index/>",
+	"short": "Easy cog discoverability with Red-Index",
+	"tags": [
+        "index",
+        "discoverability",
+		"cogs",
+		"finder"
+	],
+	"min_bot_version": "3.4.0",
+	"type": "COG",
+	"end_user_data_statement": "This cog does not store end user data."
+}
