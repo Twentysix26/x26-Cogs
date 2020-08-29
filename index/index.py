@@ -79,7 +79,7 @@ class Index(commands.Cog):
                 if r.name.lower() == repo_name.lower():
                     cache = list(r.cogs.values())
                     await self.show_cogs(ctx, cogs=cache)
-                    break
+                    return
             else:
                 await ctx.send("I could not find any repo with that name.")
                 return
