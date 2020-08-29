@@ -76,7 +76,7 @@ class Index(commands.Cog):
             cache = self.cache.copy()
         else:
             for r in self.cache:
-                if r.name.lower() == repo_name:
+                if r.name.lower() == repo_name.lower():
                     cache = list(r.cogs.values())
                     await self.show_cogs(ctx, cogs=cache)
                     break
