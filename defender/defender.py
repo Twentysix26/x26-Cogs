@@ -784,11 +784,21 @@ class Defender(commands.Cog):
         if self.is_in_emergency_mode(guild):
             return
 
+        to_delete = []
+
         async def check_audit_log():
             try:
                 await self.refresh_with_audit_logs_activity(guild)
             except discord.Forbidden: # No access to the audit log, welp
                 pass
+
+        async def cleanup_countdown():
+            channel = ctx.channel
+            if to_delete:
+                try:
+                    await channel.delete_messages(to_delete)
+                except:
+                    pass
 
         await asyncio.sleep(60)
         await check_audit_log()
@@ -811,13 +821,14 @@ class Defender(commands.Cog):
                 await asyncio.sleep(60)
                 await check_audit_log()
                 if self.has_staff_been_active(guild, minutes=1):
+                    await cleanup_countdown()
                     ctx.command.reset_cooldown(ctx)
                     await ctx.send("Staff activity detected. Alert deactivated. "
                                     "Thanks for helping keep the community safe.")
                     return
                 minutes -= 1
                 if minutes % 2: # Halves the # of messages
-                    await ctx.send(text.format(minutes))
+                    to_delete.append(await ctx.send(text.format(minutes)))
 
         guide = {
             EmergencyModules.Voteout: "voteout <user>` - Start a vote to expel a user from the server",
@@ -839,6 +850,7 @@ class Defender(commands.Cog):
                                             f"**{', '.join(emergency_modules)}** modules.")
 
         await ctx.send(text)
+        await cleanup_countdown()
 
     @commands.command()
     async def vaporize(self, ctx, *members: discord.Member):
