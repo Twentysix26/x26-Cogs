@@ -1,0 +1,46 @@
+"""
+Defender - Protects your community with automod features and
+           empowers the staff and users you trust with
+           advanced moderation tools
+Copyright (C) 2020  Twentysix (https://github.com/Twentysix26/)
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+import enum
+
+class EmergencyMode:
+    def __init__(self, *, manual):
+        self.is_manual = manual # Manual mode won't automatically be disabled by staff activity
+
+class Rank(enum.IntEnum):
+    """Ranks of trust"""
+    Rank1 = 1 # Trusted user. Has at least one of the roles defined in "trusted_roles" or is staff/admin
+    Rank2 = 2 # User that satisfies all the requirements below
+    Rank3 = 3 # User that joined <X days ago
+    Rank4 = 4 # User that satisfies Rank3's requirement and also has less than X messages in the server
+
+class Action(enum.Enum):
+    NoAction = "none"
+    Ban = "ban"
+    Kick = "kick"
+    Softban = "softban"
+
+class EmergencyModules(enum.Enum):
+    Voteout = "voteout"
+    Vaporize = "vaporize"
+    Silence = "silence"
+
+class WardenEvent(enum.Enum):
+    OnMessage = "on-message"
+    OnUserJoin = "on-user-join"
+    OnEmergency = "on-emergency"
+    Manual = "manual" # TODO ?

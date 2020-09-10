@@ -16,8 +16,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import discord
+from .enums import Action, EmergencyModules
 
-async def make_status(ctx, cog, EmergencyModules, Action):
+async def make_status(ctx, cog):
     pages = []
     guild = ctx.guild
     d_enabled = await cog.config.guild(guild).enabled()
@@ -187,7 +188,33 @@ async def make_status(ctx, cog, EmergencyModules, Action):
 
     em = discord.Embed(color=discord.Colour.red(), description=msg)
     em.set_footer(text=f"`{p}dset raiderdetection` `{p}dset invitefilter` `{p}dset joinmonitor` to configure.")
-    em.set_author(name="Auto modules")
+    em.set_author(name="Auto modules (1/2)")
+
+    pages.append(em)
+
+    if d_enabled:
+        enabled = await cog.config.guild(guild).warden_enabled()
+    active_rules = len(cog.active_warden_rules[guild.id])
+    invalid_rules = len(cog.invalid_warden_rules[guild.id])
+    total_rules = active_rules + invalid_rules
+    warden_guide = "https://github.com/Twentysix26/x26-Cogs/wiki/Warden"
+    invalid_text = ""
+    if invalid_rules:
+        invalid_text = f", **{invalid_rules}** of which are invalid"
+
+    msg = ("**Warden**\nThis auto-module is extremely versatile. Thanks to a rich set of  "
+            "*events*, *conditions* and *actions* that you can combine Warden allows you to define "
+            "custom rules to counter any common pattern of bad behaviour that you notice in your "
+            "community.\nMessage filtering, assignation of roles to misbehaving users, "
+            "custom staff alerts are only a few example of what you can accomplish "
+            f"with this powerful module.\nYou can learn more [here]({warden_guide}).\n")
+    msg += (f"There are a total of **{total_rules}** rules defined{invalid_text}.\n")
+    msg += "This module is currently "
+    msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
+
+    em = discord.Embed(color=discord.Colour.red(), description=msg)
+    em.set_footer(text=f"`{p}dset warden` `{p}defender warden` to configure.")
+    em.set_author(name="Auto modules (2/2)")
 
     pages.append(em)
 

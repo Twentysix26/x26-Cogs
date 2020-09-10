@@ -21,34 +21,21 @@ from collections import deque, Counter, defaultdict
 from io import BytesIO
 from redbot.core.utils.mod import is_mod_or_superior
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
-from redbot.core.utils.chat_formatting import pagify, box
+from redbot.core.utils.chat_formatting import pagify, box, inline
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from .status import make_status
+from .enums import Rank, Action, EmergencyModules, EmergencyMode, WardenEvent
+from .exceptions import InvalidRule
+from .warden import WardenRule
 import datetime
-import enum
 import discord
 import asyncio
-
-
-class Rank(enum.IntEnum):
-    """Ranks of trust"""
-    Rank1 = 1 # Trusted user. Has at least one of the roles defined in "trusted_roles" or is staff/admin
-    Rank2 = 2 # User that satisfies all the requirements below
-    Rank3 = 3 # User that joined <X days ago
-    Rank4 = 4 # User that satisfies Rank3's requirement and also has less than X messages in the server
-
-class Action(enum.Enum):
-    NoAction = "none"
-    Ban = "ban"
-    Kick = "kick"
-    Softban = "softban"
-
-class EmergencyModules(enum.Enum):
-    Voteout = "voteout"
-    Vaporize = "vaporize"
-    Silence = "silence"
+import tarfile
+import logging
 
 utcnow = datetime.datetime.utcnow
+
+log = logging.getLogger("red.x26cogs.defender")
 
 default_guild_settings = {
     "enabled": False, # Defender system toggle
@@ -74,6 +61,8 @@ default_guild_settings = {
     "join_monitor_minutes": 5, # ... joined in the past Y minutes
     "join_monitor_susp_hours": 0, # Notify staff if new join is younger than X hours
     "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
+    "warden_enabled": True,
+    "wd_rules": {}, # Warden rules | I have to break the naming convention here due to config.py#L798
     "alert_enabled": True, # Available to helper roles by default
     "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
     "silence_rank": 0, # ... and as such, this default will be 0
@@ -92,9 +81,6 @@ default_member_settings = {
     "join_monitor_susp_hours": 0, # Personalized hours for join monitor suspicious joins
 }
 
-class EmergencyMode:
-    def __init__(self, *, manual):
-        self.is_manual = manual # Manual mode won't automatically be disabled by staff activity
 
 class Defender(commands.Cog):
     """Security tools to protect communities"""
@@ -104,7 +90,6 @@ class Defender(commands.Cog):
         self.config = Config.get_conf(self, 262626, force_registration=True)
         self.config.register_guild(**default_guild_settings)
         self.config.register_member(**default_member_settings)
-        #self.joined_users = deque([], maxlen=100)
         self.joined_users = {}
         self.last_raid_alert = {}
         # Raider detection module
@@ -115,8 +100,11 @@ class Defender(commands.Cog):
         self.counter_task = self.loop.create_task(self.persist_counter())
         self.staff_activity = {}
         self.emergency_mode = {}
+        self.active_warden_rules = defaultdict(lambda: dict())
+        self.invalid_warden_rules = defaultdict(lambda: dict())
+        self.loop.create_task(self.load_warden_rules())
 
-    async def rank_user(self, message, member):
+    async def rank_user(self, member):
         """Returns the user's rank"""
         is_mod = await self.bot.is_mod(member)
         if is_mod:
@@ -129,7 +117,7 @@ class Defender(commands.Cog):
                 return Rank.Rank1
 
         days = await self.config.guild(member.guild).rank3_joined_days()
-        x_days_ago = message.created_at - datetime.timedelta(days=days)
+        x_days_ago = utcnow() - datetime.timedelta(days=days)
         if member.joined_at >= x_days_ago:
             is_rank_4 = await self.is_rank_4(member)
             if is_rank_4:
@@ -148,7 +136,7 @@ class Defender(commands.Cog):
         messages = await self.config.member(member).messages()
         return messages < min_m
 
-    @commands.group()
+    @commands.group(aliases=["df"])
     @commands.mod()
     async def defender(self, ctx: commands.Context):
         """Defender system"""
@@ -156,7 +144,7 @@ class Defender(commands.Cog):
     @defender.command(name="status")
     async def defenderstatus(self, ctx: commands.Context):
         """Shows overall status of the Defender system"""
-        pages = await make_status(ctx, self, EmergencyModules, Action)
+        pages = await make_status(ctx, self)
         await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defender.command(name="memberranks")
@@ -171,7 +159,7 @@ class Defender(commands.Cog):
         for m in ctx.guild.members:
             if m.bot:
                 continue
-            rank = await self.rank_user(ctx.message, m)
+            rank = await self.rank_user(m)
             ranks[rank] += 1
         await ctx.send(box(f"Rank1: {ranks[Rank.Rank1]}\nRank2: {ranks[Rank.Rank2]}\n"
                        f"Rank3: {ranks[Rank.Rank3]}\nRank4: {ranks[Rank.Rank4]}\n\n"
@@ -189,9 +177,7 @@ class Defender(commands.Cog):
         if link:
             em.add_field(name="Link", value=user.mention, inline=True)
         if rank:
-            if message is None:
-                raise ValueError("I need a message to make an identify embed with Rank.")
-            rank = await self.rank_user(message, user)
+            rank = await self.rank_user(user)
             em.add_field(name="Rank", value=rank.value, inline=True)
         em.set_footer(text=(f"User ID: {user.id} | {messages} messages recorded"))
         return em
@@ -288,6 +274,162 @@ class Defender(commands.Cog):
                 await self.send_notification(guild, "⚠️ Emergency mode manually disabled.")
             else:
                 await ctx.send("Emergency mode is already off.")
+
+    @defender.group(name="warden")
+    @commands.admin()
+    async def wardengroup(self, ctx: commands.Context):
+        """Warden rules management"""
+
+    @wardengroup.command(name="add")
+    async def wardengroupaddrule(self, ctx: commands.Context, *, rule: str):
+        """Adds a new rule"""
+        EMOJI = "💾"
+        guild = ctx.guild
+        rule = rule.strip("\n")
+        if rule.startswith("```") and rule.endswith("```"):
+            rule = rule.strip("```")
+
+        try:
+            new_rule = WardenRule(rule)
+        except InvalidRule as e:
+            return await ctx.send(f"Error parsing the rule: {e}")
+        except Exception as e:
+            log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
+            return await ctx.send(f"Something very wrong happened during the rule parsing. Please check its format.")
+
+        asked_overwrite = False
+        if new_rule.name in self.active_warden_rules[guild.id] or new_rule.name in self.invalid_warden_rules[guild.id]:
+            msg = await ctx.send("There is a rule with the same name already. Do you want to "
+                                 "overwrite it? React to confirm.")
+
+            def confirm(r, user):
+                return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
+
+            await msg.add_reaction(EMOJI)
+            try:
+                r = await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
+            except asyncio.TimeoutError:
+                return await ctx.send("Not proceeding with overwrite.")
+            asked_overwrite = True
+
+        async with self.config.guild(ctx.guild).wd_rules() as warden_rules:
+            warden_rules[new_rule.name] = rule
+        self.active_warden_rules[ctx.guild.id][new_rule.name] = new_rule
+
+        if not asked_overwrite:
+            await ctx.tick()
+        else:
+            await ctx.send("The rule has been overwritten.")
+
+    @wardengroup.command(name="remove")
+    async def wardengroupremoverule(self, ctx: commands.Context, *, name: str):
+        """Removes a rule by name"""
+        name = name.lower()
+        try:
+            self.active_warden_rules[ctx.guild.id].pop(name, None)
+            self.invalid_warden_rules[ctx.guild.id].pop(name, None)
+            async with self.config.guild(ctx.guild).wd_rules() as warden_rules:
+                del warden_rules[name]
+            await ctx.tick()
+        except KeyError:
+            await ctx.send("There is no rule with that name.")
+
+    @wardengroup.command(name="removeall")
+    async def wardengroupremoveall(self, ctx: commands.Context):
+        """Removes all rules"""
+        EMOJI = "🚮"
+
+        msg = await ctx.send("Are you sure you want to remove all the rules? This is "
+                             "an irreversible operation. React to confirm.")
+
+        def confirm(r, user):
+            return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
+
+        await msg.add_reaction(EMOJI)
+        try:
+            r = await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
+        except asyncio.TimeoutError:
+            return await ctx.send("Not proceeding with deletion.")
+
+        await self.config.guild(ctx.guild).wd_rules.clear()
+        self.active_warden_rules[ctx.guild.id] = {}
+        self.invalid_warden_rules[ctx.guild.id] = {}
+        await ctx.send("All rules have been deleted.")
+
+    @wardengroup.command(name="list")
+    async def wardengrouplistrules(self, ctx: commands.Context):
+        """Lists existing rules"""
+        text = ""
+        rules = {"active": [], "invalid": []}
+        for k, v in self.active_warden_rules[ctx.guild.id].items():
+            rules["active"].append(inline(v.name))
+
+        for k, v in self.invalid_warden_rules[ctx.guild.id].items():
+            rules["invalid"].append(inline(v.name))
+
+        if not rules["active"] and not rules["invalid"]:
+            return await ctx.send("There are no rules set.")
+
+        if rules["active"]:
+            text += "**Active rules**: " + ", ".join(rules["active"])
+
+        if rules["invalid"]:
+            if text:
+                text += "\n\n"
+            text += "**Invalid rules**: " + ", ".join(rules["invalid"])
+            text += ("\nThese rules failed the validation process at the last start. Check if "
+                     "their format is still considered valid in the most recent version of "
+                     "Defender.")
+
+        for p in pagify(text, delims=[" ", "\n"]):
+            await ctx.send(p)
+
+    @wardengroup.command(name="show")
+    async def wardengroupshowrule(self, ctx: commands.Context, *, name: str):
+        """Shows a rule"""
+        try:
+            rule = self.active_warden_rules[ctx.guild.id].get(name)
+            if rule is None:
+                rule = self.invalid_warden_rules[ctx.guild.id][name]
+        except KeyError:
+            return await ctx.send("There is no rule with that name.")
+        await ctx.send(box(rule.raw_rule, lang="yaml"))
+
+    @wardengroup.command(name="export")
+    async def wardengroupexport(self, ctx: commands.Context, *, name: str):
+        """Sends the rule as a YAML file"""
+        try:
+            rule = self.active_warden_rules[ctx.guild.id].get(name)
+            if rule is None:
+                rule = self.invalid_warden_rules[ctx.guild.id][name]
+        except KeyError:
+            return await ctx.send("There is no rule with that name.")
+        f = discord.File(BytesIO(rule.raw_rule.encode("utf-8")), f"{name}.yaml")
+        await ctx.send(file=f)
+
+    @wardengroup.command(name="exportall")
+    async def wardengroupexportall(self, ctx: commands.Context):
+        """Sends all the rule as a tar.gz archive"""
+        return await ctx.send("Coming soon :tm:")
+        # TODO No idea what is wrong here but yeah, that's for later
+        to_archive = {}
+
+        for k, v in self.active_warden_rules[ctx.guild.id].items():
+            to_archive[k] = BytesIO(v.raw_rule.encode("utf8"))
+
+        if not to_archive:
+            return await ctx.send("There are no active rules to export")
+
+        tar_obj = BytesIO()
+
+        with tarfile.open(fileobj=tar_obj, mode='w:gz') as tar:
+            for k, v in to_archive.items():
+                info = tarfile.TarInfo(f"{k}.yaml")
+                info.size = len(v.getvalue())
+                tar.addfile(info, v)
+
+        utc = utcnow()
+        await ctx.send(file=discord.File(tar_obj.getvalue(), f"rules-export-{utc}.tar.gz"))
 
     @commands.group()
     @commands.admin()
@@ -626,6 +768,22 @@ class Defender(commands.Cog):
         await ctx.send(f"Value set. I will delete {days} days worth "
                        "of messages if the action is ban.")
 
+    @dset.group(name="warden")
+    @commands.admin()
+    async def wardenset(self, ctx: commands.Context):
+        """Warden auto module configuration
+
+        See [p]defender status for more information about this module"""
+
+    @wardenset.command(name="enable")
+    async def wardensetenable(self, ctx: commands.Context, on_or_off: bool):
+        """Toggles warden"""
+        await self.config.guild(ctx.guild).warden_enabled.set(on_or_off)
+        if on_or_off:
+            await ctx.send("Warden auto-module enabled. Existing rules are now active.")
+        else:
+            await ctx.send("Warden auto-module disabled. Existing rules will have no effect.")
+
     @dset.group(name="voteout")
     @commands.admin()
     async def voteoutgroup(self, ctx: commands.Context):
@@ -896,7 +1054,7 @@ class Defender(commands.Cog):
             await ctx.send("No more than 15. Please try again.")
             return
         for m in members:
-            rank = await self.rank_user(ctx.message, m)
+            rank = await self.rank_user(m)
             if rank < Rank.Rank3:
                 await ctx.send("This command can only be used on Rank 3 and under. "
                                f"`{m}` ({m.id}) is Rank {rank.value}.")
@@ -961,7 +1119,7 @@ class Defender(commands.Cog):
                     return await ctx.send("This command is not available right now.")
 
         required_rank = await self.config.guild(guild).voteout_rank()
-        target_rank = await self.rank_user(ctx.message, user)
+        target_rank = await self.rank_user(user)
         if target_rank < required_rank:
             ctx.command.reset_cooldown(ctx)
             await ctx.send("You cannot vote to expel that user. "
@@ -1161,6 +1319,34 @@ class Defender(commands.Cog):
                 all_counters = None
         except asyncio.CancelledError:
             pass
+
+    async def load_warden_rules(self):
+        rules_to_load = defaultdict()
+        guilds = self.config._get_base_group(self.config.GUILD)
+        async with guilds.all() as all_guilds:
+            for guid, guild_data in all_guilds.items():
+                if "wd_rules" in guild_data:
+                    if guild_data["wd_rules"]:
+                        rules_to_load[guid] = guild_data["wd_rules"].copy()
+
+        for guid, rules in rules_to_load.items():
+            for rule in rules.values():
+                try:
+                    new_rule = WardenRule(rule, do_not_raise_during_parse=True)
+                    # If the rule ends up not even having a name some extreme level of fuckery is going on
+                    # At that point we might as well pretend it doesn't exist at config level
+                    if new_rule.parse_exception and new_rule.name is not None:
+                        raise new_rule.parse_exception
+                    elif new_rule.name is not None:
+                        self.active_warden_rules[int(guid)][new_rule.name] = new_rule
+                    else:
+                        log.error("Warden - rule did not reach name "
+                                  "parsing during cog load", exc_info=new_rule.parse_exception)
+                except InvalidRule as e:
+                    self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule
+                except Exception as e:
+                    self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule
+                    log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
 
     def cog_unload(self):
         self.counter_task.cancel()
@@ -1392,6 +1578,8 @@ class Defender(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
+        if message.attachments:
+            print(message.attachments)
         author = message.author
         if not hasattr(author, "guild") or not author.guild:
             return
@@ -1406,12 +1594,23 @@ class Defender(commands.Cog):
             await self.inc_message_count(author)
 
         banned = False
-        rank = await self.rank_user(message, author)
+        rank = await self.rank_user(author)
 
         if rank == Rank.Rank1:
             if await self.bot.is_mod(author): # Is staff?
                 await self.refresh_staff_activity(guild)
                 return
+
+        if await self.config.guild(guild).warden_enabled():
+            env = {"message": message, "cog": self}
+            for rule in self.active_warden_rules[guild.id].values():
+                if rule.event != WardenEvent.OnMessage:
+                    continue
+                if await rule.satisfies_conditions(rank, env):
+                    try:
+                        await rule.do_actions(env)
+                    except Exception as e:
+                        log.error("Warden - unexpected error during actions execution", exc_info=e)
 
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
         if inv_filter_enabled:
@@ -1450,6 +1649,18 @@ class Defender(commands.Cog):
         guild = member.guild
         if not await self.config.guild(guild).enabled():
             return
+
+        if await self.config.guild(guild).warden_enabled():
+            env = {"user": member, "cog": self}
+            for rule in self.active_warden_rules[guild.id].values():
+                if rule.event != WardenEvent.OnUserJoin:
+                    continue
+                rank = await self.rank_user(member)
+                if await rule.satisfies_conditions(rank, env):
+                    try:
+                        await rule.do_actions(env)
+                    except Exception as e:
+                        log.error("Warden - unexpected error during actions execution", exc_info=e)
 
         if await self.config.guild(guild).join_monitor_enabled():
             await self.join_monitor_flood(member)
