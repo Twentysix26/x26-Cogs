@@ -675,7 +675,7 @@ class Defender(commands.Cog):
         if votes < 2:
             return await ctx.send("A minimum of 2 votes is required.")
         action = await self.config.guild(ctx.guild).voteout_action()
-        await self.config.guild(ctx.guild).voteout_votes.set(rank)
+        await self.config.guild(ctx.guild).voteout_votes.set(votes)
         await ctx.send(f"Votes set. A minimum of {votes} (including "
                        "the person who started the vote) will be "
                        f"required to {action} the target user.")
