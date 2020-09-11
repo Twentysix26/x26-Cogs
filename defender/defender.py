@@ -431,6 +431,58 @@ class Defender(commands.Cog):
         utc = utcnow()
         await ctx.send(file=discord.File(tar_obj.getvalue(), f"rules-export-{utc}.tar.gz"))
 
+    @wardengroup.command(name="run")
+    async def wardengrouprun(self, ctx: commands.Context, *, name: str):
+        """Runs a rule against the whole userbase
+
+        Confirmation is asked before execution."""
+        EMOJI = "✅"
+        try:
+            rule: WardenRule = self.active_warden_rules[ctx.guild.id][name]
+            if rule.event != WardenEvent.Manual:
+                raise InvalidRule()
+        except KeyError:
+            return await ctx.send("There is no rule with that name.")
+        except InvalidRule:
+            return await ctx.send("That rule is not meant to be run in manual mode.")
+
+        targets = []
+
+        async with ctx.typing():
+            for m in ctx.guild.members:
+                rank = await self.rank_user(m)
+                if await rule.satisfies_conditions(rank, {"user": m, "cog": self}):
+                    targets.append(m)
+
+        if len(targets) == 0:
+            return await ctx.send("No user can be affected by this rule.")
+
+        msg = await ctx.send(f"**{len(targets)} user** will be affected by this rule. "
+                              "Are you sure you want to continue? React to confirm.")
+
+        def confirm(r, user):
+            return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
+
+        await msg.add_reaction(EMOJI)
+        try:
+            r = await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
+        except asyncio.TimeoutError:
+            return await ctx.send("Not proceeding with execution.")
+
+        errors = 0
+        async with ctx.typing():
+            for m in targets:
+                try:
+                    await rule.do_actions({"user": m, "cog": self})
+                except:
+                    errors += 1
+
+        text = f"Rule `{name}` has been executed on **{len(targets)} users**."
+        if errors:
+            text += f"\n**{errors}** of them triggered an error on this rule."
+
+        await ctx.send(text)
+
     @commands.group()
     @commands.admin()
     async def dset(self, ctx: commands.Context):
@@ -1578,8 +1630,6 @@ class Defender(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        if message.attachments:
-            print(message.attachments)
         author = message.author
         if not hasattr(author, "guild") or not author.guild:
             return

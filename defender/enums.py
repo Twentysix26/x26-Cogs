@@ -43,4 +43,4 @@ class WardenEvent(enum.Enum):
     OnMessage = "on-message"
     OnUserJoin = "on-user-join"
     OnEmergency = "on-emergency"
-    Manual = "manual" # TODO ?
+    Manual = "manual"

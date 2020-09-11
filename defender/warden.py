@@ -110,12 +110,14 @@ DENIED_CONDITIONS = {
                              WardenCondition.MessageContainsMedia],
     WardenEvent.OnEmergency: [c for c in WardenCondition if c != WardenCondition.InEmergencyMode] # Basically all of them. There's no context
 }
+DENIED_CONDITIONS[WardenEvent.Manual] = DENIED_CONDITIONS[WardenEvent.OnUserJoin]
 
 DENIED_ACTIONS = {
     WardenEvent.OnMessage: [],
     WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage],
     WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing]
 }
+DENIED_ACTIONS[WardenEvent.Manual] = DENIED_ACTIONS[WardenEvent.OnUserJoin]
 
 # These are for special commands such as DM, which require
 # a mandatory # of "arguments"
