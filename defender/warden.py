@@ -22,7 +22,8 @@ import discord
 import datetime
 import logging
 import re
-from .enums import Rank, Action, EmergencyMode, WardenEvent
+from .enums import Rank, Action, EmergencyMode
+from .enums import WardenAction, WardenCondition, WardenEvent
 from .exceptions import InvalidRule
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from string import Template
@@ -35,37 +36,6 @@ utcnow = datetime.datetime.utcnow
 RULE_KEYS = ("name", "event", "rank", "if", "do")
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
-
-class WardenAction(enum.Enum):
-    Dm = "dm" #DM an arbitrary user. Must provide name/id + content
-    DmUser = "dm-user" # DMs user in context
-    NotifyStaff = "notify-staff"
-    NotifyStaffAndPing = "notify-staff-and-ping"
-    BanAndDelete = "ban-and-delete" # Ban user in context and delete X days
-    Kick = Action.Kick.value # Kick user in context
-    Softban = Action.Softban.value # Softban user in context
-    Modlog = "send-mod-log" # Send modlog case of last expel action + reason
-    DeleteUserMessage = "delete-user-message" # Delete message in context
-    SendInChannel = "send-in-channel" # Send message to channel in context
-    AddRolesToUser = "add-roles-to-user" # Adds roles to user in context
-    RemoveRolesFromUser = "remove-roles-from-user" # Remove roles from user in context
-    TriggerEmergencyMode = "trigger-emergency-mode"
-    SetUserNickname = "set-user-nickname" # Changes nickname of user in context
-    # TODO Heat system / Warnings?
-
-class WardenCondition(enum.Enum):
-    UsernameMatchesAny = "username-matches-any"
-    NicknameMatchesAny = "nickname-matches-any"
-    MessageMatchesAny = "message-matches-any"
-    UserCreatedLessThan = "user-created-less-than"
-    UserJoinedLessThan = "user-joined-less-than"
-    UserHasDefaultAvatar = "user-has-default-avatar"
-    ChannelMatchesAny = "channel-matches-any"
-    MessageHasAttachment = "message-has-attachment"
-    InEmergencyMode = "in-emergency-mode"
-    UserHasAnyRoleIn = "user-has-any-role-in"
-    MessageContainsInvite = "message-contains-invite"
-    MessageContainsMedia = "message-contains-media"
 
 # Below are the accepted types of each condition for basic sanity checking
 # before a rule is accepted and entered into the system
@@ -98,7 +68,9 @@ WARDEN_ACTIONS_PARAM_TYPE = {
     WardenAction.AddRolesToUser: [list],
     WardenAction.RemoveRolesFromUser: [list],
     WardenAction.TriggerEmergencyMode: [None],
-    WardenAction.SetUserNickname: [str]
+    WardenAction.SetUserNickname: [str],
+    WardenAction.NoOp: [None],
+    WardenAction.SendToMonitor: [str]
 }
 
 # Not every condition is available to all events
@@ -128,7 +100,7 @@ ACTIONS_ARGS_N = {
 class WardenRule:
     def __init__(self, rule_str, do_not_raise_during_parse=False):
         self.parse_exception = None
-        self.last_error = ""
+        self.last_action = WardenAction.NoOp
         self.name = None
         self.event = None
         self.rank = None
@@ -391,6 +363,7 @@ class WardenRule:
         for entry in self.actions:
             for action, value in entry.items():
                 action = WardenAction(action)
+                self.last_action = action
                 if action == WardenAction.DmUser:
                     text = Template(value).safe_substitute(templates_vars)
                     await user.send(text)
@@ -474,3 +447,8 @@ class WardenRule:
                     )
                 elif action == WardenAction.TriggerEmergencyMode:
                     cog.emergency_mode[guild.id] = EmergencyMode(manual=True)
+                elif action == WardenAction.SendToMonitor:
+                    value = Template(value).safe_substitute(templates_vars)
+                    cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
+                elif action == WardenAction.NoOp:
+                    pass

@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from typing import Deque
 from redbot.core import commands, checks, Config, modlog
 from redbot.core.commands import check
 from collections import deque, Counter, defaultdict
@@ -103,6 +104,7 @@ class Defender(commands.Cog):
         self.active_warden_rules = defaultdict(lambda: dict())
         self.invalid_warden_rules = defaultdict(lambda: dict())
         self.loop.create_task(self.load_warden_rules())
+        self.monitor = defaultdict(lambda: Deque(maxlen=500))
 
     async def rank_user(self, member):
         """Returns the user's rank"""
@@ -146,6 +148,22 @@ class Defender(commands.Cog):
         """Shows overall status of the Defender system"""
         pages = await make_status(ctx, self)
         await menu(ctx, pages, DEFAULT_CONTROLS)
+
+    @defender.command(name="monitor")
+    async def defendermonitor(self, ctx: commands.Context):
+        """Shows recent events that might require your attention"""
+        monitor = self.monitor[ctx.guild.id].copy()
+
+        if not monitor:
+            return await ctx.send("No recent events have been recorded.")
+
+        pages = list(pagify("\n".join(monitor), page_length=1300))
+
+        if len(pages) == 1:
+            await ctx.send(box(pages[0], lang="rust"))
+        else:
+            pages = [box(p, lang="rust") for p in pages]
+            await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defender.command(name="memberranks")
     async def defendermemberranks(self, ctx: commands.Context):
@@ -1347,6 +1365,10 @@ class Defender(commands.Cog):
     def is_in_emergency_mode(self, guild):
         return guild.id in self.emergency_mode
 
+    def send_to_monitor(self, guild: discord.Guild, entry: str):
+        now = utcnow().strftime("%m/%d %H:%M:%S")
+        self.monitor[guild.id].appendleft(f"[{now}] {entry}")
+
     async def persist_counter(self):
         try:
             while True:
@@ -1659,7 +1681,12 @@ class Defender(commands.Cog):
                 if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
                         await rule.do_actions(cog=self, message=message)
+                    except (discord.Forbidden, discord.HTTPException) as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
                     except Exception as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
@@ -1709,7 +1736,12 @@ class Defender(commands.Cog):
                 if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
                     try:
                         await rule.do_actions(cog=self, user=member)
+                    except (discord.Forbidden, discord.HTTPException) as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
                     except Exception as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
         if await self.config.guild(guild).join_monitor_enabled():

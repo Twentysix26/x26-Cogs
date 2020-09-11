@@ -44,3 +44,36 @@ class WardenEvent(enum.Enum):
     OnUserJoin = "on-user-join"
     OnEmergency = "on-emergency"
     Manual = "manual"
+
+class WardenAction(enum.Enum):
+    Dm = "dm" #DM an arbitrary user. Must provide name/id + content
+    DmUser = "dm-user" # DMs user in context
+    NotifyStaff = "notify-staff"
+    NotifyStaffAndPing = "notify-staff-and-ping"
+    BanAndDelete = "ban-and-delete" # Ban user in context and delete X days
+    Kick = Action.Kick.value # Kick user in context
+    Softban = Action.Softban.value # Softban user in context
+    Modlog = "send-mod-log" # Send modlog case of last expel action + reason
+    DeleteUserMessage = "delete-user-message" # Delete message in context
+    SendInChannel = "send-in-channel" # Send message to channel in context
+    AddRolesToUser = "add-roles-to-user" # Adds roles to user in context
+    RemoveRolesFromUser = "remove-roles-from-user" # Remove roles from user in context
+    TriggerEmergencyMode = "trigger-emergency-mode"
+    SetUserNickname = "set-user-nickname" # Changes nickname of user in context
+    NoOp = "no-op" # Does nothing. For testing purpose.
+    SendToMonitor = "send-to-monitor" # Posts a message to [p]df monitor
+    # TODO Heat system / Warnings?
+
+class WardenCondition(enum.Enum):
+    UsernameMatchesAny = "username-matches-any"
+    NicknameMatchesAny = "nickname-matches-any"
+    MessageMatchesAny = "message-matches-any"
+    UserCreatedLessThan = "user-created-less-than"
+    UserJoinedLessThan = "user-joined-less-than"
+    UserHasDefaultAvatar = "user-has-default-avatar"
+    ChannelMatchesAny = "channel-matches-any"
+    MessageHasAttachment = "message-has-attachment"
+    InEmergencyMode = "in-emergency-mode"
+    UserHasAnyRoleIn = "user-has-any-role-in"
+    MessageContainsInvite = "message-contains-invite"
+    MessageContainsMedia = "message-contains-media"
