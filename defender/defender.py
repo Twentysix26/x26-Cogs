@@ -451,7 +451,7 @@ class Defender(commands.Cog):
         async with ctx.typing():
             for m in ctx.guild.members:
                 rank = await self.rank_user(m)
-                if await rule.satisfies_conditions(rank, {"user": m, "cog": self}):
+                if await rule.satisfies_conditions(rank=rank, user=m, cog=self):
                     targets.append(m)
 
         if len(targets) == 0:
@@ -473,7 +473,7 @@ class Defender(commands.Cog):
         async with ctx.typing():
             for m in targets:
                 try:
-                    await rule.do_actions({"user": m, "cog": self})
+                    await rule.do_actions(user=m, cog=self)
                 except:
                     errors += 1
 
@@ -1651,14 +1651,14 @@ class Defender(commands.Cog):
                 await self.refresh_staff_activity(guild)
                 return
 
+        rule: WardenRule
         if await self.config.guild(guild).warden_enabled():
-            env = {"message": message, "cog": self}
             for rule in self.active_warden_rules[guild.id].values():
                 if rule.event != WardenEvent.OnMessage:
                     continue
-                if await rule.satisfies_conditions(rank, env):
+                if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
-                        await rule.do_actions(env)
+                        await rule.do_actions(cog=self, message=message)
                     except Exception as e:
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
@@ -1701,14 +1701,14 @@ class Defender(commands.Cog):
             return
 
         if await self.config.guild(guild).warden_enabled():
-            env = {"user": member, "cog": self}
+            rule: WardenRule
             for rule in self.active_warden_rules[guild.id].values():
                 if rule.event != WardenEvent.OnUserJoin:
                     continue
                 rank = await self.rank_user(member)
-                if await rule.satisfies_conditions(rank, env):
+                if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
                     try:
-                        await rule.do_actions(env)
+                        await rule.do_actions(cog=self, user=member)
                     except Exception as e:
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 

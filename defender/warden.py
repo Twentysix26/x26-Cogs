@@ -257,7 +257,7 @@ class WardenRule:
                     raise InvalidRule(f"Invalid parameter type for action `{action.value}`")
 
 
-    async def satisfies_conditions(self, rank, env):
+    async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None):
         if rank < self.rank:
             return False
 
@@ -265,11 +265,10 @@ class WardenRule:
         # expect to always have available the variables that we need for
         # the different type of events and conditions
         # Unless I fucked up somewhere, then we're in trouble!
-        cog = env.get("cog") # This should always be passed
-        message = env.get("message", None)
-        user = env.get("user", None) or message.author
-        guild = user.guild
-        channel = message.channel if message else None
+        if message and not user:
+            user = message.author
+        guild: discord.Guild = user.guild
+        channel: discord.Channel = message.channel if message else None
 
         for condition, value in self.conditions.items():
             condition = WardenCondition(condition)
@@ -354,12 +353,11 @@ class WardenRule:
 
         return True
 
-    async def do_actions(self, env):
-        cog = env.get("cog") # This should always be passed
-        message = env.get("message", None)
-        user = env.get("user", None) or message.author
-        guild = user.guild
-        channel = message.channel if message else None
+    async def do_actions(self, *, cog, user: discord.Member=None, message: discord.Message=None):
+        if message and not user:
+            user = message.author
+        guild: discord.Guild = user.guild
+        channel: discord.Channel = message.channel if message else None
 
         templates_vars = {
             "action_name": self.name,
@@ -430,7 +428,7 @@ class WardenRule:
                     to_assign = list(set(to_assign))
                     to_assign = [r for r in to_assign if r not in user.roles]
                     if to_assign:
-                        await user.add_roles(*to_assign, reason=f"Assigned by warden action '{self.name}'")
+                        await user.add_roles(*to_assign, reason=f"Assigned by Warden action '{self.name}'")
                 elif action == WardenAction.RemoveRolesFromUser:
                     to_unassign = []
                     for role_id_or_name in value:
@@ -442,22 +440,22 @@ class WardenRule:
                     to_unassign = list(set(to_unassign))
                     to_unassign = [r for r in to_unassign if r in user.roles]
                     if to_unassign:
-                        await user.remove_roles(*to_unassign, reason=f"Unassigned by warden action '{self.name}'")
+                        await user.remove_roles(*to_unassign, reason=f"Unassigned by Warden action '{self.name}'")
                 elif action == WardenAction.SetUserNickname:
                     if value == "":
                         value = None
                     else:
                         value = Template(value).safe_substitute(templates_vars)
-                    await user.edit(nick=value, reason=f"Changed nickname by warden action '{self.name}'")
+                    await user.edit(nick=value, reason=f"Changed nickname by Warden action '{self.name}'")
                 elif action == WardenAction.BanAndDelete:
                     last_expel_action = Action.Ban
-                    await guild.ban(user, delete_message_days=value)
+                    await guild.ban(user, delete_message_days=value, reason=f"Banned by Warden action '{self.name}'")
                 elif action == WardenAction.Kick:
                     last_expel_action = Action.Kick
-                    await guild.kick(user)
+                    await guild.kick(user, reason=f"Kicked by Warden action '{self.name}'")
                 elif action == WardenAction.Softban:
                     last_expel_action = Action.Softban
-                    await guild.ban(user, delete_message_days=1)
+                    await guild.ban(user, delete_message_days=1, reason=f"Softbanned by Warden action '{self.name}'")
                     await guild.unban(user)
                 elif action == WardenAction.Modlog:
                     if last_expel_action is None:
