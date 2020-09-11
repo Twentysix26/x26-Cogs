@@ -33,6 +33,7 @@ import discord
 import asyncio
 import tarfile
 import logging
+import fnmatch
 
 utcnow = datetime.datetime.utcnow
 
@@ -150,12 +151,22 @@ class Defender(commands.Cog):
         await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defender.command(name="monitor")
-    async def defendermonitor(self, ctx: commands.Context):
-        """Shows recent events that might require your attention"""
+    async def defendermonitor(self, ctx: commands.Context, *, keywords: str=""):
+        """Shows recent events that might require your attention
+
+        Can be filtered. Supports wildcards (* and ?)"""
         monitor = self.monitor[ctx.guild.id].copy()
 
         if not monitor:
             return await ctx.send("No recent events have been recorded.")
+
+        if keywords:
+            if "*" not in keywords and "?" not in keywords:
+                keywords = f"*{keywords}*"
+            keywords = keywords.lower()
+            monitor = [e for e in monitor if fnmatch.fnmatch(e.lower(), keywords)]
+            if not monitor:
+                return await ctx.send("Filtering by those terms returns no result.")
 
         pages = list(pagify("\n".join(monitor), page_length=1300))
 
@@ -207,11 +218,11 @@ class Defender(commands.Cog):
         await ctx.send(embed=em)
 
     @defender.command(name="freshmeat")
-    async def defenderfreshmeat(self, ctx, hours: int=24, *, filter_str: str=""):
+    async def defenderfreshmeat(self, ctx, hours: int=24, *, keywords: str=""):
         """Returns a list of the new users of the day
 
-        Can be filtered in a grep-like way"""
-        filter_str = filter_str.lower()
+        Can be filtered. Supports wildcards (* and ?)"""
+        keywords = keywords.lower()
         msg = ""
         new_members = []
         x_hours_ago = ctx.message.created_at - datetime.timedelta(hours=hours)
@@ -221,9 +232,14 @@ class Defender(commands.Cog):
 
         new_members.sort(key=lambda m: m.joined_at, reverse=True)
 
+        if keywords:
+            if "*" not in keywords and "?" not in keywords:
+                keywords = f"*{keywords}*"
+            keywords = keywords.lower()
+
         for m in new_members:
-            if filter_str:
-                if filter_str not in m.name.lower():
+            if keywords:
+                if not fnmatch.fnmatch(m.name.lower(), keywords):
                     continue
             join = m.joined_at.strftime("%Y/%m/%d %H:%M:%S")
             created = m.created_at.strftime("%Y/%m/%d %H:%M:%S")
@@ -475,7 +491,7 @@ class Defender(commands.Cog):
         if len(targets) == 0:
             return await ctx.send("No user can be affected by this rule.")
 
-        msg = await ctx.send(f"**{len(targets)} user** will be affected by this rule. "
+        msg = await ctx.send(f"**{len(targets)} users** will be affected by this rule. "
                               "Are you sure you want to continue? React to confirm.")
 
         def confirm(r, user):
