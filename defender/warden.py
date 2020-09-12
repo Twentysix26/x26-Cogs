@@ -23,7 +23,7 @@ import datetime
 import logging
 import re
 from .enums import Rank, Action, EmergencyMode
-from .enums import WardenAction, WardenCondition, WardenEvent
+from .enums import WardenAction, WardenCondition, WardenEvent, WardenConditionBlock
 from .exceptions import InvalidRule
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from string import Template
@@ -152,8 +152,8 @@ class WardenRule:
         self.rank = rule["rank"]
 
         if "if" in rule: # TODO Conditions probably shouldn't be mandatory.
-            if not isinstance(rule["if"], dict):
-                raise InvalidRule("Invalid 'if' category. Must be a map of conditions.")
+            if not isinstance(rule["if"], list):
+                raise InvalidRule("Invalid 'if' category. Must be a list of conditions.")
         else:
             raise InvalidRule("Rule must have at least one condition.")
 
@@ -172,11 +172,19 @@ class WardenRule:
 
         denied = DENIED_CONDITIONS[self.event]
 
-        for condition, parameter in self.conditions.items():
+        def validate_condition(cond):
+            condition = parameter = None
+            for r, p in cond.items():
+                condition, parameter = r, p
+
             try:
                 condition = WardenCondition(condition)
             except ValueError:
-                raise InvalidRule(f"Invalid condition: `{condition}`")
+                try:
+                    condition = WardenConditionBlock(condition)
+                    raise InvalidRule(f"Invalid: `{condition.value}` can only be at root level.")
+                except ValueError:
+                    raise InvalidRule(f"Invalid condition: `{condition}`")
 
             if condition in denied:
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in `{self.event.value}`")
@@ -191,6 +199,30 @@ class WardenRule:
             else:
                 raise InvalidRule(f"Invalid parameter type for condition `{condition.value}`")
 
+        for raw_condition in self.conditions:
+            condition = parameter = None
+            for r, p in raw_condition.items():
+                condition, parameter = r, p
+
+            if len(raw_condition) != 1:
+                raise InvalidRule(f"Invalid format in the conditions. Make sure you've got the dashes right!")
+
+            try:
+                condition = WardenCondition(condition)
+            except ValueError:
+                try:
+                    condition = WardenConditionBlock(condition)
+                except ValueError:
+                    raise InvalidRule(f"Invalid condition: `{condition}`")
+
+            if isinstance(condition, WardenConditionBlock):
+                if parameter is None:
+                    raise InvalidRule("Condition blocks cannot be empty.")
+                for p in parameter:
+                    validate_condition(p)
+            else:
+                validate_condition(raw_condition)
+
         denied = DENIED_ACTIONS[self.event]
 
         # Basically a list of one-key dicts
@@ -199,6 +231,10 @@ class WardenRule:
             # This will be a single loop
             if not isinstance(entry, dict):
                 raise InvalidRule(f"Invalid action: `{entry}`. Expected map (mind the colon!).")
+
+            if len(entry) != 1:
+                raise InvalidRule(f"Invalid format in the actions. Make sure you've got the dashes right!")
+
             for action, parameter in entry.items():
                 try:
                     action = WardenAction(action)
@@ -239,71 +275,124 @@ class WardenRule:
         # Unless I fucked up somewhere, then we're in trouble!
         if message and not user:
             user = message.author
+
+        # For the condition block to pass, every "root level" condition (or block of conditions)
+        # must equal to True
+        bools = []
+
+        for raw_condition in self.conditions:
+            condition = value = None
+
+            for r, v in raw_condition.items():
+                condition, value = r, v
+            try:
+                condition = WardenConditionBlock(condition)
+            except:
+                condition = WardenCondition(condition)
+
+            if condition == WardenConditionBlock.IfAll:
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message)
+                if len(results) != len(value):
+                    raise RuntimeError("Mismatching number of conditions and evaluations")
+                bools.append(all(results))
+            elif condition == WardenConditionBlock.IfAny:
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message)
+                if len(results) != len(value):
+                    raise RuntimeError("Mismatching number of conditions and evaluations")
+                bools.append(any(results))
+            elif condition == WardenConditionBlock.IfNot:
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message)
+                if len(results) != len(value):
+                    raise RuntimeError("Mismatching number of conditions and evaluations")
+                results = [not r for r in results] # Bools are flipped
+                bools.append(all(results))
+            else:
+                results = await self._evaluate_conditions({condition: value}, cog=cog, user=user, message=message)
+                if len(results) != 1:
+                    raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
+                bools.append(any(results))
+
+        return all(bools)
+
+    async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None):
+        bools = []
+
+        if message and not user:
+            user = message.author
         guild: discord.Guild = user.guild
         channel: discord.Channel = message.channel if message else None
 
-        for condition, value in self.conditions.items():
+        for raw_condition in conditions:
+
+            condition = value = None
+            for c, v in raw_condition.items():
+                condition, value = c, v
+
             condition = WardenCondition(condition)
             if condition == WardenCondition.MessageMatchesAny:
                 # One match = Passed
                 content = message.content.lower()
                 for pattern in value:
                     if fnmatch.fnmatch(content, pattern.lower()):
+                        bools.append(True)
                         break
                 else:
-                    return False
+                    bools.append(False)
             elif condition == WardenCondition.UsernameMatchesAny:
                 # One match = Passed
                 name = user.name.lower()
                 for pattern in value:
                     if fnmatch.fnmatch(name, pattern.lower()):
+                        bools.append(True)
                         break
                 else:
-                    return False
+                    bools.append(False)
             elif condition == WardenCondition.NicknameMatchesAny:
                 # One match = Passed
                 if not user.nick:
-                    return False
+                    bools.append(False)
+                    continue
                 nick = user.nick.lower()
                 for pattern in value:
                     if fnmatch.fnmatch(nick, pattern.lower()):
+                        bools.append(True)
                         break
                 else:
-                    return False
+                    bools.append(False)
             elif condition == WardenCondition.ChannelMatchesAny: # We accept IDs and channel names
                 if channel.id in value:
+                    bools.append(True)
                     continue
                 for channel_str in value:
                     if not isinstance(channel_str, str):
                         continue
                     channel_obj = discord.utils.get(guild.channels, name=channel_str)
                     if channel_obj is not None and channel_obj == channel:
+                        bools.append(True)
                         break
                 else:
-                    return False
+                    bools.append(False)
             elif condition == WardenCondition.UserCreatedLessThan:
                 if value == 0:
+                    bools.append(True)
                     continue
                 x_hours_ago = utcnow() - datetime.timedelta(hours=value)
-                if user.created_at < x_hours_ago:
-                    return False
+                bools.append(user.created_at < x_hours_ago)
             elif condition == WardenCondition.UserJoinedLessThan:
                 if value == 0:
+                    bools.append(True)
                     continue
                 x_hours_ago = utcnow() - datetime.timedelta(hours=value)
-                if user.joined_at < x_hours_ago:
-                    return False
+                bools.append(user.joined_at < x_hours_ago)
             elif condition == WardenCondition.UserHasDefaultAvatar:
                 default_avatar_url_pattern = "*/embed/avatars/*.png"
-                if fnmatch.fnmatch(str(user.avatar_url), default_avatar_url_pattern) != value:
-                    return False
+                match = fnmatch.fnmatch(str(user.avatar_url), default_avatar_url_pattern)
+                bools.append(value is match)
             elif condition == WardenCondition.InEmergencyMode:
                 in_emergency = cog.is_in_emergency_mode(guild)
-                if in_emergency != value:
-                    return False
+                bools.append(in_emergency is value)
             elif condition == WardenCondition.MessageHasAttachment:
-                if bool(message.attachments) != value:
-                    return False
+                bools.append(bool(message.attachments) is value)
             elif condition == WardenCondition.UserHasAnyRoleIn:
                 for role_id_or_name in value:
                     role = guild.get_role(role_id_or_name)
@@ -311,19 +400,18 @@ class WardenRule:
                         role = discord.utils.get(guild.roles, name=role_id_or_name)
                     if role:
                         if role in user.roles:
+                            bools.append(True)
                             break
                 else:
-                    return False
+                    bools.append(False)
             elif condition == WardenCondition.MessageContainsInvite:
                 has_invite = INVITE_URL_RE.search(message.content)
-                if bool(has_invite) != value:
-                    return False
+                bools.append(bool(has_invite) is value)
             elif condition == WardenCondition.MessageContainsMedia:
                 has_media = MEDIA_URL_RE.search(message.content)
-                if bool(has_media) != value:
-                    return False
+                bools.append(bool(has_media) is value)
 
-        return True
+        return bools
 
     async def do_actions(self, *, cog, user: discord.Member=None, message: discord.Message=None):
         if message and not user:

@@ -77,3 +77,8 @@ class WardenCondition(enum.Enum):
     UserHasAnyRoleIn = "user-has-any-role-in"
     MessageContainsInvite = "message-contains-invite"
     MessageContainsMedia = "message-contains-media"
+
+class WardenConditionBlock(enum.Enum):
+    IfAll = "if-all"
+    IfAny = "if-any"
+    IfNot = "if-not"
