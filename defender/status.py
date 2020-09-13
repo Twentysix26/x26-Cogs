@@ -206,7 +206,7 @@ async def make_status(ctx, cog):
             "*events*, *conditions* and *actions* that you can combine Warden allows you to define "
             "custom rules to counter any common pattern of bad behaviour that you notice in your "
             "community.\nMessage filtering, assignation of roles to misbehaving users, "
-            "custom staff alerts are only a few example of what you can accomplish "
+            "custom staff alerts are only a few examples of what you can accomplish "
             f"with this powerful module.\nYou can learn more [here]({warden_guide}).\n")
     msg += (f"There are a total of **{total_rules}** rules defined{invalid_text}.\n")
     msg += "This module is currently "

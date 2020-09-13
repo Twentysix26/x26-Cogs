@@ -50,15 +50,15 @@ class WardenAction(enum.Enum):
     DmUser = "dm-user" # DMs user in context
     NotifyStaff = "notify-staff"
     NotifyStaffAndPing = "notify-staff-and-ping"
-    BanAndDelete = "ban-and-delete" # Ban user in context and delete X days
-    Kick = Action.Kick.value # Kick user in context
-    Softban = Action.Softban.value # Softban user in context
+    BanAndDelete = "ban-user-and-delete" # Ban user in context and delete X days
+    Kick = "kick-user" # Kick user in context
+    Softban = "softban-user" # Softban user in context
     Modlog = "send-mod-log" # Send modlog case of last expel action + reason
     DeleteUserMessage = "delete-user-message" # Delete message in context
     SendInChannel = "send-in-channel" # Send message to channel in context
     AddRolesToUser = "add-roles-to-user" # Adds roles to user in context
     RemoveRolesFromUser = "remove-roles-from-user" # Remove roles from user in context
-    TriggerEmergencyMode = "trigger-emergency-mode"
+    EnableEmergencyMode = "enable-emergency-mode"
     SetUserNickname = "set-user-nickname" # Changes nickname of user in context
     NoOp = "no-op" # Does nothing. For testing purpose.
     SendToMonitor = "send-to-monitor" # Posts a message to [p]df monitor
@@ -77,6 +77,7 @@ class WardenCondition(enum.Enum):
     UserHasAnyRoleIn = "user-has-any-role-in"
     MessageContainsInvite = "message-contains-invite"
     MessageContainsMedia = "message-contains-media"
+    IsStaff = "is-staff"
 
 class WardenConditionBlock(enum.Enum):
     IfAll = "if-all"

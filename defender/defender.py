@@ -16,11 +16,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from typing import Deque
-from redbot.core import commands, checks, Config, modlog
-from redbot.core.commands import check
+from redbot.core import commands, Config, modlog
 from collections import deque, Counter, defaultdict
 from io import BytesIO
-from redbot.core.utils.mod import is_mod_or_superior
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.chat_formatting import pagify, box, inline
 from redbot.core.utils.common_filters import INVITE_URL_RE
@@ -441,9 +439,9 @@ class Defender(commands.Cog):
         f = discord.File(BytesIO(rule.raw_rule.encode("utf-8")), f"{name}.yaml")
         await ctx.send(file=f)
 
-    @wardengroup.command(name="exportall")
+    @wardengroup.command(name="exportall", hidden=True)
     async def wardengroupexportall(self, ctx: commands.Context):
-        """Sends all the rule as a tar.gz archive"""
+        """Sends all the rules as a tar.gz archive"""
         return await ctx.send("Coming soon :tm:")
         # TODO No idea what is wrong here but yeah, that's for later
         to_archive = {}
@@ -484,6 +482,8 @@ class Defender(commands.Cog):
 
         async with ctx.typing():
             for m in ctx.guild.members:
+                if m.bot:
+                    continue
                 rank = await self.rank_user(m)
                 if await rule.satisfies_conditions(rank=rank, user=m, cog=self):
                     targets.append(m)
@@ -1681,13 +1681,14 @@ class Defender(commands.Cog):
         if await self.config.guild(guild).count_messages():
             await self.inc_message_count(author)
 
-        banned = False
+        is_staff = False
+        expelled = False
         rank = await self.rank_user(author)
 
         if rank == Rank.Rank1:
             if await self.bot.is_mod(author): # Is staff?
+                is_staff = True
                 await self.refresh_staff_activity(guild)
-                return
 
         rule: WardenRule
         if await self.config.guild(guild).warden_enabled():
@@ -1696,7 +1697,7 @@ class Defender(commands.Cog):
                     continue
                 if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
-                        await rule.do_actions(cog=self, message=message)
+                        expelled = await rule.do_actions(cog=self, message=message)
                     except (discord.Forbidden, discord.HTTPException) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
@@ -1705,27 +1706,30 @@ class Defender(commands.Cog):
                                                     f"({rule.last_action.value}) - {str(e)}")
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
+                    if expelled is True:
+                        return
+
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
-        if inv_filter_enabled:
+        if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
             if rank >= inv_filter_rank:
-                banned = await self.invite_filter(message)
+                expelled = await self.invite_filter(message)
 
-        if banned:
+        if expelled:
             return
 
         rd_enabled = await self.config.guild(guild).raider_detection_enabled()
-        if rd_enabled:
+        if rd_enabled and not is_staff:
             rd_rank = await self.config.guild(guild).raider_detection_rank()
             if rank >= rd_rank:
-                banned = await self.detect_raider(message)
+                expelled = await self.detect_raider(message)
 
-        if banned:
+        if expelled:
             return
 
         silence_enabled = await self.config.guild(guild).silence_enabled()
 
-        if silence_enabled:
+        if silence_enabled and not is_staff:
             rank_silenced = await self.config.guild(guild).silence_rank()
             if rank_silenced and rank >= rank_silenced:
                 try:

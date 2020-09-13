@@ -16,7 +16,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import yaml
-import enum
 import fnmatch
 import discord
 import datetime
@@ -52,6 +51,7 @@ WARDEN_CONDITIONS_PARAM_TYPE = {
     WardenCondition.UserHasAnyRoleIn: [list],
     WardenCondition.MessageContainsInvite: [bool],
     WardenCondition.MessageContainsMedia: [bool],
+    WardenCondition.IsStaff: [bool]
 }
 
 WARDEN_ACTIONS_PARAM_TYPE = {
@@ -67,7 +67,7 @@ WARDEN_ACTIONS_PARAM_TYPE = {
     WardenAction.SendInChannel: [str],
     WardenAction.AddRolesToUser: [list],
     WardenAction.RemoveRolesFromUser: [list],
-    WardenAction.TriggerEmergencyMode: [None],
+    WardenAction.EnableEmergencyMode: [bool],
     WardenAction.SetUserNickname: [str],
     WardenAction.NoOp: [None],
     WardenAction.SendToMonitor: [str]
@@ -307,7 +307,7 @@ class WardenRule:
                 results = [not r for r in results] # Bools are flipped
                 bools.append(all(results))
             else:
-                results = await self._evaluate_conditions({condition: value}, cog=cog, user=user, message=message)
+                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message)
                 if len(results) != 1:
                     raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
                 bools.append(any(results))
@@ -377,13 +377,13 @@ class WardenRule:
                     bools.append(True)
                     continue
                 x_hours_ago = utcnow() - datetime.timedelta(hours=value)
-                bools.append(user.created_at < x_hours_ago)
+                bools.append(user.created_at > x_hours_ago)
             elif condition == WardenCondition.UserJoinedLessThan:
                 if value == 0:
                     bools.append(True)
                     continue
                 x_hours_ago = utcnow() - datetime.timedelta(hours=value)
-                bools.append(user.joined_at < x_hours_ago)
+                bools.append(user.joined_at > x_hours_ago)
             elif condition == WardenCondition.UserHasDefaultAvatar:
                 default_avatar_url_pattern = "*/embed/avatars/*.png"
                 match = fnmatch.fnmatch(str(user.avatar_url), default_avatar_url_pattern)
@@ -410,6 +410,9 @@ class WardenRule:
             elif condition == WardenCondition.MessageContainsMedia:
                 has_media = MEDIA_URL_RE.search(message.content)
                 bools.append(bool(has_media) is value)
+            elif condition == WardenCondition.IsStaff:
+                is_staff = await cog.bot.is_mod(user)
+                bools.append(is_staff is value)
 
         return bools
 
@@ -443,6 +446,7 @@ class WardenRule:
 
         if channel:
             templates_vars["channel"] = str(channel)
+            templates_vars["channel_name"] = channel.name
             templates_vars["channel_id"] = channel.id
             templates_vars["channel_mention"] = channel.mention
 
@@ -509,15 +513,15 @@ class WardenRule:
                         value = Template(value).safe_substitute(templates_vars)
                     await user.edit(nick=value, reason=f"Changed nickname by Warden action '{self.name}'")
                 elif action == WardenAction.BanAndDelete:
-                    last_expel_action = Action.Ban
                     await guild.ban(user, delete_message_days=value, reason=f"Banned by Warden action '{self.name}'")
+                    last_expel_action = Action.Ban
                 elif action == WardenAction.Kick:
-                    last_expel_action = Action.Kick
                     await guild.kick(user, reason=f"Kicked by Warden action '{self.name}'")
+                    last_expel_action = Action.Kick
                 elif action == WardenAction.Softban:
-                    last_expel_action = Action.Softban
                     await guild.ban(user, delete_message_days=1, reason=f"Softbanned by Warden action '{self.name}'")
                     await guild.unban(user)
+                    last_expel_action = Action.Softban
                 elif action == WardenAction.Modlog:
                     if last_expel_action is None:
                         continue
@@ -533,10 +537,18 @@ class WardenRule:
                         until=None,
                         channel=None,
                     )
-                elif action == WardenAction.TriggerEmergencyMode:
-                    cog.emergency_mode[guild.id] = EmergencyMode(manual=True)
+                elif action == WardenAction.EnableEmergencyMode:
+                    if value:
+                        cog.emergency_mode[guild.id] = EmergencyMode(manual=True)
+                    else:
+                        try:
+                            del cog.emergency_mode[guild.id]
+                        except KeyError:
+                            pass
                 elif action == WardenAction.SendToMonitor:
                     value = Template(value).safe_substitute(templates_vars)
                     cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
                 elif action == WardenAction.NoOp:
                     pass
+
+        return bool(last_expel_action)
