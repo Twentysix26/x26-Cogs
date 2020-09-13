@@ -87,7 +87,8 @@ DENIED_CONDITIONS[WardenEvent.Manual] = DENIED_CONDITIONS[WardenEvent.OnUserJoin
 DENIED_ACTIONS = {
     WardenEvent.OnMessage: [],
     WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage],
-    WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing]
+    WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing and
+                                                         c != WardenAction.Dm and c != WardenAction.EnableEmergencyMode]
 }
 DENIED_ACTIONS[WardenEvent.Manual] = DENIED_ACTIONS[WardenEvent.OnUserJoin]
 
@@ -138,18 +139,14 @@ class WardenRule:
                 raise InvalidRule(f"Missing key at root level: '{key}'.")
 
         try:
-            event = WardenEvent(rule["event"])
+            self.event = WardenEvent(rule["event"])
         except ValueError:
             raise InvalidRule("Invalid event.")
 
-        self.event = WardenEvent(rule["event"])
-
         try:
-            Rank(rule["rank"])
+            self.rank = Rank(rule["rank"])
         except:
             raise InvalidRule("Invalid target rank. Must be 1-4.")
-
-        self.rank = rule["rank"]
 
         if "if" in rule: # TODO Conditions probably shouldn't be mandatory.
             if not isinstance(rule["if"], list):
@@ -265,7 +262,8 @@ class WardenRule:
                     raise InvalidRule(f"Invalid parameter type for action `{action.value}`")
 
 
-    async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None):
+    async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None,
+                                   guild: discord.Guild=None):
         if rank < self.rank:
             return False
 
@@ -291,35 +289,36 @@ class WardenRule:
                 condition = WardenCondition(condition)
 
             if condition == WardenConditionBlock.IfAll:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 bools.append(all(results))
             elif condition == WardenConditionBlock.IfAny:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 bools.append(any(results))
             elif condition == WardenConditionBlock.IfNot:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 results = [not r for r in results] # Bools are flipped
                 bools.append(all(results))
             else:
-                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message)
+                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message, guild=guild)
                 if len(results) != 1:
                     raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
                 bools.append(any(results))
 
         return all(bools)
 
-    async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None):
+    async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None,
+                                   guild: discord.Guild=None):
         bools = []
 
         if message and not user:
             user = message.author
-        guild: discord.Guild = user.guild
+        guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
 
         for raw_condition in conditions:
@@ -416,14 +415,21 @@ class WardenRule:
 
         return bools
 
-    async def do_actions(self, *, cog, user: discord.Member=None, message: discord.Message=None):
+    async def do_actions(self, *, cog, user: discord.Member=None, message: discord.Message=None,
+                         guild: discord.Guild=None):
         if message and not user:
             user = message.author
-        guild: discord.Guild = user.guild
+        guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
 
         templates_vars = {
             "action_name": self.name,
+            "guild": str(guild),
+            "guild_id": guild.id
+        }
+
+        if user:
+            templates_vars.update({
             "user": str(user),
             "user_name": user.name,
             "user_id": user.id,
@@ -431,9 +437,7 @@ class WardenRule:
             "user_nickname": str(user.nick),
             "user_created_at": user.created_at,
             "user_joined_at": user.joined_at,
-            "guild": str(guild),
-            "guild_id": guild.id
-        }
+            })
 
         if message:
             templates_vars["message"] = message.content

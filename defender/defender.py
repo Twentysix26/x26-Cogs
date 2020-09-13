@@ -298,6 +298,7 @@ class Defender(commands.Cog):
             if not emergency_mode:
                 self.emergency_mode[guild.id] = EmergencyMode(manual=True)
                 await self.send_notification(guild, alert_msg, ping=True)
+                await self.trigger_warden_emergency_rules(guild)
             else:
                 await ctx.send("Emergency mode is already ongoing.")
         else:
@@ -310,7 +311,9 @@ class Defender(commands.Cog):
     @defender.group(name="warden")
     @commands.admin()
     async def wardengroup(self, ctx: commands.Context):
-        """Warden rules management"""
+        """Warden rules management
+
+        See [p]defender status for more information about Warden"""
 
     @wardengroup.command(name="add")
     async def wardengroupaddrule(self, ctx: commands.Context, *, rule: str):
@@ -318,7 +321,9 @@ class Defender(commands.Cog):
         EMOJI = "💾"
         guild = ctx.guild
         rule = rule.strip("\n")
-        if rule.startswith("```") and rule.endswith("```"):
+        if rule.startswith("```yaml"):
+            rule = rule.lstrip("```yaml")
+        if rule.startswith("```") or rule.endswith("```"):
             rule = rule.strip("```")
 
         try:
@@ -1094,6 +1099,7 @@ class Defender(commands.Cog):
                                             f"**{', '.join(emergency_modules)}** modules.")
 
         await ctx.send(text)
+        await self.trigger_warden_emergency_rules(guild)
         await cleanup_countdown()
 
     @commands.command()
@@ -1437,6 +1443,25 @@ class Defender(commands.Cog):
                 except Exception as e:
                     self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule
                     log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
+
+    async def trigger_warden_emergency_rules(self, guild):
+        rule: WardenRule
+        if not await self.config.guild(guild).warden_enabled():
+            return
+
+        for rule in self.active_warden_rules[guild.id].values():
+            if rule.event != WardenEvent.OnEmergency:
+                continue
+            if await rule.satisfies_conditions(cog=self, rank=rule.rank, guild=guild):
+                try:
+                    await rule.do_actions(cog=self, guild=guild)
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                f"({rule.last_action.value}) - {str(e)}")
+                except Exception as e:
+                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                f"({rule.last_action.value}) - {str(e)}")
+                    log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     def cog_unload(self):
         self.counter_task.cancel()

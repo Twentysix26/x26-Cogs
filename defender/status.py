@@ -62,7 +62,7 @@ async def make_status(ctx, cog):
 
     em = discord.Embed(color=discord.Colour.red(), description=msg)
     em.set_footer(text=f"`{p}dset general` to configure")
-    em.set_author(name="Defender system")
+    em.set_author(name="Defender system v1.1")
     em.add_field(name="Notify role", value=n_role.mention if n_role else "None set", inline=True)
     em.add_field(name="Notify channel", value=n_channel.mention if n_channel else "None set", inline=True)
 
