@@ -7,5 +7,10 @@ Allows you to browse a [Red-Index](https://github.com/Cog-Creators/Red-Index/) r
 ### Defender
 Protects your community with automod features and empowers the staff and users you trust with advanced moderation tools.
 You can read [my write-up about this cog here](https://x26.it/2020/09/06/project-showcase-defender.html).  
-To give a TL;DR, the arsenal this cog offers is entirely customizable, it allows you to decide who these automod features should target and how. It is designed to counter common patterns of bad actors and tries to solve the issue of low mod availability by allowing the trusted members of your community to intervene when you can't.  
-It also offers the moderators of your community a variety tools to closely monitor suspicious behaviours and better handle large scale attacks.
+This cog offers:  
+- A wide range of modules, automatic and manual, designed to counter many common patterns of bad actors and thwart large scale attacks
+- A very customizable experience: every single module can be fine tuned to better fit your community
+- A smart way to subdivide your userbase in ranks, so that your regulars will never be caught in the crossfire
+- An extremely versatile module, [Warden](https://github.com/Twentysix26/x26-Cogs/wiki/Warden), that allows you to define complex custom rules to better moderate, monitor and manage your community
+- A unique (and optional) way to let your community help *you* when you can't
+- The peace of mind that only a smart automod can bring :-)
