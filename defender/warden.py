@@ -186,6 +186,7 @@ class WardenRule:
             if condition in denied:
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in `{self.event.value}`")
 
+            _type = None
             for _type in WARDEN_CONDITIONS_PARAM_TYPE[condition]:
                 if _type is None and parameter is None:
                     break
@@ -194,10 +195,15 @@ class WardenRule:
                 if isinstance(parameter, _type):
                     break
             else:
-                raise InvalidRule(f"Invalid parameter type for condition `{condition.value}`")
+                human_type = _type.__name__ if _type is not None else "No parameter."
+                raise InvalidRule(f"Invalid parameter type for condition `{condition.value}`. Expected: `{human_type}`")
 
         for raw_condition in self.conditions:
             condition = parameter = None
+
+            if not isinstance(raw_condition, dict):
+                raise InvalidRule(f"Invalid condition: `{raw_condition}`. Expected map.")
+
             for r, p in raw_condition.items():
                 condition, parameter = r, p
 
@@ -227,11 +233,12 @@ class WardenRule:
         for entry in self.actions:
             # This will be a single loop
             if not isinstance(entry, dict):
-                raise InvalidRule(f"Invalid action: `{entry}`. Expected map (mind the colon!).")
+                raise InvalidRule(f"Invalid action: `{entry}`. Expected map.")
 
             if len(entry) != 1:
                 raise InvalidRule(f"Invalid format in the actions. Make sure you've got the dashes right!")
 
+            _type = None
             for action, parameter in entry.items():
                 try:
                     action = WardenAction(action)
@@ -259,7 +266,8 @@ class WardenRule:
                     elif isinstance(parameter, _type):
                         break
                 else:
-                    raise InvalidRule(f"Invalid parameter type for action `{action.value}`")
+                    human_type = _type.__name__ if _type is not None else "No parameter."
+                    raise InvalidRule(f"Invalid parameter type for action `{action.value}`. Expected: `{human_type}`")
 
 
     async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None,
