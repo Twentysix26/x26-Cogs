@@ -50,6 +50,7 @@ class WardenAction(enum.Enum):
     DmUser = "dm-user" # DMs user in context
     NotifyStaff = "notify-staff"
     NotifyStaffAndPing = "notify-staff-and-ping"
+    NotifyStaffWithEmbed = "notify-staff-with-embed"
     BanAndDelete = "ban-user-and-delete" # Ban user in context and delete X days
     Kick = "kick-user" # Kick user in context
     Softban = "softban-user" # Softban user in context

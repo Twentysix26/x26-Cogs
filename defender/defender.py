@@ -1081,7 +1081,7 @@ class Defender(commands.Cog):
 
         guide = {
             EmergencyModules.Voteout: "voteout <user>` - Start a vote to expel a user from the server",
-            EmergencyModules.Vaporize: ("defender vaporize <users...>` - Allows you to mass ban users from "
+            EmergencyModules.Vaporize: ("vaporize <users...>` - Allows you to mass ban users from "
                                         "the server"),
             EmergencyModules.Silence: ("silence <rank> (2-4)` - Enables auto-deletion of messages for "
                                        "the specified rank (and below)")}

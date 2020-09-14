@@ -59,6 +59,7 @@ WARDEN_ACTIONS_PARAM_TYPE = {
     WardenAction.DmUser: [str],
     WardenAction.NotifyStaff: [str],
     WardenAction.NotifyStaffAndPing: [str],
+    WardenAction.NotifyStaffWithEmbed: [list],
     WardenAction.BanAndDelete: [int],
     WardenAction.Softban: [None],
     WardenAction.Kick: [None],
@@ -88,6 +89,7 @@ DENIED_ACTIONS = {
     WardenEvent.OnMessage: [],
     WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage],
     WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing and
+                                                         c != WardenAction.NotifyStaffWithEmbed and
                                                          c != WardenAction.Dm and c != WardenAction.EnableEmergencyMode]
 }
 DENIED_ACTIONS[WardenEvent.Manual] = DENIED_ACTIONS[WardenEvent.OnUserJoin]
@@ -96,6 +98,7 @@ DENIED_ACTIONS[WardenEvent.Manual] = DENIED_ACTIONS[WardenEvent.OnUserJoin]
 # a mandatory # of "arguments"
 ACTIONS_ARGS_N = {
     WardenAction.Dm: 2,
+    WardenAction.NotifyStaffWithEmbed: 2
 }
 
 class WardenRule:
@@ -316,7 +319,7 @@ class WardenRule:
                 results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message, guild=guild)
                 if len(results) != 1:
                     raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
-                bools.append(any(results))
+                bools.append(results[0])
 
         return all(bools)
 
@@ -451,6 +454,7 @@ class WardenRule:
             templates_vars["message"] = message.content
             templates_vars["message_id"] = message.id
             templates_vars["message_created_at"] = message.created_at
+            templates_vars["message_link"] = f"https://discordapp.com/channels/{guild.id}/{channel.id}/{message.id}"
             if message.attachments:
                 attachment = message.attachments[0]
                 templates_vars["attachment_filename"] = attachment.filename
@@ -479,6 +483,10 @@ class WardenRule:
                 elif action == WardenAction.NotifyStaffAndPing:
                     text = Template(value).safe_substitute(templates_vars)
                     await cog.send_notification(guild, text, ping=True)
+                elif action == WardenAction.NotifyStaffWithEmbed:
+                    title, content = (value[0], value[1])
+                    em = self._build_embed(title, content, templates_vars=templates_vars)
+                    await cog.send_notification(guild, "", embed=em)
                 elif action == WardenAction.SendInChannel:
                     text = Template(value).safe_substitute(templates_vars)
                     await channel.send(text)
@@ -564,3 +572,12 @@ class WardenRule:
                     pass
 
         return bool(last_expel_action)
+
+    def _build_embed(self, title, content, *, templates_vars):
+        title = Template(title).safe_substitute(templates_vars)
+        content = Template(content).safe_substitute(templates_vars)
+        em = discord.Embed(color=discord.Colour.red(), description=content)
+        em.set_author(name=title)
+        em.set_footer(text=f"Warden rule `{self.name}`")
+        return em
+
