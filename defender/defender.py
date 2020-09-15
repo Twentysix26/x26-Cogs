@@ -26,6 +26,7 @@ from .status import make_status
 from .enums import Rank, Action, EmergencyModules, EmergencyMode, WardenEvent
 from .exceptions import InvalidRule
 from .warden import WardenRule
+from .announcements import get_new_announcements
 import datetime
 import discord
 import asyncio
@@ -46,6 +47,7 @@ default_guild_settings = {
     "rank3_joined_days": 1, # Users that joined < X days ago are considered new users (rank 3)
     "rank3_min_messages": 50, # Messages threshold that users should reach to be no longer classified as rank 4
     "count_messages": True, # Count users' messages. If disabled, rank4 will be unobtainable
+    "announcements_sent": [],
     "actions_taken": 0, # Stats collection # TODO ?
     "invite_filter_enabled": False,
     "invite_filter_rank": Rank.Rank4.value,
@@ -103,6 +105,7 @@ class Defender(commands.Cog):
         self.active_warden_rules = defaultdict(lambda: dict())
         self.invalid_warden_rules = defaultdict(lambda: dict())
         self.loop.create_task(self.load_warden_rules())
+        self.loop.create_task(self.send_announcements())
         self.monitor = defaultdict(lambda: Deque(maxlen=500))
 
     async def rank_user(self, member):
@@ -137,10 +140,10 @@ class Defender(commands.Cog):
         messages = await self.config.member(member).messages()
         return messages < min_m
 
-    @commands.group(aliases=["df"])
+    @commands.group(aliases=["def"])
     @commands.mod()
     async def defender(self, ctx: commands.Context):
-        """Defender system"""
+        """Defender commands reserved to staff"""
 
     @defender.command(name="status")
     async def defenderstatus(self, ctx: commands.Context):
@@ -522,7 +525,7 @@ class Defender(commands.Cog):
 
         await ctx.send(text)
 
-    @commands.group()
+    @commands.group(name="dset", aliases=["defset"])
     @commands.admin()
     async def dset(self, ctx: commands.Context):
         """Defender system settings"""
@@ -1462,6 +1465,38 @@ class Defender(commands.Cog):
                     self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                 f"({rule.last_action.value}) - {str(e)}")
                     log.error("Warden - unexpected error during actions execution", exc_info=e)
+
+    async def send_announcements(self):
+        new_announcements = get_new_announcements()
+        if not new_announcements:
+            return
+
+        await self.bot.wait_until_ready()
+        guilds = self.config._get_base_group(self.config.GUILD)
+        async with guilds.all() as all_guilds:
+            for guid, guild_data in all_guilds.items():
+                guild = self.bot.get_guild(int(guid))
+                if not guild:
+                    continue
+                notify_channel = guild_data.get("notify_channel", 0)
+                if not notify_channel:
+                    continue
+
+                if "announcements_sent" not in guild_data:
+                    guild_data["announcements_sent"] = []
+
+                for ts, em in new_announcements.items():
+                    if ts in guild_data["announcements_sent"]:
+                        continue
+                    try:
+                        await self.send_notification(guild, "", embed=em)
+                    except (discord.Forbidden, discord.HTTPException):
+                        pass
+                    except Exception as e:
+                        log.error("Unexpected error during announcement delivery", exc_info=e)
+                    else:
+                        guild_data["announcements_sent"].append(ts)
+
 
     def cog_unload(self):
         self.counter_task.cancel()

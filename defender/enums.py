@@ -62,7 +62,7 @@ class WardenAction(enum.Enum):
     EnableEmergencyMode = "enable-emergency-mode"
     SetUserNickname = "set-user-nickname" # Changes nickname of user in context
     NoOp = "no-op" # Does nothing. For testing purpose.
-    SendToMonitor = "send-to-monitor" # Posts a message to [p]df monitor
+    SendToMonitor = "send-to-monitor" # Posts a message to [p]defender monitor
     # TODO Heat system / Warnings?
 
 class WardenCondition(enum.Enum):
