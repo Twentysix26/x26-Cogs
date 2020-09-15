@@ -365,6 +365,7 @@ class Defender(commands.Cog):
         async with self.config.guild(ctx.guild).wd_rules() as warden_rules:
             warden_rules[new_rule.name] = rule
         self.active_warden_rules[ctx.guild.id][new_rule.name] = new_rule
+        self.invalid_warden_rules[ctx.guild.id].pop(new_rule.name, None)
 
         if not asked_overwrite:
             await ctx.tick()
