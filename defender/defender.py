@@ -26,7 +26,7 @@ from .status import make_status
 from .enums import Rank, Action, EmergencyModules, EmergencyMode, WardenEvent
 from .exceptions import InvalidRule
 from .warden import WardenRule
-from .announcements import get_new_announcements
+from .announcements import get_announcements
 import datetime
 import discord
 import asyncio
@@ -310,6 +310,16 @@ class Defender(commands.Cog):
                 await self.send_notification(guild, "⚠️ Emergency mode manually disabled.")
             else:
                 await ctx.send("Emergency mode is already off.")
+
+    @defender.command(name="updates")
+    async def defendererupdates(self, ctx: commands.Context):
+        """Shows all the past announcements of Defender"""
+        announcements = get_announcements(only_recent=False)
+        if announcements:
+            announcements = list(announcements.values())
+            await menu(ctx, announcements, DEFAULT_CONTROLS)
+        else:
+            await ctx.send("Nothing to show.")
 
     @defender.group(name="warden")
     @commands.admin()
@@ -1467,9 +1477,11 @@ class Defender(commands.Cog):
                     log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     async def send_announcements(self):
-        new_announcements = get_new_announcements()
+        new_announcements = get_announcements(only_recent=True)
         if not new_announcements:
             return
+
+        calls = []
 
         await self.bot.wait_until_ready()
         guilds = self.config._get_base_group(self.config.GUILD)
@@ -1488,14 +1500,19 @@ class Defender(commands.Cog):
                 for ts, em in new_announcements.items():
                     if ts in guild_data["announcements_sent"]:
                         continue
-                    try:
-                        await self.send_notification(guild, "", embed=em)
-                    except (discord.Forbidden, discord.HTTPException):
-                        pass
-                    except Exception as e:
-                        log.error("Unexpected error during announcement delivery", exc_info=e)
-                    else:
-                        guild_data["announcements_sent"].append(ts)
+                    calls.append(self.send_notification(guild, "", embed=em))
+
+                    guild_data["announcements_sent"].append(ts)
+
+        for call in calls:
+            try:
+                await call
+            except (discord.Forbidden, discord.HTTPException):
+                pass
+            except Exception as e:
+                log.error("Unexpected error during announcement delivery", exc_info=e)
+
+            await asyncio.sleep(0.5)
 
 
     def cog_unload(self):

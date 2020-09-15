@@ -13,7 +13,7 @@ WARDEN_ANNOUNCEMENT = ("Hello. There is a new auto-module available: **Warden**.
                        "I hope you're enjoying Defender as much as I enjoyed creating it.")
 
 ANNOUNCEMENTS = {
-    1601078404 : WARDEN_ANNOUNCEMENT
+    1601078400 : WARDEN_ANNOUNCEMENT
 }
 
 def _make_announcement_embed(content):
@@ -22,13 +22,13 @@ def _make_announcement_embed(content):
     em.set_footer(text="A message from 26, creator of Defender")
     return em
 
-def get_new_announcements():
+def get_announcements(*, only_recent=True):
     to_send = {}
     now = datetime.utcnow()
 
     for k, v in ANNOUNCEMENTS.items():
         ts = datetime.utcfromtimestamp(k)
-        if now > ts: # The announcement is old
+        if only_recent is True and now > ts: # The announcement is old
             continue
         to_send[k] = _make_announcement_embed(v)
 

@@ -46,7 +46,7 @@ class WardenEvent(enum.Enum):
     Manual = "manual"
 
 class WardenAction(enum.Enum):
-    Dm = "dm" #DM an arbitrary user. Must provide name/id + content
+    Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content
     DmUser = "dm-user" # DMs user in context
     NotifyStaff = "notify-staff"
     NotifyStaffAndPing = "notify-staff-and-ping"
