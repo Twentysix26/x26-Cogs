@@ -195,7 +195,8 @@ class Defender(commands.Cog):
         """Shows recent messages of a user"""
         author = ctx.author
 
-        pages = self.make_message_log(user, guild=author.guild, requester=author, pagify_log=True)
+        pages = self.make_message_log(user, guild=author.guild, requester=author, pagify_log=True,
+                                      replace_backtick=True)
 
         if not pages:
             return await ctx.send("No messages recorded for that user.")
@@ -216,7 +217,8 @@ class Defender(commands.Cog):
         if not channel.permissions_for(author).read_messages:
             return await ctx.send("You do not have read permissions in that channel. Request denied.")
 
-        pages = self.make_message_log(channel, guild=author.guild, requester=author, pagify_log=True)
+        pages = self.make_message_log(channel, guild=author.guild, requester=author, pagify_log=True,
+                                      replace_backtick=True)
 
         if not pages:
             return await ctx.send("No messages recorded in that channel.")
@@ -270,7 +272,8 @@ class Defender(commands.Cog):
 
         await ctx.send(file=f)
 
-    def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None, pagify_log=False):
+    def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
+                         replace_backtick=False, pagify_log=False):
         _log = []
 
         if isinstance(obj, (discord.Member, CacheUser)):
@@ -281,7 +284,7 @@ class Defender(commands.Cog):
                 channel = guild.get_channel(m.channel_id)
                 # If requester is None it means that it's not a user requesting the logs
                 # therefore we won't do any permission checking
-                if requester is not None:
+                if channel and requester is not None:
                     requester_can_rm = channel.permissions_for(requester).read_messages
                 else:
                     requester_can_rm = True
@@ -298,6 +301,9 @@ class Defender(commands.Cog):
                 _log.append(f"[{ts}]({user}) {m.content}")
         else:
             raise ValueError("Invalid type passed to make_message_log")
+
+        if replace_backtick:
+            _log = [e.replace("`", "'") for e in _log]
 
         if pagify_log and _log:
             return list(pagify("\n".join(_log), page_length=1300))
