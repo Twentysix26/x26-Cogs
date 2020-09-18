@@ -102,7 +102,7 @@ ACTIONS_ARGS_N = {
 }
 
 class WardenRule:
-    def __init__(self, rule_str, do_not_raise_during_parse=False):
+    def __init__(self, rule_str, author=None, do_not_raise_during_parse=False):
         self.parse_exception = None
         self.last_action = WardenAction.NoOp
         self.name = None
@@ -112,13 +112,13 @@ class WardenRule:
         self.actions = {}
         self.raw_rule = rule_str
         try:
-            self.parse(rule_str)
+            self.parse(rule_str, author=author)
         except Exception as e:
             if not do_not_raise_during_parse:
                 raise e
             self.parse_exception = e
 
-    def parse(self, rule_str):
+    def parse(self, rule_str, author=None):
         try:
             rule = yaml.safe_load(rule_str)
         except:
@@ -271,6 +271,12 @@ class WardenRule:
                 else:
                     human_type = _type.__name__ if _type is not None else "No parameter."
                     raise InvalidRule(f"Invalid parameter type for action `{action.value}`. Expected: `{human_type}`")
+
+                if author:
+                    try:
+                        ACTIONS_SANITY_CHECK[action](author=author, action=action, parameter=parameter)
+                    except KeyError:
+                        pass
 
 
     async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None,
@@ -581,3 +587,28 @@ class WardenRule:
         em.set_footer(text=f"Warden rule `{self.name}`")
         return em
 
+def check_role_hierarchy(*, author: discord.Member, action: WardenAction, parameter):
+    guild = author.guild
+    roles = []
+
+    is_server_owner = author.id == guild.owner_id
+
+    for role_id_or_name in parameter:
+        role = guild.get_role(role_id_or_name)
+        if role is None:
+            role = discord.utils.get(guild.roles, name=role_id_or_name)
+        if role is None:
+            raise InvalidRule(f"`{action.value}`: Role `{role_id_or_name}` doesn't seem to exist.")
+        roles.append(role)
+
+    if not is_server_owner:
+        for r in roles:
+            if r.position >= author.top_role.position:
+                raise InvalidRule(f"`{action.value}` Cannot assign or remove role `{r.name}` through Warden. "
+                                "You are autorized to only add or remove roles below your top role.")
+
+# A callable with author, action and parameter kwargs
+ACTIONS_SANITY_CHECK = {
+    WardenAction.AddRolesToUser: check_role_hierarchy,
+    WardenAction.RemoveRolesFromUser: check_role_hierarchy
+}

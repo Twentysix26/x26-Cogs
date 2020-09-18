@@ -340,7 +340,7 @@ class Defender(commands.Cog):
             rule = rule.strip("```")
 
         try:
-            new_rule = WardenRule(rule)
+            new_rule = WardenRule(rule, author=ctx.author)
         except InvalidRule as e:
             return await ctx.send(f"Error parsing the rule: {e}")
         except Exception as e:
