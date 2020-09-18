@@ -27,6 +27,8 @@ from .enums import Rank, Action, EmergencyModules, EmergencyMode, WardenEvent
 from .exceptions import InvalidRule
 from .warden import WardenRule
 from .announcements import get_announcements
+from .cache import UserCacheConverter, CacheUser
+from . import cache as df_cache
 import datetime
 import discord
 import asyncio
@@ -83,6 +85,10 @@ default_member_settings = {
     "join_monitor_susp_hours": 0, # Personalized hours for join monitor suspicious joins
 }
 
+default_owner_settings = {
+    "cache_expiration" : 48, # Hours before a message will be removed from the cache
+    "cache_cap": 3000, # Max messages to store for each user / channel
+}
 
 class Defender(commands.Cog):
     """Security tools to protect communities"""
@@ -92,10 +98,9 @@ class Defender(commands.Cog):
         self.config = Config.get_conf(self, 262626, force_registration=True)
         self.config.register_guild(**default_guild_settings)
         self.config.register_member(**default_member_settings)
+        self.config.register_global(**default_owner_settings)
         self.joined_users = {}
         self.last_raid_alert = {}
-        # Raider detection module
-        self.message_cache = {}
         # Part of rank4's logic
         self.message_counter = defaultdict(lambda: Counter())
         self.loop = asyncio.get_event_loop()
@@ -106,6 +111,8 @@ class Defender(commands.Cog):
         self.invalid_warden_rules = defaultdict(lambda: dict())
         self.loop.create_task(self.load_warden_rules())
         self.loop.create_task(self.send_announcements())
+        self.loop.create_task(self.load_cache_settings())
+        self.loop.create_task(self.message_cache_cleaner())
         self.monitor = defaultdict(lambda: Deque(maxlen=500))
 
     async def rank_user(self, member):
@@ -178,6 +185,125 @@ class Defender(commands.Cog):
         else:
             pages = [box(p, lang="rust") for p in pages]
             await menu(ctx, pages, DEFAULT_CONTROLS)
+
+    @defender.group(name="messages")
+    async def defmessagesgroup(self, ctx: commands.Context):
+        """Access recorded messages of users / channels"""
+
+    @defmessagesgroup.command(name="user")
+    async def defmessagesgroupuser(self, ctx: commands.Context, user: UserCacheConverter):
+        """Shows recent messages of a user"""
+        author = ctx.author
+
+        pages = self.make_message_log(user, guild=author.guild, requester=author, pagify_log=True)
+
+        if not pages:
+            return await ctx.send("No messages recorded for that user.")
+
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) accessed message history "
+                                        f"of user {user} ({user.id})")
+
+        if len(pages) == 1:
+            await ctx.send(box(pages[0], lang="rust"))
+        else:
+            pages = [box(p, lang="rust") for p in pages]
+            await menu(ctx, pages, DEFAULT_CONTROLS)
+
+    @defmessagesgroup.command(name="channel")
+    async def defmessagesgroupuserchannel(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Shows recent messages of a channel"""
+        author = ctx.author
+        if not channel.permissions_for(author).read_messages:
+            return await ctx.send("You do not have read permissions in that channel. Request denied.")
+
+        pages = self.make_message_log(channel, guild=author.guild, requester=author, pagify_log=True)
+
+        if not pages:
+            return await ctx.send("No messages recorded in that channel.")
+
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) accessed message history "
+                                        f"of channel #{channel.name}")
+
+        if len(pages) == 1:
+            await ctx.send(box(pages[0], lang="rust"))
+        else:
+            pages = [box(p, lang="rust") for p in pages]
+            await menu(ctx, pages, DEFAULT_CONTROLS)
+
+    @defmessagesgroup.command(name="exportuser")
+    async def defmessagesgroupexportuser(self, ctx: commands.Context, user: UserCacheConverter):
+        """Exports recent messages of a user to a file"""
+        author = ctx.author
+
+        _log = self.make_message_log(user, guild=author.guild, requester=author)
+
+        if not _log:
+            return await ctx.send("No messages recorded for that user.")
+
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) exported message history "
+                                        f"of user {user} ({user.id})")
+
+        ts = utcnow().strftime("%Y-%m-%d")
+        _log = "\n".join(_log)
+        f = discord.File(BytesIO(_log.encode("utf-8")), f"{ts}-{user.id}.txt")
+
+        await ctx.send(file=f)
+
+    @defmessagesgroup.command(name="exportchannel")
+    async def defmessagesgroupuserexportchannel(self, ctx: commands.Context, channel: discord.TextChannel):
+        """Exports recent messages of a channel to a file"""
+        author = ctx.author
+        if not channel.permissions_for(author).read_messages:
+            return await ctx.send("You do not have read permissions in that channel. Request denied.")
+
+        _log = self.make_message_log(channel, guild=author.guild, requester=author)
+
+        if not _log:
+            return await ctx.send("No messages recorded in that channel.")
+
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) exported message history "
+                                        f"of channel #{channel.name}")
+
+        ts = utcnow().strftime("%Y-%m-%d")
+        _log = "\n".join(_log)
+        f = discord.File(BytesIO(_log.encode("utf-8")), f"{ts}-#{channel.name}.txt")
+
+        await ctx.send(file=f)
+
+    def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None, pagify_log=False):
+        _log = []
+
+        if isinstance(obj, (discord.Member, CacheUser)):
+            messages = df_cache.get_user_messages(obj)
+
+            for m in messages:
+                ts = m.created_at.strftime("%H:%M:%S")
+                channel = guild.get_channel(m.channel_id)
+                # If requester is None it means that it's not a user requesting the logs
+                # therefore we won't do any permission checking
+                if requester is not None:
+                    requester_can_rm = channel.permissions_for(requester).read_messages
+                else:
+                    requester_can_rm = True
+                channel = f"#{channel.name}" if channel else m.channel_id
+                content = m.content if requester_can_rm else "[You are not authorized to access that channel]"
+                _log.append(f"[{ts}]({channel}) {content}")
+        elif isinstance(obj, discord.TextChannel):
+            messages = df_cache.get_channel_messages(obj)
+
+            for m in messages:
+                ts = m.created_at.strftime("%H:%M:%S")
+                user = guild.get_member(m.author_id)
+                user = f"{user}" if user else m.author_id
+                _log.append(f"[{ts}]({user}) {m.content}")
+        else:
+            raise ValueError("Invalid type passed to make_message_log")
+
+        if pagify_log and _log:
+            return list(pagify("\n".join(_log), page_length=1300))
+        else:
+            return _log
+
 
     @defender.command(name="memberranks")
     async def defendermemberranks(self, ctx: commands.Context):
@@ -644,6 +770,28 @@ class Defender(commands.Cog):
             return
         await self.config.guild(ctx.guild).clear()
         await ctx.tick()
+
+    @generalgroup.command(name="messagecacheexpire")
+    @commands.is_owner()
+    async def generalgroupcacheexpire(self, ctx: commands.Context, hours: int):
+        """Sets how long a message should be cached before being discarded"""
+        if hours < 2 or hours > 720:
+            return await ctx.send("A number between 2 and 720 please.")
+        df_cache.MSG_EXPIRATION_TIME = hours
+        await self.config.cache_expiration.set(hours)
+        await ctx.send("Value set. If you experience out of memory issues it might be "
+                       "a good idea to tweak this setting.")
+
+    @generalgroup.command(name="messagecachecap")
+    @commands.is_owner()
+    async def generalgroupcachecap(self, ctx: commands.Context, messages: int):
+        """Sets the maximum # of messages to cache for each user / channel"""
+        if messages < 100 or messages > 999999:
+            return await ctx.send("A number between 100 and 999999 please.")
+        df_cache.MSG_STORE_CAP = messages
+        await self.config.cache_cap.set(messages)
+        await ctx.send("Value set. If you experience out of memory issues it might be "
+                       "a good idea to tweak this setting.")
 
     @dset.group(name="rank3")
     @commands.admin()
@@ -1446,6 +1594,14 @@ class Defender(commands.Cog):
         now = utcnow().strftime("%m/%d %H:%M:%S")
         self.monitor[guild.id].appendleft(f"[{now}] {entry}")
 
+    async def message_cache_cleaner(self):
+        try:
+            while True:
+                await asyncio.sleep(60 * 60)
+                await df_cache.discard_stale()
+        except asyncio.CancelledError:
+            pass
+
     async def persist_counter(self):
         try:
             while True:
@@ -1498,6 +1654,10 @@ class Defender(commands.Cog):
                 except Exception as e:
                     self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule
                     log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
+
+    async def load_cache_settings(self):
+        df_cache.MSG_STORE_CAP = await self.config.cache_cap()
+        df_cache.MSG_EXPIRATION_TIME = await self.config.cache_expiration()
 
     async def trigger_warden_emergency_rules(self, guild):
         rule: WardenRule
@@ -1664,21 +1824,15 @@ class Defender(commands.Cog):
     async def detect_raider(self, message):
         author = message.author
         guild = author.guild
-        if guild.id not in self.message_cache:
-            self.message_cache[guild.id] = {}
-        cache = self.message_cache[guild.id]
-        if author.id not in cache:
-            cache[author.id] = deque([message], maxlen=50)
-            return
-        else:
-            cache[author.id].append(message)
+
+        cache = df_cache.get_user_messages(author)
 
         max_messages = await self.config.guild(guild).raider_detection_messages()
         minutes = await self.config.guild(guild).raider_detection_minutes()
         x_minutes_ago = message.created_at - datetime.timedelta(minutes=minutes)
         recent = 0
 
-        for m in cache[author.id]:
+        for m in cache:
             if m.created_at > x_minutes_ago:
                 recent += 1
 
@@ -1727,14 +1881,10 @@ class Defender(commands.Cog):
             until=None,
             channel=None,
         )
-        messages = cache[author.id].copy()
-        messages.reverse()
-        log = ""
-        for m in messages:
-            log += f"{m.created_at}\n{m.content}\n\n"
+        log = "\n".join(self.make_message_log(author, guild=author.guild)[:40])
         f = discord.File(BytesIO(log.encode("utf-8")), f"{author.id}-log.txt")
         await self.send_notification(guild, f"I have expelled user {author} ({author.id}) for posting {recent} "
-                                     f"messages in {minutes} minutes. Attached their last 20 messages.", file=f)
+                                     f"messages in {minutes} minutes. Attached their last stored messages.", file=f)
         return True
 
     async def join_monitor_flood(self, member):
@@ -1820,6 +1970,8 @@ class Defender(commands.Cog):
 
         if await self.config.guild(guild).count_messages():
             await self.inc_message_count(author)
+
+        df_cache.add_message(message)
 
         is_staff = False
         expelled = False
@@ -1953,3 +2105,7 @@ class Defender(commands.Cog):
                     del guild_data[str(user_id)]
                 except:
                     pass
+
+        # Technically it isn't going to end up in config
+        # but we'll scrub the cache too because we're nice
+        await df_cache.discard_messages_from_user(user_id)
