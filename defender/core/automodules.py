@@ -90,16 +90,13 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         x_minutes_ago = message.created_at - datetime.timedelta(minutes=minutes)
         recent = 0
 
-        for m in cache:
+        for i, m in enumerate(cache):
             if m.created_at > x_minutes_ago:
                 recent += 1
+            # We only care about the X most recent ones
+            if i == max_messages-1:
+                break
 
-        # if recent < max_messages:
-        #     return
-        # Should be enough to avoid the race condition.
-        # If the raider is stopped when the cap is reached any subsequent message should be ignored
-        # If the ban fails for whatever reason when reaching the cap it's safe to assume
-        # that repeating the action a mere milliseconds later won't make a difference.
         if recent != max_messages:
             return
 
