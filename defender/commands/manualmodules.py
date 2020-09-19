@@ -212,7 +212,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @commands.cooldown(1, 22, commands.BucketType.guild)  # More useful as a lock of sorts in this case
     @commands.command(cooldown_after_parsing=True)        # Only one concurrent session per guild
     @commands.guild_only()
-    async def voteout(self, ctx, user: discord.Member):
+    async def voteout(self, ctx, *, user: discord.Member):
         """Initiates a vote to expel a user from the server
 
         Can be used by members with helper roles during emergency mode"""

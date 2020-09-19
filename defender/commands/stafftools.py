@@ -183,7 +183,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                        lang="yaml"))
 
     @defender.command(name="identify")
-    async def defenderidentify(self, ctx, user: discord.Member):
+    async def defenderidentify(self, ctx, *, user: discord.Member):
         """Shows a member's rank + info"""
         em = await self.make_identify_embed(ctx.message, user)
         await ctx.send(embed=em)

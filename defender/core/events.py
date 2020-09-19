@@ -101,7 +101,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
 
     @commands.Cog.listener()
-    async def on_member_join(self, member):
+    async def on_member_join(self, member: discord.Member):
         if member.bot:
             return
 
@@ -131,7 +131,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await self.join_monitor_suspicious(member)
 
     @commands.Cog.listener()
-    async def on_message_edit(self, _, message):
+    async def on_message_edit(self, _, message: discord.Message):
         author = message.author
         if not hasattr(author, "guild") or not author.guild or author.bot:
             return
@@ -139,14 +139,14 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await self.refresh_staff_activity(author.guild)
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, _, user):
+    async def on_reaction_add(self, _, user: discord.Member):
         if not hasattr(user, "guild") or not user.guild or user.bot:
             return
         if await self.bot.is_mod(user): # Is staff?
             await self.refresh_staff_activity(user.guild)
 
     @commands.Cog.listener()
-    async def on_reaction_remove(self, _, user):
+    async def on_reaction_remove(self, _, user: discord.Member):
         if not hasattr(user, "guild") or not user.guild or user.bot:
             return
         if await self.bot.is_mod(user): # Is staff?

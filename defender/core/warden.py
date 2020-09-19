@@ -581,7 +581,7 @@ class WardenRule:
 
         return bool(last_expel_action)
 
-    def _build_embed(self, title, content, *, templates_vars):
+    def _build_embed(self, title: str, content: str, *, templates_vars: dict):
         title = Template(title).safe_substitute(templates_vars)
         content = Template(content).safe_substitute(templates_vars)
         em = discord.Embed(color=discord.Colour.red(), description=content)
@@ -589,7 +589,7 @@ class WardenRule:
         em.set_footer(text=f"Warden rule `{self.name}`")
         return em
 
-def check_role_hierarchy(*, author: discord.Member, action: WardenAction, parameter):
+def check_role_hierarchy(*, author: discord.Member, action: WardenAction, parameter: list):
     guild = author.guild
     roles = []
 

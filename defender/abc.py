@@ -45,11 +45,11 @@ class MixinMeta(ABC):
         self.monitor: dict
 
     @abstractmethod
-    async def rank_user(self, member) -> Rank:
+    async def rank_user(self, member: discord.Member) -> Rank:
         raise NotImplementedError()
 
     @abstractmethod
-    async def is_rank_4(self, member) -> bool:
+    async def is_rank_4(self, member: discord.Member) -> bool:
         raise NotImplementedError()
 
     @abstractmethod
@@ -62,15 +62,15 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def refresh_staff_activity(self, guild, timestamp=None):
+    async def refresh_staff_activity(self, guild: discord.Guild, timestamp=None):
         raise NotImplementedError()
 
     @abstractmethod
-    async def refresh_with_audit_logs_activity(self, guild):
+    async def refresh_with_audit_logs_activity(self, guild: discord.Guild):
         raise NotImplementedError()
 
     @abstractmethod
-    def is_in_emergency_mode(self, guild) -> bool:
+    def is_in_emergency_mode(self, guild: discord.Guild) -> bool:
         raise NotImplementedError()
 
     @abstractmethod
@@ -78,7 +78,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def trigger_warden_emergency_rules(self, guild):
+    async def trigger_warden_emergency_rules(self, guild: discord.Guild):
         raise NotImplementedError()
 
     @abstractmethod
@@ -86,7 +86,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def inc_message_count(self, member):
+    async def inc_message_count(self, member: discord.Member):
         raise NotImplementedError()
 
     @abstractmethod
@@ -105,19 +105,19 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def join_monitor_flood(self, member):
+    async def join_monitor_flood(self, member: discord.Member):
         raise NotImplementedError()
 
     @abstractmethod
-    async def join_monitor_suspicious(self, member):
+    async def join_monitor_suspicious(self, member: discord.Member):
         raise NotImplementedError()
 
     @abstractmethod
-    async def invite_filter(self, message):
+    async def invite_filter(self, message: discord.Message):
         raise NotImplementedError()
 
     @abstractmethod
-    async def detect_raider(self, message):
+    async def detect_raider(self, message: discord.Message):
         raise NotImplementedError()
 
     @abstractmethod
