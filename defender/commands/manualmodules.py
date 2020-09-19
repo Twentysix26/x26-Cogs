@@ -1,0 +1,383 @@
+"""
+Defender - Protects your community with automod features and
+           empowers the staff and users you trust with
+           advanced moderation tools
+Copyright (C) 2020  Twentysix (https://github.com/Twentysix26/)
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+from ..enums import EmergencyMode
+from ..abc import MixinMeta, CompositeMetaClass
+from ..enums import EmergencyModules, Action, Rank
+from redbot.core import commands, modlog
+import discord
+import asyncio
+
+
+class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
+    @commands.cooldown(1, 120, commands.BucketType.channel)
+    @commands.command(aliases=["staff"])
+    @commands.guild_only()
+    async def alert(self, ctx):
+        """Alert the staff members"""
+        guild = ctx.guild
+        d_enabled = await self.config.guild(guild).enabled()
+        enabled = await self.config.guild(guild).alert_enabled()
+        if not enabled or not d_enabled:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("This feature is currently not enabled.")
+
+        if not await self.is_helper(ctx.author) and not await self.bot.is_mod(ctx.author):
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("You are not authorized to issue this command.")
+
+        notify_channel_id = await self.config.guild(guild).notify_channel()
+        notify_channel = ctx.guild.get_channel(notify_channel_id)
+        if not notify_channel_id or not notify_channel:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("I don't have a notify channel set or I could not find it.")
+
+        emergency_modules = await self.config.guild(guild).emergency_modules()
+
+        react_text = ""
+        emoji = None
+        if emergency_modules:
+            react_text = "\nReacting to this message or taking some actions in this server will disable the emergency timer."
+            emoji = "⚠️"
+
+        await self.send_notification(guild,
+                                     (f"Alert issued by {ctx.author.mention} in {ctx.channel.mention}."
+                                      f"{react_text}"),
+                                     ping=True,
+                                     link_message=ctx.message,
+                                     react=emoji)
+        await ctx.send("The staff has been notified. Please keep calm, I'm sure everything is fine. 🔥")
+
+        ### Emergency mode
+
+        if not emergency_modules:
+            return
+
+        if self.is_in_emergency_mode(guild):
+            return
+
+        to_delete = []
+
+        async def check_audit_log():
+            try:
+                await self.refresh_with_audit_logs_activity(guild)
+            except discord.Forbidden: # No access to the audit log, welp
+                pass
+
+        async def cleanup_countdown():
+            channel = ctx.channel
+            if to_delete:
+                try:
+                    await channel.delete_messages(to_delete)
+                except:
+                    pass
+
+        await asyncio.sleep(60)
+        await check_audit_log()
+        active = self.has_staff_been_active(guild, minutes=1)
+        if active: # Someone was active very recently
+            return
+
+        minutes = await self.config.guild(guild).emergency_minutes()
+        minutes -= 1
+
+        if minutes: # This whole countdown thing is skipped if the max inactivity is a single minute
+            text = ("⚠️ No staff activity detected in the past minute. "
+                    "Emergency mode will be engaged in {} minutes. "
+                    "Please stand by. ⚠️")
+
+            await ctx.send(f"{ctx.author.mention} " + text.format(minutes))
+            await self.send_notification(guild, "⚠️ Seems like you're not around. I will automatically engage "
+                                                f"emergency mode in {minutes} minutes if you don't show up.")
+            while minutes != 0:
+                await asyncio.sleep(60)
+                await check_audit_log()
+                if self.has_staff_been_active(guild, minutes=1):
+                    await cleanup_countdown()
+                    ctx.command.reset_cooldown(ctx)
+                    await ctx.send("Staff activity detected. Alert deactivated. "
+                                    "Thanks for helping keep the community safe.")
+                    return
+                minutes -= 1
+                if minutes % 2: # Halves the # of messages
+                    to_delete.append(await ctx.send(text.format(minutes)))
+
+        guide = {
+            EmergencyModules.Voteout: "voteout <user>` - Start a vote to expel a user from the server",
+            EmergencyModules.Vaporize: ("vaporize <users...>` - Allows you to mass ban users from "
+                                        "the server"),
+            EmergencyModules.Silence: ("silence <rank> (2-4)` - Enables auto-deletion of messages for "
+                                       "the specified rank (and below)")}
+
+        text = ("⚠️ Emergency mode engaged. Helpers, you are now authorized to use the modules listed below.\n"
+                "Please be responsible and only use these in case of true necessity, every action you take "
+                "will be logged and reviewed at a later time.\n")
+
+        for module in emergency_modules:
+            text += f"`{ctx.prefix}{guide[EmergencyModules(module)]}\n"
+
+        self.emergency_mode[guild.id] = EmergencyMode(manual=False)
+
+        await self.send_notification(guild, "⚠️ Emergency mode engaged. Our helpers are now able to use the "
+                                            f"**{', '.join(emergency_modules)}** modules.")
+
+        await ctx.send(text)
+        await self.trigger_warden_emergency_rules(guild)
+        await cleanup_countdown()
+
+    @commands.command()
+    @commands.guild_only()
+    async def vaporize(self, ctx, *members: discord.Member):
+        """Gets rid of bad actors in a quick and silent way
+
+        Works only on Rank 3 and under"""
+        guild = ctx.guild
+        d_enabled = await self.config.guild(guild).enabled()
+        enabled = await self.config.guild(guild).vaporize_enabled()
+        em_enabled = await self.is_emergency_module(guild, EmergencyModules.Vaporize)
+        emergency_mode = self.is_in_emergency_mode(guild)
+        override = em_enabled and emergency_mode
+        is_staff = await self.bot.is_mod(ctx.author)
+        if not is_staff: # Prevents weird edge cases where staff is also helper
+            is_helper = await self.is_helper(ctx.author)
+        else:
+            is_helper = False
+
+        if not d_enabled:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("Defender is currently not operational.")
+        if not is_staff and not is_helper:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("You are not authorized to issue this command.")
+        if not override:
+            if is_helper:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send("This command is only available during emergency mode. "
+                                        "No such thing right now.")
+                else:
+                    return await ctx.send("You are not authorized to issue this command.")
+            if is_staff:
+                if not enabled:
+                    ctx.command.reset_cooldown(ctx)
+                    return await ctx.send("This command is not available right now.")
+
+        guild = ctx.guild
+        if not members:
+            await ctx.send_help()
+            return
+        if len(members) > 15:
+            await ctx.send("No more than 15. Please try again.")
+            return
+        for m in members:
+            rank = await self.rank_user(m)
+            if rank < Rank.Rank3:
+                await ctx.send("This command can only be used on Rank 3 and under. "
+                               f"`{m}` ({m.id}) is Rank {rank.value}.")
+                return
+
+        errored = []
+
+        for m in members:
+            try:
+                await guild.ban(m, reason=f"Vaporized by {ctx.author} ({ctx.author.id})", delete_message_days=0)
+            except:
+                errored.append(str(m.id))
+
+        if not errored:
+            await ctx.tick()
+        else:
+            await ctx.send("I could not ban the following IDs: " + ", ".join(errored))
+
+        if len(errored) == len(members):
+            return
+
+        total = len(members) - len(errored)
+        await self.send_notification(guild, f"🔥 {ctx.author} ({ctx.author.id}) has vaporized {total} users. 🔥")
+
+    @commands.cooldown(1, 22, commands.BucketType.guild)  # More useful as a lock of sorts in this case
+    @commands.command(cooldown_after_parsing=True)        # Only one concurrent session per guild
+    @commands.guild_only()
+    async def voteout(self, ctx, user: discord.Member):
+        """Initiates a vote to expel a user from the server
+
+        Can be used by members with helper roles during emergency mode"""
+        EMOJI = "👢"
+        guild = ctx.guild
+
+        d_enabled = await self.config.guild(guild).enabled()
+        enabled = await self.config.guild(guild).voteout_enabled()
+        em_enabled = await self.is_emergency_module(guild, EmergencyModules.Voteout)
+        emergency_mode = self.is_in_emergency_mode(guild)
+        override = em_enabled and emergency_mode
+        is_staff = await self.bot.is_mod(ctx.author)
+        if not is_staff: # Prevents weird edge cases where staff is also helper
+            is_helper = await self.is_helper(ctx.author)
+        else:
+            is_helper = False
+
+        if not d_enabled:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("Defender is currently not operational.")
+        if not is_staff and not is_helper:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("You are not authorized to issue this command.")
+        if not override:
+            if is_helper:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send("This command is only available during emergency mode. "
+                                        "No such thing right now.")
+                else:
+                    return await ctx.send("You are not authorized to issue this command.")
+            if is_staff:
+                if not enabled:
+                    ctx.command.reset_cooldown(ctx)
+                    return await ctx.send("This command is not available right now.")
+
+        required_rank = await self.config.guild(guild).voteout_rank()
+        target_rank = await self.rank_user(user)
+        if target_rank < required_rank:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send("You cannot vote to expel that user. "
+                           f"User rank: {target_rank.value} (Must be rank {required_rank} or below)")
+            return
+
+        required_votes = await self.config.guild(guild).voteout_votes()
+        action = await self.config.guild(guild).voteout_action()
+
+        msg = await ctx.send(f"A voting session to {action} user `{user}` has been initiated.\n"
+                             f"Required votes: **{required_votes}**. Only helper roles and staff "
+                             f"are allowed to vote.\nReact with {EMOJI} to vote.")
+        await msg.add_reaction(EMOJI)
+
+        allowed_roles = await self.config.guild(guild).helper_roles()
+        allowed_roles.extend(await ctx.bot._config.guild(guild).admin_role())
+        allowed_roles.extend(await ctx.bot._config.guild(guild).mod_role())
+        voters = [ctx.author]
+
+        def is_allowed(user):
+            for r in user.roles:
+                if r.id in allowed_roles:
+                    return True
+            return False
+
+        def add_vote(r, user):
+            if r.message.id != msg.id:
+                return False
+            elif str(r.emoji) != EMOJI:
+                return False
+            elif user.bot:
+                return False
+            if user not in voters:
+                if is_allowed(user):
+                    voters.append(user)
+
+            return len(voters) >= required_votes
+
+        try:
+            r = await ctx.bot.wait_for('reaction_add', check=add_vote, timeout=20)
+        except asyncio.TimeoutError:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("Vote aborted: insufficient votes.")
+
+        voters_list = ", ".join([f"{v} ({v.id})" for v in voters])
+        if Action(action) == Action.Ban:
+            action_text = "Votebanned with Defender."
+            days = await self.config.guild(guild).voteout_wipe()
+            await guild.ban(user, reason=f"{action_text} Voters: {voters_list}", delete_message_days=days)
+        elif Action(action) == Action.Softban:
+            action_text = "Votekicked with Defender." # Softban can be considered a kick
+            await guild.ban(user, reason=f"{action_text} Voters: {voters_list}", delete_message_days=1)
+            await guild.unban(user)
+        elif Action(action) == Action.Kick:
+            action_text = "Votekicked with Defender."
+            await guild.kick(user, reason=f"{action_text} Voters: {voters_list}")
+        else:
+            raise ValueError("Invalid action set for voteout.")
+
+        await self.send_notification(guild, f"User {user} ({user.id}) has been expelled with "
+                                            f"a vote.\nVoters: `{voters_list}`",
+                                     link_message=msg)
+
+        await modlog.create_case(
+            self.bot,
+            guild,
+            ctx.message.created_at,
+            action,
+            user,
+            guild.me,
+            action_text,
+            until=None,
+            channel=None,
+        )
+
+        ctx.command.reset_cooldown(ctx)
+        await ctx.send(f"Vote successful. `{user}` has been expelled.")
+
+    @commands.command()
+    @commands.guild_only()
+    async def silence(self, ctx: commands.Context, rank: int):
+        """Enables server wide message autodeletion for the specified rank (and below)
+
+        Only applicable to Ranks 2-4. 0 will disable this."""
+        guild = ctx.guild
+        d_enabled = await self.config.guild(guild).enabled()
+        enabled = await self.config.guild(guild).silence_enabled()
+        em_enabled = await self.is_emergency_module(guild, EmergencyModules.Silence)
+        emergency_mode = self.is_in_emergency_mode(guild)
+        override = em_enabled and emergency_mode
+        is_staff = await self.bot.is_mod(ctx.author)
+        if not is_staff: # Prevents weird edge cases where staff is also helper
+            is_helper = await self.is_helper(ctx.author)
+        else:
+            is_helper = False
+
+        if not d_enabled:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("Defender is currently not operational.")
+        if not is_staff and not is_helper:
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send("You are not authorized to issue this command.")
+        if not override:
+            if is_helper:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send("This command is only available during emergency mode. "
+                                        "No such thing right now.")
+                else:
+                    return await ctx.send("You are not authorized to issue this command.")
+            if is_staff:
+                if not enabled:
+                    ctx.command.reset_cooldown(ctx)
+                    return await ctx.send("This command is not available right now.")
+
+        if rank != 0:
+            try:
+                if Rank(rank) == Rank.Rank1:
+                    await ctx.send("Rank 1 cannot be silenced.")
+                    return
+                Rank(rank)
+            except:
+                await ctx.send("Not a valid rank. Must be 2-4.")
+                return
+        await self.config.guild(ctx.guild).silence_rank.set(rank)
+        if rank:
+            await ctx.send(f"Any message from Rank {rank} and below will be deleted. "
+                           "Set 0 to disable silence mode.")
+        else:
+            await ctx.send("Silence mode disabled.")

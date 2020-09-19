@@ -1,0 +1,125 @@
+"""
+Defender - Protects your community with automod features and
+           empowers the staff and users you trust with
+           advanced moderation tools
+Copyright (C) 2020  Twentysix (https://github.com/Twentysix26/)
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+
+from abc import ABC, abstractmethod
+from redbot.core import Config, commands
+from redbot.core.bot import Red
+from .enums import Rank, EmergencyModules
+import discord
+
+class CompositeMetaClass(type(commands.Cog), type(ABC)):
+    """
+    This allows the metaclass used for proper type detection to
+    coexist with discord.py's metaclass
+    """
+    pass
+
+class MixinMeta(ABC):
+    """
+    Base class for well behaved type hint detection with composite class.
+    Basically, to keep developers sane when not all attributes are defined in each mixin.
+    """
+
+    def __init__(self, *_args):
+        self.config: Config
+        self.bot: Red
+        self.emergency_mode: dict
+        self.active_warden_rules: dict
+        self.invalid_warden_rules: dict
+        self.last_raid_alert: dict
+        self.joined_users: dict
+        self.monitor: dict
+
+    @abstractmethod
+    async def rank_user(self, member) -> Rank:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def is_rank_4(self, member) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
+                         replace_backtick=False, pagify_log=False):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def has_staff_been_active(self, guild: discord.Guild, minutes: int) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def refresh_staff_activity(self, guild, timestamp=None):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def refresh_with_audit_logs_activity(self, guild):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def is_in_emergency_mode(self, guild) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def send_to_monitor(self, guild: discord.Guild, entry: str):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def trigger_warden_emergency_rules(self, guild):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def send_announcements(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def inc_message_count(self, member):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def is_helper(self, member: discord.Member) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def is_emergency_module(self, guild, module: EmergencyModules):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def send_notification(self, guild: discord.Guild, notification: str, *,
+                                ping=False, link_message: discord.Message=None,
+                                file: discord.File=None, embed: discord.Embed=None,
+                                react: str=None):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def join_monitor_flood(self, member):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def join_monitor_suspicious(self, member):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def invite_filter(self, message):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def detect_raider(self, message):
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def make_identify_embed(self, message, user, rank=True, link=True):
+        raise NotImplementedError()

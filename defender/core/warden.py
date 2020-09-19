@@ -15,18 +15,19 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from ..enums import Rank, Action, EmergencyMode
+from ..enums import WardenAction, WardenCondition, WardenEvent, WardenConditionBlock
+from ..exceptions import InvalidRule
+from redbot.core.utils.common_filters import INVITE_URL_RE
+from string import Template
+from redbot.core import modlog
+from typing import Optional
 import yaml
 import fnmatch
 import discord
 import datetime
 import logging
 import re
-from .enums import Rank, Action, EmergencyMode
-from .enums import WardenAction, WardenCondition, WardenEvent, WardenConditionBlock
-from .exceptions import InvalidRule
-from redbot.core.utils.common_filters import INVITE_URL_RE
-from string import Template
-from redbot.core import modlog
 
 log = logging.getLogger("red.x26cogs.defender")
 
@@ -279,7 +280,7 @@ class WardenRule:
                         pass
 
 
-    async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None,
+    async def satisfies_conditions(self, *, rank: Optional[Rank], cog, user: discord.Member=None, message: discord.Message=None,
                                    guild: discord.Guild=None):
         if rank < self.rank:
             return False
@@ -296,7 +297,8 @@ class WardenRule:
         bools = []
 
         for raw_condition in self.conditions:
-            condition = value = None
+            condition = None
+            value = []
 
             for r, v in raw_condition.items():
                 condition, value = r, v
@@ -392,13 +394,13 @@ class WardenRule:
                 if value == 0:
                     bools.append(True)
                     continue
-                x_hours_ago = utcnow() - datetime.timedelta(hours=value)
+                x_hours_ago = utcnow() - datetime.timedelta(hours=value) # type: ignore
                 bools.append(user.created_at > x_hours_ago)
             elif condition == WardenCondition.UserJoinedLessThan:
                 if value == 0:
                     bools.append(True)
                     continue
-                x_hours_ago = utcnow() - datetime.timedelta(hours=value)
+                x_hours_ago = utcnow() - datetime.timedelta(hours=value) # type: ignore
                 bools.append(user.joined_at > x_hours_ago)
             elif condition == WardenCondition.UserHasDefaultAvatar:
                 default_avatar_url_pattern = "*/embed/avatars/*.png"
