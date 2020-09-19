@@ -1,5 +1,5 @@
 # x26-Cogs
-General purpose cogs for Red V3
+Cogs made by Twentysix for the Red community
 
 ## Cogs
 ### Index
@@ -14,3 +14,6 @@ This cog offers:
 - An extremely versatile module, [Warden](https://github.com/Twentysix26/x26-Cogs/wiki/Warden), that allows you to define complex custom rules to better moderate, monitor and manage your community
 - A unique (and optional) way to let your community help *you* when you can't
 - The peace of mind that only a smart automod can bring :-)
+## Contributions
+Bugfixes are welcome in PR form.  
+For anything else, such as adding new features, let's discuss about it first! Feel free to [open an issue](https://github.com/Twentysix26/x26-Cogs/issues/new/choose).
