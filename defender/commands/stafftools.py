@@ -106,6 +106,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         """Shows recent messages of a channel"""
         author = ctx.author
         if not channel.permissions_for(author).read_messages:
+            self.send_to_monitor(ctx.guild, f"{author} ({author.id}) attempted to access the message "
+                                            f"history of channel #{channel.name}")
             return await ctx.send("You do not have read permissions in that channel. Request denied.")
 
         pages = self.make_message_log(channel, guild=author.guild, requester=author, pagify_log=True,
@@ -114,7 +116,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not pages:
             return await ctx.send("No messages recorded in that channel.")
 
-        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) accessed message history "
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) accessed the message history "
                                         f"of channel #{channel.name}")
 
         if len(pages) == 1:

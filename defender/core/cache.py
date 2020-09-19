@@ -55,6 +55,9 @@ class CacheUser:
         self.id = _id
         self.guild = guild
 
+    def __str__(self):
+        return "Unknown"
+
 class UserCacheConverter(IDConverter):
     """
     This is a modified version of discord.py's Member converter
