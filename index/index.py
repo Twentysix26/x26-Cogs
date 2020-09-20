@@ -16,17 +16,16 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Tuple, Union
+from typing import Any, Dict
 from redbot.core.utils.menus import menu, prev_page, next_page, close_menu
 
 import aiohttp
 import discord
-import json
+import logging
 from copy import copy
 from datetime import datetime
 from redbot.core import commands
 from redbot.core.bot import Red
-from redbot.core.commands import DMContext, GuildContext
 from redbot.core.config import Config
 
 from .parser import Repo, Cog, build_embeds, FLOPPY_DISK, ARROW_UP, ARROW_DOWN
@@ -38,6 +37,7 @@ PREV_ARROW = "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"
 CROSS_MARK = "\N{CROSS MARK}"
 NEXT_ARROW = "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}"
 
+log = logging.getLogger("red.x26cogs.index")
 
 class Index(commands.Cog):
     """Browse and install repos / cogs from a Red-Index"""
@@ -62,6 +62,7 @@ class Index(commands.Cog):
         """Red-Index cog discoverability commands"""
 
     @indexgroup.command(name="browse")
+    @commands.bot_has_permissions(embed_links=True, add_reactions=True)
     async def index_browse(self, ctx: commands.Context, repo_name=""):
         """Browses repos / cogs"""
         try:
@@ -132,6 +133,7 @@ class Index(commands.Cog):
         return cogs
 
     @indexgroup.command(name="search")
+    @commands.bot_has_permissions(embed_links=True, add_reactions=True)
     async def index_search(self, ctx: commands.Context, *, search_term: str):
         """Search for cogs"""
         try:
@@ -229,7 +231,8 @@ class Index(commands.Cog):
             await self.config.red_index_link.set(link)
             try:
                 await self.fetch_index(force=True)
-            except:
+            except Exception as e:
+                log.error("Error fetching the index file", exc_info=e)
                 await ctx.send("Something went wrong while trying to reach the new link you have set. "
                                "I'll revert to the default one.\nA custom Red-Index link format must be "
                                f"similar to this: <{CC_INDEX_LINK}>.\nIt has to be static and point to a "
