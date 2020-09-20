@@ -141,11 +141,13 @@ class Defender(commands.Cog):
         return messages < min_m
 
     @commands.group(aliases=["def"])
+    @commands.guild_only()
     @commands.mod()
     async def defender(self, ctx: commands.Context):
         """Defender commands reserved to staff"""
 
     @defender.command(name="status")
+    @commands.bot_has_permissions(embed_links=True, add_reactions=True)
     async def defenderstatus(self, ctx: commands.Context):
         """Shows overall status of the Defender system"""
         pages = await make_status(ctx, self)
@@ -213,6 +215,7 @@ class Defender(commands.Cog):
         return em
 
     @defender.command(name="identify")
+    @commands.bot_has_permissions(embed_links=True)
     async def defenderidentify(self, ctx, *, user: discord.Member):
         """Shows a member's rank + info"""
         em = await self.make_identify_embed(ctx.message, user)
@@ -327,6 +330,8 @@ class Defender(commands.Cog):
         """Warden rules management
 
         See [p]defender status for more information about Warden"""
+        if await self.callout_if_fake_admin(ctx):
+            ctx.invoked_subcommand = None
 
     @wardengroup.command(name="add")
     async def wardengroupaddrule(self, ctx: commands.Context, *, rule: str):
@@ -537,9 +542,12 @@ class Defender(commands.Cog):
         await ctx.send(text)
 
     @commands.group(name="dset", aliases=["defset"])
+    @commands.guild_only()
     @commands.admin()
     async def dset(self, ctx: commands.Context):
         """Defender system settings"""
+        if await self.callout_if_fake_admin(ctx):
+            ctx.invoked_subcommand = None
 
     @dset.group(name="general")
     @commands.admin()
@@ -1004,6 +1012,7 @@ class Defender(commands.Cog):
 
     @commands.cooldown(1, 120, commands.BucketType.channel)
     @commands.command(aliases=["staff"])
+    @commands.guild_only()
     async def alert(self, ctx):
         """Alert the staff members"""
         guild = ctx.guild
@@ -1117,11 +1126,14 @@ class Defender(commands.Cog):
         await cleanup_countdown()
 
     @commands.command()
+    @commands.guild_only()
     async def vaporize(self, ctx, *members: discord.Member):
         """Gets rid of bad actors in a quick and silent way
 
         Works only on Rank 3 and under"""
         guild = ctx.guild
+        channel = ctx.channel
+        has_ban_perms = channel.permissions_for(ctx.author).ban_members
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).vaporize_enabled()
         em_enabled = await self.is_emergency_module(guild, EmergencyModules.Vaporize)
@@ -1147,10 +1159,15 @@ class Defender(commands.Cog):
                                         "No such thing right now.")
                 else:
                     return await ctx.send("You are not authorized to issue this command.")
-            if is_staff:
-                if not enabled:
-                    ctx.command.reset_cooldown(ctx)
-                    return await ctx.send("This command is not available right now.")
+            if is_staff and not enabled:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send("This command is not available right now.")
+            if is_staff and not has_ban_perms:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send("You need ban permissions to use this module outside of emergency mode.")
+                else:
+                    return await ctx.send("You need ban permissions to use this module.")
 
         guild = ctx.guild
         if not members:
@@ -1187,12 +1204,22 @@ class Defender(commands.Cog):
 
     @commands.cooldown(1, 22, commands.BucketType.guild)  # More useful as a lock of sorts in this case
     @commands.command(cooldown_after_parsing=True)        # Only one concurrent session per guild
+    @commands.guild_only()
     async def voteout(self, ctx, *, user: discord.Member):
         """Initiates a vote to expel a user from the server
 
         Can be used by members with helper roles during emergency mode"""
         EMOJI = "👢"
         guild = ctx.guild
+        channel = ctx.channel
+        action = await self.config.guild(guild).voteout_action()
+        user_perms = channel.permissions_for(ctx.author)
+        if Action(action) == Action.Ban:
+            perm_text = "ban"
+            has_action_perms = user_perms.ban_members
+        else: # Kick / Softban
+            perm_text = "kick"
+            has_action_perms = user_perms.kick_members
 
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).voteout_enabled()
@@ -1219,10 +1246,16 @@ class Defender(commands.Cog):
                                         "No such thing right now.")
                 else:
                     return await ctx.send("You are not authorized to issue this command.")
-            if is_staff:
-                if not enabled:
-                    ctx.command.reset_cooldown(ctx)
-                    return await ctx.send("This command is not available right now.")
+            if is_staff and not enabled:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send("This command is not available right now.")
+            if is_staff and not has_action_perms:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send(f"You need {perm_text} permissions to use this module outside of "
+                                          "emergency mode.")
+                else:
+                    return await ctx.send(f"You need {perm_text} permissions to use this module.")
 
         required_rank = await self.config.guild(guild).voteout_rank()
         target_rank = await self.rank_user(user)
@@ -1233,7 +1266,6 @@ class Defender(commands.Cog):
             return
 
         required_votes = await self.config.guild(guild).voteout_votes()
-        action = await self.config.guild(guild).voteout_action()
 
         msg = await ctx.send(f"A voting session to {action} user `{user}` has been initiated.\n"
                              f"Required votes: **{required_votes}**. Only helper roles and staff "
@@ -1305,11 +1337,14 @@ class Defender(commands.Cog):
         await ctx.send(f"Vote successful. `{user}` has been expelled.")
 
     @commands.command()
+    @commands.guild_only()
     async def silence(self, ctx: commands.Context, rank: int):
         """Enables server wide message autodeletion for the specified rank (and below)
 
         Only applicable to Ranks 2-4. 0 will disable this."""
         guild = ctx.guild
+        channel = ctx.channel
+        has_mm_perms = channel.permissions_for(ctx.author).manage_messages
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).silence_enabled()
         em_enabled = await self.is_emergency_module(guild, EmergencyModules.Silence)
@@ -1335,10 +1370,16 @@ class Defender(commands.Cog):
                                         "No such thing right now.")
                 else:
                     return await ctx.send("You are not authorized to issue this command.")
-            if is_staff:
-                if not enabled:
-                    ctx.command.reset_cooldown(ctx)
-                    return await ctx.send("This command is not available right now.")
+            if is_staff and not enabled:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send("This command is not available right now.")
+            if is_staff and not has_mm_perms:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send("You need manage messages permissions to use this "
+                                          "module outside of emergency mode.")
+                else:
+                    return await ctx.send("You need manage messages permissions to use this module.")
 
         if rank != 0:
             try:
@@ -1556,6 +1597,24 @@ class Defender(commands.Cog):
             return msg
         return False
 
+    async def callout_if_fake_admin(self, ctx):
+        if ctx.invoked_subcommand is None:
+            # User is just checking out the help
+            return False
+        error_msg = ("It seems that you have a role that is considered admin at bot level but "
+                     "not the basic permissions that one would reasonably expect an admin to have.\n"
+                     "To use these commands, other than the admin role, you need `administrator` "
+                     "permissions OR `manage messages` + `manage roles` + `ban member` permissions.\n"
+                     "I cannot let you proceed until you properly configure permissions in this server.")
+        channel = ctx.channel
+        perms = channel.permissions_for(ctx.author)
+        has_basic_perms = all((perms.manage_messages, perms.manage_roles, perms.ban_members))
+
+        if not has_basic_perms:
+            await ctx.send(error_msg)
+            return True
+        return False
+
     async def invite_filter(self, message):
         author = message.author
         guild = author.guild
@@ -1701,7 +1760,7 @@ class Defender(commands.Cog):
         if recent_users >= users:
             if guild.id in self.last_raid_alert:
                 if self.last_raid_alert[guild.id] > fifteen_minutes_ago:
-                        return
+                    return
             self.last_raid_alert[guild.id] = member.joined_at
 
             await self.send_notification(guild,
@@ -1718,10 +1777,13 @@ class Defender(commands.Cog):
         if hours:
             x_hours_ago = member.joined_at - datetime.timedelta(hours=hours)
             if member.created_at > x_hours_ago:
-                await self.send_notification(guild, f"A user younger than {hours} "
-                                                    f"hours just joined. If you wish to turn off "
-                                                    "these notifications do `[p]dset joinmonitor "
-                                                    "notifynew 0` (admin only)", embed=em)
+                try:
+                    await self.send_notification(guild, f"A user younger than {hours} "
+                                                        f"hours just joined. If you wish to turn off "
+                                                        "these notifications do `[p]dset joinmonitor "
+                                                        "notifynew 0` (admin only)", embed=em)
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
 
         subs = await self.config.guild(guild).join_monitor_susp_subs()
 
