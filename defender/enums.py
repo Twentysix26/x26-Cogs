@@ -41,6 +41,7 @@ class EmergencyModules(enum.Enum):
 
 class WardenEvent(enum.Enum):
     OnMessage = "on-message"
+    OnMessageEdit = "on-message-edit"
     OnUserJoin = "on-user-join"
     OnEmergency = "on-emergency"
     Manual = "manual"

@@ -80,6 +80,7 @@ WARDEN_ACTIONS_PARAM_TYPE = {
 # the user the illusion that they will have any effect on the rule
 DENIED_CONDITIONS = {
     WardenEvent.OnMessage: [],
+    WardenEvent.OnMessageEdit: [],
     WardenEvent.OnUserJoin: [WardenCondition.MessageMatchesAny, WardenCondition.MessageHasAttachment, WardenCondition.MessageContainsInvite,
                              WardenCondition.MessageContainsMedia],
     WardenEvent.OnEmergency: [c for c in WardenCondition if c != WardenCondition.InEmergencyMode] # Basically all of them. There's no context
@@ -88,6 +89,7 @@ DENIED_CONDITIONS[WardenEvent.Manual] = DENIED_CONDITIONS[WardenEvent.OnUserJoin
 
 DENIED_ACTIONS = {
     WardenEvent.OnMessage: [],
+    WardenEvent.OnMessageEdit: [],
     WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage],
     WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing and
                                                          c != WardenAction.NotifyStaffWithEmbed and
