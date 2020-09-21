@@ -109,7 +109,7 @@ class WardenRule:
         self.parse_exception = None
         self.last_action = WardenAction.NoOp
         self.name = None
-        self.event = None
+        self.events = []
         self.rank = None
         self.conditions = []
         self.actions = {}
@@ -144,10 +144,17 @@ class WardenRule:
             if key not in rule.keys():
                 raise InvalidRule(f"Missing key at root level: '{key}'.")
 
-        try:
-            self.event = WardenEvent(rule["event"])
-        except ValueError:
-            raise InvalidRule("Invalid event.")
+        if isinstance(rule["event"], list):
+            try:
+                for event in rule["event"]:
+                    self.events.append(WardenEvent(event))
+            except ValueError:
+                raise InvalidRule(f"Invalid events.")
+        else:
+            try:
+                self.events.append(WardenEvent(rule["event"]))
+            except ValueError:
+                raise InvalidRule("Invalid event.")
 
         try:
             self.rank = Rank(rule["rank"])
@@ -173,7 +180,9 @@ class WardenRule:
 
         self.actions = rule["do"]
 
-        denied = DENIED_CONDITIONS[self.event]
+        denied = []
+        for event in self.events:
+            denied.extend(DENIED_CONDITIONS[event])
 
         def validate_condition(cond):
             condition = parameter = None
@@ -190,7 +199,7 @@ class WardenRule:
                     raise InvalidRule(f"Invalid condition: `{condition}`")
 
             if condition in denied:
-                raise InvalidRule(f"Condition `{condition.value}` not allowed in `{self.event.value}`")
+                raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
 
             _type = None
             for _type in WARDEN_CONDITIONS_PARAM_TYPE[condition]:
@@ -232,7 +241,9 @@ class WardenRule:
             else:
                 validate_condition(raw_condition)
 
-        denied = DENIED_ACTIONS[self.event]
+        denied = []
+        for event in self.events:
+            denied.extend(DENIED_ACTIONS[event])
 
         # Basically a list of one-key dicts
         # We need to preserve order of actions
@@ -252,7 +263,7 @@ class WardenRule:
                     raise InvalidRule(f"Invalid action: `{action}`")
 
                 if action in denied:
-                    raise InvalidRule(f"Action `{action.value}` not allowed in `{self.event.value}`")
+                    raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
 
                 for _type in WARDEN_ACTIONS_PARAM_TYPE[action]:
                     if _type is None and parameter is None:

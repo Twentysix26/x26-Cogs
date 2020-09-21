@@ -466,7 +466,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         EMOJI = "✅"
         try:
             rule: WardenRule = self.active_warden_rules[ctx.guild.id][name]
-            if rule.event != WardenEvent.Manual:
+            if WardenEvent.Manual not in rule.events:
                 raise InvalidRule()
         except KeyError:
             return await ctx.send("There is no rule with that name.")

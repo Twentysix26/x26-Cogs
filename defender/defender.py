@@ -319,7 +319,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             return
 
         for rule in self.active_warden_rules[guild.id].values():
-            if rule.event != WardenEvent.OnEmergency:
+            if WardenEvent.OnEmergency not in rule.events:
                 continue
             if await rule.satisfies_conditions(cog=self, rank=rule.rank, guild=guild):
                 try:
