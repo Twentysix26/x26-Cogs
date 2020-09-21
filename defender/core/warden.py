@@ -93,7 +93,8 @@ DENIED_ACTIONS = {
     WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage],
     WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing and
                                                          c != WardenAction.NotifyStaffWithEmbed and
-                                                         c != WardenAction.Dm and c != WardenAction.EnableEmergencyMode]
+                                                         c != WardenAction.Dm and c != WardenAction.EnableEmergencyMode and
+                                                         c != WardenAction.SendToMonitor]
 }
 DENIED_ACTIONS[WardenEvent.Manual] = DENIED_ACTIONS[WardenEvent.OnUserJoin]
 
@@ -155,6 +156,8 @@ class WardenRule:
                 self.events.append(WardenEvent(rule["event"]))
             except ValueError:
                 raise InvalidRule("Invalid event.")
+        if not self.events:
+            raise InvalidRule("A least one event must be defined.")
 
         try:
             self.rank = Rank(rule["rank"])
