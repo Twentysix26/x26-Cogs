@@ -374,6 +374,24 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     def cog_unload(self):
         self.counter_task.cancel()
 
+    async def callout_if_fake_admin(self, ctx):
+        if ctx.invoked_subcommand is None:
+            # User is just checking out the help
+            return False
+        error_msg = ("It seems that you have a role that is considered admin at bot level but "
+                     "not the basic permissions that one would reasonably expect an admin to have.\n"
+                     "To use these commands, other than the admin role, you need `administrator` "
+                     "permissions OR `manage messages` + `manage roles` + `ban member` permissions.\n"
+                     "I cannot let you proceed until you properly configure permissions in this server.")
+        channel = ctx.channel
+        perms = channel.permissions_for(ctx.author)
+        has_basic_perms = all((perms.manage_messages, perms.manage_roles, perms.ban_members))
+
+        if not has_basic_perms:
+            await ctx.send(error_msg)
+            return True
+        return False
+
     async def inc_message_count(self, member):
         self.message_counter[member.guild.id][member.id] += 1
 

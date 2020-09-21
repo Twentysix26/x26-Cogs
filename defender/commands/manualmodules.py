@@ -146,6 +146,8 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         Works only on Rank 3 and under"""
         guild = ctx.guild
+        channel = ctx.channel
+        has_ban_perms = channel.permissions_for(ctx.author).ban_members
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).vaporize_enabled()
         em_enabled = await self.is_emergency_module(guild, EmergencyModules.Vaporize)
@@ -171,10 +173,15 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                                         "No such thing right now.")
                 else:
                     return await ctx.send("You are not authorized to issue this command.")
-            if is_staff:
-                if not enabled:
-                    ctx.command.reset_cooldown(ctx)
-                    return await ctx.send("This command is not available right now.")
+            if is_staff and not enabled:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send("This command is not available right now.")
+            if is_staff and not has_ban_perms:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send("You need ban permissions to use this module outside of emergency mode.")
+                else:
+                    return await ctx.send("You need ban permissions to use this module.")
 
         guild = ctx.guild
         if not members:
@@ -218,6 +225,15 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         Can be used by members with helper roles during emergency mode"""
         EMOJI = "👢"
         guild = ctx.guild
+        channel = ctx.channel
+        action = await self.config.guild(guild).voteout_action()
+        user_perms = channel.permissions_for(ctx.author)
+        if Action(action) == Action.Ban:
+            perm_text = "ban"
+            has_action_perms = user_perms.ban_members
+        else: # Kick / Softban
+            perm_text = "kick"
+            has_action_perms = user_perms.kick_members
 
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).voteout_enabled()
@@ -244,10 +260,16 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                                         "No such thing right now.")
                 else:
                     return await ctx.send("You are not authorized to issue this command.")
-            if is_staff:
-                if not enabled:
-                    ctx.command.reset_cooldown(ctx)
-                    return await ctx.send("This command is not available right now.")
+            if is_staff and not enabled:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send("This command is not available right now.")
+            if is_staff and not has_action_perms:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send(f"You need {perm_text} permissions to use this module outside of "
+                                          "emergency mode.")
+                else:
+                    return await ctx.send(f"You need {perm_text} permissions to use this module.")
 
         required_rank = await self.config.guild(guild).voteout_rank()
         target_rank = await self.rank_user(user)
@@ -258,7 +280,6 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
 
         required_votes = await self.config.guild(guild).voteout_votes()
-        action = await self.config.guild(guild).voteout_action()
 
         msg = await ctx.send(f"A voting session to {action} user `{user}` has been initiated.\n"
                              f"Required votes: **{required_votes}**. Only helper roles and staff "
@@ -336,6 +357,8 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         Only applicable to Ranks 2-4. 0 will disable this."""
         guild = ctx.guild
+        channel = ctx.channel
+        has_mm_perms = channel.permissions_for(ctx.author).manage_messages
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).silence_enabled()
         em_enabled = await self.is_emergency_module(guild, EmergencyModules.Silence)
@@ -361,10 +384,16 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                                         "No such thing right now.")
                 else:
                     return await ctx.send("You are not authorized to issue this command.")
-            if is_staff:
-                if not enabled:
-                    ctx.command.reset_cooldown(ctx)
-                    return await ctx.send("This command is not available right now.")
+            if is_staff and not enabled:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send("This command is not available right now.")
+            if is_staff and not has_mm_perms:
+                ctx.command.reset_cooldown(ctx)
+                if em_enabled:
+                    return await ctx.send("You need manage messages permissions to use this "
+                                          "module outside of emergency mode.")
+                else:
+                    return await ctx.send("You need manage messages permissions to use this module.")
 
         if rank != 0:
             try:

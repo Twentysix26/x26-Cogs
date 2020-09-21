@@ -123,3 +123,7 @@ class MixinMeta(ABC):
     @abstractmethod
     async def make_identify_embed(self, message, user, rank=True, link=True):
         raise NotImplementedError()
+
+    @abstractmethod
+    async def callout_if_fake_admin(self, ctx: commands.Context):
+        raise NotImplementedError()

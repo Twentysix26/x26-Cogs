@@ -29,6 +29,8 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @commands.admin()
     async def dset(self, ctx: commands.Context):
         """Defender system settings"""
+        if await self.callout_if_fake_admin(ctx):
+            ctx.invoked_subcommand = None
 
     @dset.group(name="general")
     @commands.admin()

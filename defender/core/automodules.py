@@ -165,7 +165,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if recent_users >= users:
             if guild.id in self.last_raid_alert:
                 if self.last_raid_alert[guild.id] > fifteen_minutes_ago:
-                        return
+                    return
             self.last_raid_alert[guild.id] = member.joined_at
 
             await self.send_notification(guild,
@@ -182,10 +182,13 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if hours:
             x_hours_ago = member.joined_at - datetime.timedelta(hours=hours)
             if member.created_at > x_hours_ago:
-                await self.send_notification(guild, f"A user younger than {hours} "
-                                                    f"hours just joined. If you wish to turn off "
-                                                    "these notifications do `[p]dset joinmonitor "
-                                                    "notifynew 0` (admin only)", embed=em)
+                try:
+                    await self.send_notification(guild, f"A user younger than {hours} "
+                                                        f"hours just joined. If you wish to turn off "
+                                                        "these notifications do `[p]dset joinmonitor "
+                                                        "notifynew 0` (admin only)", embed=em)
+                except (discord.Forbidden, discord.HTTPException):
+                    pass
 
         subs = await self.config.guild(guild).join_monitor_susp_subs()
 

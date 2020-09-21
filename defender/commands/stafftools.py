@@ -46,6 +46,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         """Defender commands reserved to staff"""
 
     @defender.command(name="status")
+    @commands.bot_has_permissions(embed_links=True, add_reactions=True)
     async def defenderstatus(self, ctx: commands.Context):
         """Shows overall status of the Defender system"""
         pages = await make_status(ctx, self)
@@ -185,6 +186,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                        lang="yaml"))
 
     @defender.command(name="identify")
+    @commands.bot_has_permissions(embed_links=True)
     async def defenderidentify(self, ctx, *, user: discord.Member):
         """Shows a member's rank + info"""
         em = await self.make_identify_embed(ctx.message, user)
@@ -299,6 +301,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         """Warden rules management
 
         See [p]defender status for more information about Warden"""
+        if await self.callout_if_fake_admin(ctx):
+            ctx.invoked_subcommand = None
 
     @wardengroup.command(name="add")
     async def wardengroupaddrule(self, ctx: commands.Context, *, rule: str):
