@@ -180,7 +180,7 @@ async def make_status(ctx, cog):
     msg += (f"It is set so that if **{users} users** join in the span of **{minutes} minutes** I will notify "
             "the staff with a ping.\n")
     if newhours:
-        msg += f"I will also report any new user whose account is less than **{minutes} minutes old**.\n"
+        msg += f"I will also report any new user whose account is less than **{newhours} hours old**.\n"
     else:
         msg += "Newly created accounts notifications are off.\n"
     msg += "This module is currently "
