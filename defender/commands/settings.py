@@ -86,7 +86,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await self.config.guild(ctx.guild).notify_channel.set(channel.id)
         everyone = ctx.guild.default_role
         await ctx.tick()
-        if channel.overwrites[everyone].read_messages in (True, None):
+        if everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None):
             await ctx.send("Channel set. However, that channel is public: "
                            "a private one (staff-only) would be preferable as I might "
                            "send sensitive data at some point (logs, etc).")
