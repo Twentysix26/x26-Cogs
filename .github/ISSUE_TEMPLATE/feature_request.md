@@ -10,6 +10,7 @@ assignees: Twentysix26
 **Cog**
 - [ ] Defender
 - [ ] Index
+- [ ] Sbansync
 
 **Describe the feature you'd like to see**
 A clear and concise description of what you'd like to see
