@@ -1,0 +1,16 @@
+{
+	"author": [
+		"Twentysix (Twentysix#5252)"
+	],
+    "description": "A simple, no frills bansync cog.",
+    "install_msg": "Thanks for installing this cog. TL;DR:\nIf you're admin on server A and server B you can sync bans between them no problem.\nIf you're only admin on server A, server B will need to whitelist your server for you to pull (and push) bans from/to it.\nThat's it. See `[p]help Sbansync` and enjoy.",
+	"short": "A simple, no frills bansync cog.",
+	"tags": [
+        "bansync",
+        "moderation",
+		"admin"
+	],
+	"min_bot_version": "3.4.0",
+	"type": "COG",
+	"end_user_data_statement": "This cog does not store end user data."
+}
