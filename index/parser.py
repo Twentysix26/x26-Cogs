@@ -17,10 +17,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import discord
+import logging
 
 FLOPPY_DISK = "\N{FLOPPY DISK}"
 ARROW_UP = "\N{UPWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"
 ARROW_DOWN = "\N{DOWNWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"
+
+log = logging.getLogger("red.x26cogs.index")
 
 class Repo:
     def __init__(self, url: str, raw_data: dict):
@@ -44,8 +47,11 @@ class Repo:
         em.add_field(name="Type", value=self.rx_category, inline=True)
         if self.rx_branch:
             em.add_field(name="Branch", value=self.rx_branch, inline=True)
+            url, _ = self.url.split("@", 1)
+        else:
+            url = self.url
         em.add_field(name="Command to add repo",
-                     value=f"{prefix}repo add {self.name.lower()} {self.url}",
+                     value=f"{prefix}repo add {self.name.lower()} {url} {self.rx_branch}",
                      inline=False)
         explore_text = f"Press  {ARROW_UP}  to browse this repo "
         install_text = ""
@@ -88,8 +94,12 @@ class Cog:
             em.add_field(name="Requirements", value=f"{', '.join(self.requirements)}", inline=True)
         if self.required_cogs:
             em.add_field(name="Required cogs", value=f"{', '.join(self.required_cogs.keys())}", inline=True)
+        if self.repo.rx_branch:
+            repo_url, _ = self.repo.url.split("@", 1)
+        else:
+            repo_url = self.repo.url
         em.add_field(name="Command to add repo",
-                     value=f"{prefix}repo add {self.repo.name.lower()} {self.repo.url}",
+                     value=f"{prefix}repo add {self.repo.name.lower()} {repo_url} {self.repo.rx_branch}",
                      inline=False)
         em.add_field(name="Command to add cog",
                      value=f"{prefix}cog install {self.repo.name.lower()} {self.name}",
