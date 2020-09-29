@@ -23,9 +23,10 @@ from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
 from .commands import Commands
 from .core.events import Events
-from .enums import Rank, Action, EmergencyModules, WardenEvent
+from .enums import Rank, Action, EmergencyModules
 from .exceptions import InvalidRule
-from .core.warden import WardenRule
+from .core.warden.rule import WardenRule
+from .core.warden.enums import Event as WardenEvent
 from .core.announcements import get_announcements
 from .core.cache import CacheUser
 from .core import cache as df_cache

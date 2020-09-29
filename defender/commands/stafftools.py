@@ -17,8 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from defender.enums import EmergencyMode
 from ..abc import MixinMeta, CompositeMetaClass
-from ..enums import Rank, WardenEvent
-from ..core.warden import WardenRule
+from ..enums import Rank
+from ..core.warden.enums import Event as WardenEvent
+from ..core.warden.rule import WardenRule
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..exceptions import InvalidRule

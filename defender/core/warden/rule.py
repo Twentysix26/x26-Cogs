@@ -15,12 +15,14 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from ..enums import Rank, Action, EmergencyMode
-from ..enums import WardenAction, WardenCondition, WardenEvent, WardenConditionBlock
-from ..exceptions import InvalidRule
+from defender.core.warden.constants import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, CONDITIONS_PARAM_TYPE
+from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
+from ...enums import Rank, EmergencyMode, Action as ModAction
+from .enums import Action, Condition, Event, ConditionBlock
+from .checks import ACTIONS_SANITY_CHECK
+from ...exceptions import InvalidRule
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
-from discord.ext.commands import BadArgument
 from string import Template
 from redbot.core import modlog
 from typing import Optional
@@ -39,79 +41,11 @@ RULE_KEYS = ("name", "event", "rank", "if", "do")
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
 
-# Below are the accepted types of each condition for basic sanity checking
-# before a rule is accepted and entered into the system
-WARDEN_CONDITIONS_PARAM_TYPE = {
-    WardenCondition.UsernameMatchesAny: [list],
-    WardenCondition.NicknameMatchesAny: [list],
-    WardenCondition.MessageMatchesAny: [list],
-    WardenCondition.UserCreatedLessThan: [int],
-    WardenCondition.UserJoinedLessThan: [int],
-    WardenCondition.UserHasDefaultAvatar: [bool],
-    WardenCondition.ChannelMatchesAny: [list],
-    WardenCondition.InEmergencyMode: [bool],
-    WardenCondition.MessageHasAttachment: [bool],
-    WardenCondition.UserHasAnyRoleIn: [list],
-    WardenCondition.MessageContainsInvite: [bool],
-    WardenCondition.MessageContainsMedia: [bool],
-    WardenCondition.IsStaff: [bool]
-}
-
-WARDEN_ACTIONS_PARAM_TYPE = {
-    WardenAction.Dm: [list],
-    WardenAction.DmUser: [str],
-    WardenAction.NotifyStaff: [str],
-    WardenAction.NotifyStaffAndPing: [str],
-    WardenAction.NotifyStaffWithEmbed: [list],
-    WardenAction.BanAndDelete: [int],
-    WardenAction.Softban: [None],
-    WardenAction.Kick: [None],
-    WardenAction.Modlog: [str],
-    WardenAction.DeleteUserMessage: [None],
-    WardenAction.SendInChannel: [str],
-    WardenAction.SetChannelSlowmode: [str],
-    WardenAction.AddRolesToUser: [list],
-    WardenAction.RemoveRolesFromUser: [list],
-    WardenAction.EnableEmergencyMode: [bool],
-    WardenAction.SetUserNickname: [str],
-    WardenAction.NoOp: [None],
-    WardenAction.SendToMonitor: [str]
-}
-
-# Not every condition is available to all events
-# It's better to catch these during parsing to avoid giving
-# the user the illusion that they will have any effect on the rule
-DENIED_CONDITIONS = {
-    WardenEvent.OnMessage: [],
-    WardenEvent.OnMessageEdit: [],
-    WardenEvent.OnUserJoin: [WardenCondition.MessageMatchesAny, WardenCondition.MessageHasAttachment, WardenCondition.MessageContainsInvite,
-                             WardenCondition.MessageContainsMedia],
-    WardenEvent.OnEmergency: [c for c in WardenCondition if c != WardenCondition.InEmergencyMode] # Basically all of them. There's no context
-}
-DENIED_CONDITIONS[WardenEvent.Manual] = DENIED_CONDITIONS[WardenEvent.OnUserJoin]
-
-DENIED_ACTIONS = {
-    WardenEvent.OnMessage: [],
-    WardenEvent.OnMessageEdit: [],
-    WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage, WardenAction.SetChannelSlowmode],
-    WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing and
-                                                         c != WardenAction.NotifyStaffWithEmbed and
-                                                         c != WardenAction.Dm and c != WardenAction.EnableEmergencyMode and
-                                                         c != WardenAction.SendToMonitor]
-}
-DENIED_ACTIONS[WardenEvent.Manual] = DENIED_ACTIONS[WardenEvent.OnUserJoin]
-
-# These are for special commands such as DM, which require
-# a mandatory # of "arguments"
-ACTIONS_ARGS_N = {
-    WardenAction.Dm: 2,
-    WardenAction.NotifyStaffWithEmbed: 2
-}
 
 class WardenRule:
     def __init__(self, rule_str, author=None, do_not_raise_during_parse=False):
         self.parse_exception = None
-        self.last_action = WardenAction.NoOp
+        self.last_action = Action.NoOp
         self.name = None
         self.events = []
         self.rank = Rank.Rank4
@@ -151,12 +85,12 @@ class WardenRule:
         if isinstance(rule["event"], list):
             try:
                 for event in rule["event"]:
-                    self.events.append(WardenEvent(event))
+                    self.events.append(Event(event))
             except ValueError:
                 raise InvalidRule(f"Invalid events.")
         else:
             try:
-                self.events.append(WardenEvent(rule["event"]))
+                self.events.append(Event(rule["event"]))
             except ValueError:
                 raise InvalidRule("Invalid event.")
         if not self.events:
@@ -186,9 +120,9 @@ class WardenRule:
 
         self.actions = rule["do"]
 
-        denied = []
+        allowed = []
         for event in self.events:
-            denied.extend(DENIED_CONDITIONS[event])
+            allowed.extend(ALLOWED_CONDITIONS[event])
 
         def validate_condition(cond):
             condition = parameter = None
@@ -196,19 +130,19 @@ class WardenRule:
                 condition, parameter = r, p
 
             try:
-                condition = WardenCondition(condition)
+                condition = Condition(condition)
             except ValueError:
                 try:
-                    condition = WardenConditionBlock(condition)
+                    condition = ConditionBlock(condition)
                     raise InvalidRule(f"Invalid: `{condition.value}` can only be at root level.")
                 except ValueError:
                     raise InvalidRule(f"Invalid condition: `{condition}`")
 
-            if condition in denied:
+            if condition not in allowed:
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
 
             _type = None
-            for _type in WARDEN_CONDITIONS_PARAM_TYPE[condition]:
+            for _type in CONDITIONS_PARAM_TYPE[condition]:
                 if _type is None and parameter is None:
                     break
                 elif _type is None:
@@ -232,14 +166,14 @@ class WardenRule:
                 raise InvalidRule(f"Invalid format in the conditions. Make sure you've got the dashes right!")
 
             try:
-                condition = WardenCondition(condition)
+                condition = Condition(condition)
             except ValueError:
                 try:
-                    condition = WardenConditionBlock(condition)
+                    condition = ConditionBlock(condition)
                 except ValueError:
                     raise InvalidRule(f"Invalid condition: `{condition}`")
 
-            if isinstance(condition, WardenConditionBlock):
+            if isinstance(condition, ConditionBlock):
                 if parameter is None:
                     raise InvalidRule("Condition blocks cannot be empty.")
                 for p in parameter:
@@ -247,9 +181,9 @@ class WardenRule:
             else:
                 validate_condition(raw_condition)
 
-        denied = []
+        allowed = []
         for event in self.events:
-            denied.extend(DENIED_ACTIONS[event])
+            allowed.extend(ALLOWED_ACTIONS[event])
 
         # Basically a list of one-key dicts
         # We need to preserve order of actions
@@ -264,14 +198,14 @@ class WardenRule:
             _type = None
             for action, parameter in entry.items():
                 try:
-                    action = WardenAction(action)
+                    action = Action(action)
                 except ValueError:
                     raise InvalidRule(f"Invalid action: `{action}`")
 
-                if action in denied:
+                if action not in allowed:
                     raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
 
-                for _type in WARDEN_ACTIONS_PARAM_TYPE[action]:
+                for _type in ACTIONS_PARAM_TYPE[action]:
                     if _type is None and parameter is None:
                         break
                     elif _type is None:
@@ -322,21 +256,21 @@ class WardenRule:
             for r, v in raw_condition.items():
                 condition, value = r, v
             try:
-                condition = WardenConditionBlock(condition)
+                condition = ConditionBlock(condition)
             except:
-                condition = WardenCondition(condition)
+                condition = Condition(condition)
 
-            if condition == WardenConditionBlock.IfAll:
+            if condition == ConditionBlock.IfAll:
                 results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 bools.append(all(results))
-            elif condition == WardenConditionBlock.IfAny:
+            elif condition == ConditionBlock.IfAny:
                 results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 bools.append(any(results))
-            elif condition == WardenConditionBlock.IfNot:
+            elif condition == ConditionBlock.IfNot:
                 results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
@@ -365,8 +299,8 @@ class WardenRule:
             for c, v in raw_condition.items():
                 condition, value = c, v
 
-            condition = WardenCondition(condition)
-            if condition == WardenCondition.MessageMatchesAny:
+            condition = Condition(condition)
+            if condition == Condition.MessageMatchesAny:
                 # One match = Passed
                 content = message.content.lower()
                 for pattern in value:
@@ -375,7 +309,7 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
-            elif condition == WardenCondition.UsernameMatchesAny:
+            elif condition == Condition.UsernameMatchesAny:
                 # One match = Passed
                 name = user.name.lower()
                 for pattern in value:
@@ -384,7 +318,7 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
-            elif condition == WardenCondition.NicknameMatchesAny:
+            elif condition == Condition.NicknameMatchesAny:
                 # One match = Passed
                 if not user.nick:
                     bools.append(False)
@@ -396,7 +330,7 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
-            elif condition == WardenCondition.ChannelMatchesAny: # We accept IDs and channel names
+            elif condition == Condition.ChannelMatchesAny: # We accept IDs and channel names
                 if channel.id in value:
                     bools.append(True)
                     continue
@@ -409,28 +343,28 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
-            elif condition == WardenCondition.UserCreatedLessThan:
+            elif condition == Condition.UserCreatedLessThan:
                 if value == 0:
                     bools.append(True)
                     continue
                 x_hours_ago = utcnow() - datetime.timedelta(hours=value) # type: ignore
                 bools.append(user.created_at > x_hours_ago)
-            elif condition == WardenCondition.UserJoinedLessThan:
+            elif condition == Condition.UserJoinedLessThan:
                 if value == 0:
                     bools.append(True)
                     continue
                 x_hours_ago = utcnow() - datetime.timedelta(hours=value) # type: ignore
                 bools.append(user.joined_at > x_hours_ago)
-            elif condition == WardenCondition.UserHasDefaultAvatar:
+            elif condition == Condition.UserHasDefaultAvatar:
                 default_avatar_url_pattern = "*/embed/avatars/*.png"
                 match = fnmatch.fnmatch(str(user.avatar_url), default_avatar_url_pattern)
                 bools.append(value is match)
-            elif condition == WardenCondition.InEmergencyMode:
+            elif condition == Condition.InEmergencyMode:
                 in_emergency = cog.is_in_emergency_mode(guild)
                 bools.append(in_emergency is value)
-            elif condition == WardenCondition.MessageHasAttachment:
+            elif condition == Condition.MessageHasAttachment:
                 bools.append(bool(message.attachments) is value)
-            elif condition == WardenCondition.UserHasAnyRoleIn:
+            elif condition == Condition.UserHasAnyRoleIn:
                 for role_id_or_name in value:
                     role = guild.get_role(role_id_or_name)
                     if role is None:
@@ -441,13 +375,13 @@ class WardenRule:
                             break
                 else:
                     bools.append(False)
-            elif condition == WardenCondition.MessageContainsInvite:
+            elif condition == Condition.MessageContainsInvite:
                 has_invite = INVITE_URL_RE.search(message.content)
                 bools.append(bool(has_invite) is value)
-            elif condition == WardenCondition.MessageContainsMedia:
+            elif condition == Condition.MessageContainsMedia:
                 has_media = MEDIA_URL_RE.search(message.content)
                 bools.append(bool(has_media) is value)
-            elif condition == WardenCondition.IsStaff:
+            elif condition == Condition.IsStaff:
                 is_staff = await cog.bot.is_mod(user)
                 bools.append(is_staff is value)
 
@@ -497,30 +431,30 @@ class WardenRule:
 
         for entry in self.actions:
             for action, value in entry.items():
-                action = WardenAction(action)
+                action = Action(action)
                 self.last_action = action
-                if action == WardenAction.DmUser:
+                if action == Action.DmUser:
                     text = Template(value).safe_substitute(templates_vars)
                     await user.send(text)
-                elif action == WardenAction.DeleteUserMessage:
+                elif action == Action.DeleteUserMessage:
                     await message.delete()
-                elif action == WardenAction.NotifyStaff:
+                elif action == Action.NotifyStaff:
                     text = Template(value).safe_substitute(templates_vars)
                     await cog.send_notification(guild, text)
-                elif action == WardenAction.NotifyStaffAndPing:
+                elif action == Action.NotifyStaffAndPing:
                     text = Template(value).safe_substitute(templates_vars)
                     await cog.send_notification(guild, text, ping=True)
-                elif action == WardenAction.NotifyStaffWithEmbed:
+                elif action == Action.NotifyStaffWithEmbed:
                     title, content = (value[0], value[1])
                     em = self._build_embed(title, content, templates_vars=templates_vars)
                     await cog.send_notification(guild, "", embed=em)
-                elif action == WardenAction.SendInChannel:
+                elif action == Action.SendInChannel:
                     text = Template(value).safe_substitute(templates_vars)
                     await channel.send(text)
-                elif action == WardenAction.SetChannelSlowmode:
+                elif action == Action.SetChannelSlowmode:
                     timedelta = parse_timedelta(value)
                     await channel.edit(slowmode_delay=timedelta.seconds)
-                elif action == WardenAction.Dm:
+                elif action == Action.Dm:
                     _id_or_name, content = (value[0], value[1])
                     user_to_dm = guild.get_member(_id_or_name)
                     if not user_to_dm:
@@ -532,7 +466,7 @@ class WardenRule:
                         await user_to_dm.send(content)
                     except: # Should we care if the DM fails?
                         pass
-                elif action == WardenAction.AddRolesToUser:
+                elif action == Action.AddRolesToUser:
                     to_assign = []
                     for role_id_or_name in value:
                         role = guild.get_role(role_id_or_name)
@@ -544,7 +478,7 @@ class WardenRule:
                     to_assign = [r for r in to_assign if r not in user.roles]
                     if to_assign:
                         await user.add_roles(*to_assign, reason=f"Assigned by Warden action '{self.name}'")
-                elif action == WardenAction.RemoveRolesFromUser:
+                elif action == Action.RemoveRolesFromUser:
                     to_unassign = []
                     for role_id_or_name in value:
                         role = guild.get_role(role_id_or_name)
@@ -556,23 +490,23 @@ class WardenRule:
                     to_unassign = [r for r in to_unassign if r in user.roles]
                     if to_unassign:
                         await user.remove_roles(*to_unassign, reason=f"Unassigned by Warden action '{self.name}'")
-                elif action == WardenAction.SetUserNickname:
+                elif action == Action.SetUserNickname:
                     if value == "":
                         value = None
                     else:
                         value = Template(value).safe_substitute(templates_vars)
                     await user.edit(nick=value, reason=f"Changed nickname by Warden action '{self.name}'")
-                elif action == WardenAction.BanAndDelete:
+                elif action == Action.BanAndDelete:
                     await guild.ban(user, delete_message_days=value, reason=f"Banned by Warden action '{self.name}'")
-                    last_expel_action = Action.Ban
-                elif action == WardenAction.Kick:
+                    last_expel_action = ModAction.Ban
+                elif action == Action.Kick:
                     await guild.kick(user, reason=f"Kicked by Warden action '{self.name}'")
                     last_expel_action = Action.Kick
-                elif action == WardenAction.Softban:
+                elif action == Action.Softban:
                     await guild.ban(user, delete_message_days=1, reason=f"Softbanned by Warden action '{self.name}'")
                     await guild.unban(user)
                     last_expel_action = Action.Softban
-                elif action == WardenAction.Modlog:
+                elif action == Action.Modlog:
                     if last_expel_action is None:
                         continue
                     reason = Template(value).safe_substitute(templates_vars)
@@ -587,7 +521,7 @@ class WardenRule:
                         until=None,
                         channel=None,
                     )
-                elif action == WardenAction.EnableEmergencyMode:
+                elif action == Action.EnableEmergencyMode:
                     if value:
                         cog.emergency_mode[guild.id] = EmergencyMode(manual=True)
                     else:
@@ -595,10 +529,10 @@ class WardenRule:
                             del cog.emergency_mode[guild.id]
                         except KeyError:
                             pass
-                elif action == WardenAction.SendToMonitor:
+                elif action == Action.SendToMonitor:
                     value = Template(value).safe_substitute(templates_vars)
                     cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
-                elif action == WardenAction.NoOp:
+                elif action == Action.NoOp:
                     pass
 
         return bool(last_expel_action)
@@ -610,49 +544,3 @@ class WardenRule:
         em.set_author(name=title)
         em.set_footer(text=f"Warden rule `{self.name}`")
         return em
-
-def check_role_hierarchy(*, author: discord.Member, action: WardenAction, parameter: list):
-    guild = author.guild
-    roles = []
-
-    is_server_owner = author.id == guild.owner_id
-
-    for role_id_or_name in parameter:
-        role = guild.get_role(role_id_or_name)
-        if role is None:
-            role = discord.utils.get(guild.roles, name=role_id_or_name)
-        if role is None:
-            raise InvalidRule(f"`{action.value}`: Role `{role_id_or_name}` doesn't seem to exist.")
-        roles.append(role)
-
-    if not is_server_owner:
-        for r in roles:
-            if r.position >= author.top_role.position:
-                raise InvalidRule(f"`{action.value}` Cannot assign or remove role `{r.name}` through Warden. "
-                                "You are autorized to only add or remove roles below your top role.")
-
-def check_slowmode(*, author: discord.Member, action: WardenAction, parameter: str):
-    if not author.guild_permissions.manage_channels:
-        raise InvalidRule(f"`{action.value}` You need `manage channels` permissions to make a rule with "
-                           "this action.")
-
-    td = None
-    try:
-        td = parse_timedelta(parameter,
-                             maximum=datetime.timedelta(hours=6),
-                             minimum=datetime.timedelta(seconds=0),
-                             allowed_units=["hours", "minutes", "seconds"])
-    except BadArgument:
-        pass
-
-    if td is None:
-        raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 6 hours. "
-                           "You must specify `seconds`, `minutes` or `hours`. Can be `0 seconds` to "
-                           "deactivate slowmode.")
-
-# A callable with author, action and parameter kwargs
-ACTIONS_SANITY_CHECK = {
-    WardenAction.AddRolesToUser: check_role_hierarchy,
-    WardenAction.RemoveRolesFromUser: check_role_hierarchy,
-    WardenAction.SetChannelSlowmode: check_slowmode,
-}

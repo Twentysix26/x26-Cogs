@@ -16,8 +16,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from ..abc import MixinMeta, CompositeMetaClass
-from ..enums import Rank, WardenEvent
-from ..core.warden import WardenRule
+from ..enums import Rank
+from ..core.warden.enums import Event as WardenEvent
+from ..core.warden.rule import WardenRule
 from . import cache as df_cache
 from redbot.core import commands
 import discord
