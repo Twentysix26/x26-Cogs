@@ -477,7 +477,7 @@ class WardenRule:
                     to_assign = list(set(to_assign))
                     to_assign = [r for r in to_assign if r not in user.roles]
                     if to_assign:
-                        await user.add_roles(*to_assign, reason=f"Assigned by Warden action '{self.name}'")
+                        await user.add_roles(*to_assign, reason=f"Assigned by Warden rule '{self.name}'")
                 elif action == Action.RemoveRolesFromUser:
                     to_unassign = []
                     for role_id_or_name in value:
@@ -489,21 +489,21 @@ class WardenRule:
                     to_unassign = list(set(to_unassign))
                     to_unassign = [r for r in to_unassign if r in user.roles]
                     if to_unassign:
-                        await user.remove_roles(*to_unassign, reason=f"Unassigned by Warden action '{self.name}'")
+                        await user.remove_roles(*to_unassign, reason=f"Unassigned by Warden rule '{self.name}'")
                 elif action == Action.SetUserNickname:
                     if value == "":
                         value = None
                     else:
                         value = Template(value).safe_substitute(templates_vars)
-                    await user.edit(nick=value, reason=f"Changed nickname by Warden action '{self.name}'")
+                    await user.edit(nick=value, reason=f"Changed nickname by Warden rule '{self.name}'")
                 elif action == Action.BanAndDelete:
-                    await guild.ban(user, delete_message_days=value, reason=f"Banned by Warden action '{self.name}'")
+                    await guild.ban(user, delete_message_days=value, reason=f"Banned by Warden rule '{self.name}'")
                     last_expel_action = ModAction.Ban
                 elif action == Action.Kick:
                     await guild.kick(user, reason=f"Kicked by Warden action '{self.name}'")
                     last_expel_action = Action.Kick
                 elif action == Action.Softban:
-                    await guild.ban(user, delete_message_days=1, reason=f"Softbanned by Warden action '{self.name}'")
+                    await guild.ban(user, delete_message_days=1, reason=f"Softbanned by Warden rule '{self.name}'")
                     await guild.unban(user)
                     last_expel_action = Action.Softban
                 elif action == Action.Modlog:
@@ -534,6 +534,8 @@ class WardenRule:
                     cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
                 elif action == Action.NoOp:
                     pass
+                else:
+                    raise InvalidRule(f"Unhandled action '{self.name}'.")
 
         return bool(last_expel_action)
 

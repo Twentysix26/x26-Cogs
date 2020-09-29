@@ -83,7 +83,8 @@ ACTIONS_ANY_CONTEXT = [
     Action.NotifyStaffAndPing,
     Action.NotifyStaffWithEmbed,
     Action.NoOp,
-    Action.SendToMonitor
+    Action.SendToMonitor,
+    Action.EnableEmergencyMode,
 ]
 
 ACTIONS_USER_CONTEXT = [
@@ -92,7 +93,6 @@ ACTIONS_USER_CONTEXT = [
     Action.Softban,
     Action.Kick,
     Action.Modlog,
-    Action.DeleteUserMessage,
     Action.AddRolesToUser,
     Action.RemoveRolesFromUser,
     Action.SetUserNickname
