@@ -19,6 +19,8 @@ from ..enums import Rank, Action, EmergencyMode
 from ..enums import WardenAction, WardenCondition, WardenEvent, WardenConditionBlock
 from ..exceptions import InvalidRule
 from redbot.core.utils.common_filters import INVITE_URL_RE
+from redbot.core.commands.converter import parse_timedelta
+from discord.ext.commands import BadArgument
 from string import Template
 from redbot.core import modlog
 from typing import Optional
@@ -67,6 +69,7 @@ WARDEN_ACTIONS_PARAM_TYPE = {
     WardenAction.Modlog: [str],
     WardenAction.DeleteUserMessage: [None],
     WardenAction.SendInChannel: [str],
+    WardenAction.SetChannelSlowmode: [str],
     WardenAction.AddRolesToUser: [list],
     WardenAction.RemoveRolesFromUser: [list],
     WardenAction.EnableEmergencyMode: [bool],
@@ -90,7 +93,7 @@ DENIED_CONDITIONS[WardenEvent.Manual] = DENIED_CONDITIONS[WardenEvent.OnUserJoin
 DENIED_ACTIONS = {
     WardenEvent.OnMessage: [],
     WardenEvent.OnMessageEdit: [],
-    WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage],
+    WardenEvent.OnUserJoin: [WardenAction.SendInChannel, WardenAction.DeleteUserMessage, WardenAction.SetChannelSlowmode],
     WardenEvent.OnEmergency: [c for c in WardenAction if c != WardenAction.NotifyStaff and c!= WardenAction.NotifyStaffAndPing and
                                                          c != WardenAction.NotifyStaffWithEmbed and
                                                          c != WardenAction.Dm and c != WardenAction.EnableEmergencyMode and
@@ -111,7 +114,7 @@ class WardenRule:
         self.last_action = WardenAction.NoOp
         self.name = None
         self.events = []
-        self.rank = None
+        self.rank = Rank.Rank4
         self.conditions = []
         self.actions = {}
         self.raw_rule = rule_str
@@ -514,6 +517,9 @@ class WardenRule:
                 elif action == WardenAction.SendInChannel:
                     text = Template(value).safe_substitute(templates_vars)
                     await channel.send(text)
+                elif action == WardenAction.SetChannelSlowmode:
+                    timedelta = parse_timedelta(value)
+                    await channel.edit(slowmode_delay=timedelta.seconds)
                 elif action == WardenAction.Dm:
                     _id_or_name, content = (value[0], value[1])
                     user_to_dm = guild.get_member(_id_or_name)
@@ -625,8 +631,28 @@ def check_role_hierarchy(*, author: discord.Member, action: WardenAction, parame
                 raise InvalidRule(f"`{action.value}` Cannot assign or remove role `{r.name}` through Warden. "
                                 "You are autorized to only add or remove roles below your top role.")
 
+def check_slowmode(*, author: discord.Member, action: WardenAction, parameter: str):
+    if not author.guild_permissions.manage_channels:
+        raise InvalidRule(f"`{action.value}` You need `manage channels` permissions to make a rule with "
+                           "this action.")
+
+    td = None
+    try:
+        td = parse_timedelta(parameter,
+                             maximum=datetime.timedelta(hours=6),
+                             minimum=datetime.timedelta(seconds=0),
+                             allowed_units=["hours", "minutes", "seconds"])
+    except BadArgument:
+        pass
+
+    if td is None:
+        raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 6 hours. "
+                           "You must specify `seconds`, `minutes` or `hours`. Can be `0 seconds` to "
+                           "deactivate slowmode.")
+
 # A callable with author, action and parameter kwargs
 ACTIONS_SANITY_CHECK = {
     WardenAction.AddRolesToUser: check_role_hierarchy,
-    WardenAction.RemoveRolesFromUser: check_role_hierarchy
+    WardenAction.RemoveRolesFromUser: check_role_hierarchy,
+    WardenAction.SetChannelSlowmode: check_slowmode,
 }

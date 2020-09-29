@@ -58,6 +58,7 @@ class WardenAction(enum.Enum):
     Modlog = "send-mod-log" # Send modlog case of last expel action + reason
     DeleteUserMessage = "delete-user-message" # Delete message in context
     SendInChannel = "send-in-channel" # Send message to channel in context
+    SetChannelSlowmode = "set-channel-slowmode" # 0 - 6h
     AddRolesToUser = "add-roles-to-user" # Adds roles to user in context
     RemoveRolesFromUser = "remove-roles-from-user" # Remove roles from user in context
     EnableEmergencyMode = "enable-emergency-mode"
