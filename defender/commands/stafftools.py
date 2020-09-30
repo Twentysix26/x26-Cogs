@@ -20,6 +20,7 @@ from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import Rank
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
+from ..core.warden.enums import Event as WardenEvent
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..exceptions import InvalidRule
@@ -387,25 +388,27 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     @wardengroup.command(name="list")
     async def wardengrouplistrules(self, ctx: commands.Context):
         """Lists existing rules"""
+        guild = ctx.guild
         text = ""
-        rules = {"active": [], "invalid": []}
-        for k, v in self.active_warden_rules[ctx.guild.id].items():
-            rules["active"].append(inline(v.name))
-
+        rules = {}
+        for event in WardenEvent:
+            rules[event.value] = self.get_warden_rules_by_event(guild, event)
+        for k, v in rules.items():
+            rules[k] = [inline(r.name) for r in v]
+        rules["invalid"] = []
         for k, v in self.invalid_warden_rules[ctx.guild.id].items():
             rules["invalid"].append(inline(v.name))
 
-        if not rules["active"] and not rules["invalid"]:
-            return await ctx.send("There are no rules set.")
-
-        if rules["active"]:
-            text += "**Active rules**: " + ", ".join(rules["active"])
-
+        text = "Active Warden rules per event:\n\n"
+        for k, v in rules.items():
+            if k == "invalid":
+                continue
+            event_name = k.replace("-", " ").capitalize()
+            rule_names = ", ".join(v) if v else "No rules set."
+            text += f"**{event_name}**:\n{rule_names}\n"
         if rules["invalid"]:
-            if text:
-                text += "\n\n"
-            text += "**Invalid rules**: " + ", ".join(rules["invalid"])
-            text += ("\nThese rules failed the validation process at the last start. Check if "
+            text += f"\n**Invalid rules**:\n{', '.join(rules['invalid'])}\n"
+            text += ("These rules failed the validation process at the last start. Check if "
                      "their format is still considered valid in the most recent version of "
                      "Defender.")
 
