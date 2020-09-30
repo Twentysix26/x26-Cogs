@@ -37,7 +37,8 @@ log = logging.getLogger("red.x26cogs.defender")
 
 utcnow = datetime.datetime.utcnow
 
-RULE_KEYS = ("name", "event", "rank", "if", "do")
+RULE_REQUIRED_KEYS = ("name", "event", "rank", "if", "do")
+RULE_FACULTATIVE_KEYS = ("priority",)
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
 
@@ -52,6 +53,7 @@ class WardenRule:
         self.conditions = []
         self.actions = {}
         self.raw_rule = rule_str
+        self.priority = 2666
         try:
             self.parse(rule_str, author=author)
         except Exception as e:
@@ -75,10 +77,10 @@ class WardenRule:
         self.name = rule["name"].lower().replace(" ", "-")
 
         for key in rule.keys():
-            if key not in RULE_KEYS:
+            if key not in RULE_REQUIRED_KEYS and key not in RULE_FACULTATIVE_KEYS:
                 raise InvalidRule(f"Unexpected key at root level: '{key}'.")
 
-        for key in RULE_KEYS:
+        for key in RULE_REQUIRED_KEYS:
             if key not in rule.keys():
                 raise InvalidRule(f"Missing key at root level: '{key}'.")
 
@@ -100,6 +102,14 @@ class WardenRule:
             self.rank = Rank(rule["rank"])
         except:
             raise InvalidRule("Invalid target rank. Must be 1-4.")
+
+        try:
+            priority = rule["priority"]
+            if not isinstance(priority, int) or priority < 1 or priority > 999:
+                raise InvalidRule("Priority must be a number between 1 and 999.")
+            self.priority = priority
+        except KeyError:
+            pass
 
         if "if" in rule: # TODO Conditions probably shouldn't be mandatory.
             if not isinstance(rule["if"], list):

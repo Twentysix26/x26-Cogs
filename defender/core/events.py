@@ -55,9 +55,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         rule: WardenRule
         if await self.config.guild(guild).warden_enabled():
-            for rule in self.active_warden_rules[guild.id].values():
-                if WardenEvent.OnMessage not in rule.events:
-                    continue
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.OnMessage)
+            for rule in rules:
                 if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
                         expelled = await rule.do_actions(cog=self, message=message)
@@ -127,9 +126,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         rule: WardenRule
         if await self.config.guild(guild).warden_enabled():
-            for rule in self.active_warden_rules[guild.id].values():
-                if WardenEvent.OnMessageEdit not in rule.events:
-                    continue
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.OnMessageEdit)
+            for rule in rules:
                 if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
                         expelled = await rule.do_actions(cog=self, message=message)
@@ -161,9 +159,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         if await self.config.guild(guild).warden_enabled():
             rule: WardenRule
-            for rule in self.active_warden_rules[guild.id].values():
-                if WardenEvent.OnUserJoin not in rule.events:
-                    continue
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.OnUserJoin)
+            for rule in rules:
                 rank = await self.rank_user(member)
                 if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
                     try:

@@ -319,9 +319,8 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         if not await self.config.guild(guild).warden_enabled():
             return
 
-        for rule in self.active_warden_rules[guild.id].values():
-            if WardenEvent.OnEmergency not in rule.events:
-                continue
+        rules = self.get_warden_rules_by_event(guild, WardenEvent.OnEmergency)
+        for rule in rules:
             if await rule.satisfies_conditions(cog=self, rank=rule.rank, guild=guild):
                 try:
                     await rule.do_actions(cog=self, guild=guild)
@@ -429,6 +428,11 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 await msg.add_reaction(react)
             return msg
         return False
+
+    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent):
+        rules = self.active_warden_rules.get(guild.id, {}).values()
+        rules = [r for r in rules if event in r.events]
+        return sorted(rules, key=lambda k: k.priority)
 
     async def red_delete_data_for_user(self, requester, user_id):
         # We store only IDs
