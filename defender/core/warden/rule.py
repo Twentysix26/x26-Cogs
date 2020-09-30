@@ -381,6 +381,10 @@ class WardenRule:
             elif condition == Condition.MessageContainsMedia:
                 has_media = MEDIA_URL_RE.search(message.content)
                 bools.append(bool(has_media) is value)
+            elif condition == Condition.MessageContainsMTMentions:
+                bools.append(len(message.raw_mentions) > value) # type: ignore
+            elif condition == Condition.MessageContainsMTUniqueMentions:
+                bools.append(len(set(message.mentions)) > value) # type: ignore
             elif condition == Condition.IsStaff:
                 is_staff = await cog.bot.is_mod(user)
                 bools.append(is_staff is value)

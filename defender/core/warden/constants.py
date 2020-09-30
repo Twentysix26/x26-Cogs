@@ -31,6 +31,8 @@ CONDITIONS_PARAM_TYPE = {
     Condition.UserHasAnyRoleIn: [list],
     Condition.MessageContainsInvite: [bool],
     Condition.MessageContainsMedia: [bool],
+    Condition.MessageContainsMTMentions: [int],
+    Condition.MessageContainsMTUniqueMentions: [int],
     Condition.IsStaff: [bool]
 }
 
@@ -74,7 +76,9 @@ CONDITIONS_MESSAGE_CONTEXT = [
     Condition.ChannelMatchesAny,
     Condition.MessageHasAttachment,
     Condition.MessageContainsInvite,
-    Condition.MessageContainsMedia
+    Condition.MessageContainsMedia,
+    Condition.MessageContainsMTMentions,
+    Condition.MessageContainsMTUniqueMentions,
 ]
 
 ACTIONS_ANY_CONTEXT = [
