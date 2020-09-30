@@ -20,7 +20,9 @@ import enum
 class Event(enum.Enum):
     OnMessage = "on-message"
     OnMessageEdit = "on-message-edit"
+    OnMessageDelete = "on-message-delete"
     OnUserJoin = "on-user-join"
+    OnUserLeave = "on-user-leave"
     OnEmergency = "on-emergency"
     Manual = "manual"
 

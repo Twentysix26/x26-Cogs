@@ -68,8 +68,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                                     f"({rule.last_action.value}) - {str(e)}")
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
-                    if expelled is True:
-                        return
+        if expelled is True:
+            return
 
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
         if inv_filter_enabled and not is_staff:
@@ -139,14 +139,43 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                                     f"({rule.last_action.value}) - {str(e)}")
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
-                    if expelled is True:
-                        return
+        if expelled is True:
+            return
 
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
         if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
             if rank >= inv_filter_rank:
                 expelled = await self.invite_filter(message)
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message: discord.Message):
+        author = message.author
+        if not hasattr(author, "guild") or not author.guild:
+            return
+        guild = author.guild
+        if author.bot:
+            return
+
+        if not await self.config.guild(guild).enabled():
+            return
+
+        rank = await self.rank_user(author)
+
+        rule: WardenRule
+        if await self.config.guild(guild).warden_enabled():
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.OnMessageDelete)
+            for rule in rules:
+                if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
+                    try:
+                        await rule.do_actions(cog=self, message=message)
+                    except (discord.Forbidden, discord.HTTPException) as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                    except Exception as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                        log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -176,6 +205,31 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if await self.config.guild(guild).join_monitor_enabled():
             await self.join_monitor_flood(member)
             await self.join_monitor_suspicious(member)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member: discord.Member):
+        if member.bot:
+            return
+
+        guild = member.guild
+        if not await self.config.guild(guild).enabled():
+            return
+
+        if await self.config.guild(guild).warden_enabled():
+            rule: WardenRule
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.OnUserLeave)
+            for rule in rules:
+                rank = await self.rank_user(member)
+                if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
+                    try:
+                        await rule.do_actions(cog=self, user=member)
+                    except (discord.Forbidden, discord.HTTPException) as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                    except Exception as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                        log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     @commands.Cog.listener()
     async def on_reaction_add(self, _, user: discord.Member):
