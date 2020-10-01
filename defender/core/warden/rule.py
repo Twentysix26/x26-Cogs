@@ -130,9 +130,17 @@ class WardenRule:
 
         self.actions = rule["do"]
 
-        allowed = []
-        for event in self.events:
-            allowed.extend(ALLOWED_CONDITIONS[event])
+        def is_condition_allowed_in_events(condition):
+            for event in self.events:
+                if not condition in ALLOWED_CONDITIONS[event]:
+                    return False
+            return True
+
+        def is_action_allowed_in_events(action):
+            for event in self.events:
+                if not action in ALLOWED_ACTIONS[event]:
+                    return False
+            return True
 
         def validate_condition(cond):
             condition = parameter = None
@@ -148,7 +156,7 @@ class WardenRule:
                 except ValueError:
                     raise InvalidRule(f"Invalid condition: `{condition}`")
 
-            if condition not in allowed:
+            if not is_condition_allowed_in_events(condition):
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
 
             _type = None
@@ -191,10 +199,6 @@ class WardenRule:
             else:
                 validate_condition(raw_condition)
 
-        allowed = []
-        for event in self.events:
-            allowed.extend(ALLOWED_ACTIONS[event])
-
         # Basically a list of one-key dicts
         # We need to preserve order of actions
         for entry in self.actions:
@@ -212,7 +216,7 @@ class WardenRule:
                 except ValueError:
                     raise InvalidRule(f"Invalid action: `{action}`")
 
-                if action not in allowed:
+                if not is_action_allowed_in_events(action):
                     raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
 
                 for _type in ACTIONS_PARAM_TYPE[action]:
