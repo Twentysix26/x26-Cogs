@@ -115,7 +115,7 @@ ALLOWED_CONDITIONS = {
     Event.OnUserJoin: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT],
     Event.OnUserLeave: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT],
     Event.OnEmergency: [*CONDITIONS_ANY_CONTEXT],
-    Event.Manual: [*CONDITIONS_ANY_CONTEXT]
+    Event.Manual: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT]
 }
 
 ALLOWED_ACTIONS = {
@@ -125,7 +125,7 @@ ALLOWED_ACTIONS = {
     Event.OnUserJoin: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
     Event.OnUserLeave: [*ACTIONS_ANY_CONTEXT],
     Event.OnEmergency: [*ACTIONS_ANY_CONTEXT],
-    Event.Manual: [*ACTIONS_ANY_CONTEXT]
+    Event.Manual: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT]
 }
 
 # These are for special commands such as DM, which require

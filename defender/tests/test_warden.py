@@ -10,6 +10,12 @@ from .wd_sample_rules import (DYNAMIC_RULE, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPL
 import pytest
 
 def test_check_constants_consistency():
+    def x_contains_only_y(x, y):
+        for element in x:
+            if not isinstance(element, y):
+                return False
+        return True
+
     for condition in Condition:
         assert condition in CONDITIONS_PARAM_TYPE
 
@@ -47,6 +53,13 @@ def test_check_constants_consistency():
 
         assert i == 1
         i = 0
+
+    assert x_contains_only_y(CONDITIONS_ANY_CONTEXT, Condition)
+    assert x_contains_only_y(CONDITIONS_USER_CONTEXT, Condition)
+    assert x_contains_only_y(CONDITIONS_MESSAGE_CONTEXT, Condition)
+    assert x_contains_only_y(ACTIONS_ANY_CONTEXT, Action)
+    assert x_contains_only_y(ACTIONS_USER_CONTEXT, Action)
+    assert x_contains_only_y(ACTIONS_MESSAGE_CONTEXT, Action)
 
 def test_rule_parsing():
     with pytest.raises(InvalidRule, match=r".*rank.*"):
