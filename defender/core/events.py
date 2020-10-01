@@ -46,6 +46,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         is_staff = False
         expelled = False
+        wd_expelled = False
         rank = await self.rank_user(author)
 
         if rank == Rank.Rank1:
@@ -59,7 +60,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             for rule in rules:
                 if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
-                        expelled = await rule.do_actions(cog=self, message=message)
+                        wd_expelled = await rule.do_actions(cog=self, message=message)
+                        if wd_expelled:
+                            expelled = True
                     except (discord.Forbidden, discord.HTTPException) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
@@ -68,7 +71,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                                     f"({rule.last_action.value}) - {str(e)}")
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
-        if expelled is True:
+        if expelled:
             return
 
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
@@ -117,6 +120,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         is_staff = False
         expelled = False
+        wd_expelled = False
         rank = await self.rank_user(author)
 
         if rank == Rank.Rank1:
@@ -130,7 +134,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             for rule in rules:
                 if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
-                        expelled = await rule.do_actions(cog=self, message=message)
+                        wd_expelled = await rule.do_actions(cog=self, message=message)
+                        if wd_expelled:
+                            expelled = True
                     except (discord.Forbidden, discord.HTTPException) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
@@ -139,7 +145,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                                     f"({rule.last_action.value}) - {str(e)}")
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
-        if expelled is True:
+        if expelled:
             return
 
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
