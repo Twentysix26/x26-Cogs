@@ -5,7 +5,8 @@ from ..core.warden.constants import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONT
 from ..core.warden.constants import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, ACTIONS_ARGS_N
 from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
-from .wd_sample_rules import DYNAMIC_RULE, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE, INVALID_RANK, INVALID_EVENT
+from .wd_sample_rules import (DYNAMIC_RULE, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE,
+                              INVALID_RANK, INVALID_EVENT, TUTORIAL_PRIORITY_RULE, INVALID_PRIORITY)
 import pytest
 
 def test_check_constants_consistency():
@@ -52,16 +53,19 @@ def test_rule_parsing():
         WardenRule(INVALID_RANK)
     with pytest.raises(InvalidRule, match=r".*event.*"):
         WardenRule(INVALID_EVENT)
+    with pytest.raises(InvalidRule, match=r".*number.*"):
+        WardenRule(INVALID_PRIORITY)
 
     WardenRule(TUTORIAL_SIMPLE_RULE)
+    WardenRule(TUTORIAL_PRIORITY_RULE)
 
     rule = WardenRule(TUTORIAL_COMPLEX_RULE)
     assert isinstance(rule.rank, Rank)
-    assert isinstance(rule.name, str)
+    assert rule.name and isinstance(rule.name, str)
     assert rule.raw_rule and isinstance(rule.raw_rule, str)
-    assert isinstance(rule.events, list)
-    assert isinstance(rule.conditions, list)
-    assert isinstance(rule.actions, list)
+    assert rule.events and isinstance(rule.events, list)
+    assert rule.conditions and isinstance(rule.conditions, list)
+    assert rule.actions and isinstance(rule.actions, list)
 
     # Dynamic rule generation to test every possible
     # combination of event, conditions and actions
