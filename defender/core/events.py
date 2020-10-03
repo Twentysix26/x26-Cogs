@@ -250,3 +250,22 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         if await self.bot.is_mod(user): # Is staff?
             await self.refresh_staff_activity(user.guild)
+
+    @commands.Cog.listener()
+    async def on_x26_defender_emergency(self, guild: discord.Guild):
+        rule: WardenRule
+        if not await self.config.guild(guild).warden_enabled():
+            return
+
+        rules = self.get_warden_rules_by_event(guild, WardenEvent.OnEmergency)
+        for rule in rules:
+            if await rule.satisfies_conditions(cog=self, rank=rule.rank, guild=guild):
+                try:
+                    await rule.do_actions(cog=self, guild=guild)
+                except (discord.Forbidden, discord.HTTPException) as e:
+                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                f"({rule.last_action.value}) - {str(e)}")
+                except Exception as e:
+                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                f"({rule.last_action.value}) - {str(e)}")
+                    log.error("Warden - unexpected error during actions execution", exc_info=e)

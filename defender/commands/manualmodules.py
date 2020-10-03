@@ -136,7 +136,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                                             f"**{', '.join(emergency_modules)}** modules.")
 
         await ctx.send(text)
-        await self.trigger_warden_emergency_rules(guild)
+        self.dispatch_event("emergency", guild)
         await cleanup_countdown()
 
     @commands.command()
@@ -320,14 +320,20 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if Action(action) == Action.Ban:
             action_text = "Votebanned with Defender."
             days = await self.config.guild(guild).voteout_wipe()
-            await guild.ban(user, reason=f"{action_text} Voters: {voters_list}", delete_message_days=days)
+            reason = f"{action_text} Voters: {voters_list}"
+            await guild.ban(user, reason=reason, delete_message_days=days)
+            self.dispatch_event("member_remove", user, Action.Ban.value, reason)
         elif Action(action) == Action.Softban:
             action_text = "Votekicked with Defender." # Softban can be considered a kick
-            await guild.ban(user, reason=f"{action_text} Voters: {voters_list}", delete_message_days=1)
+            reason = f"{action_text} Voters: {voters_list}"
+            await guild.ban(user, reason=reason, delete_message_days=1)
             await guild.unban(user)
+            self.dispatch_event("member_remove", user, Action.Softban.value, reason)
         elif Action(action) == Action.Kick:
             action_text = "Votekicked with Defender."
-            await guild.kick(user, reason=f"{action_text} Voters: {voters_list}")
+            reason = f"{action_text} Voters: {voters_list}"
+            await guild.kick(user, reason=reason)
+            self.dispatch_event("member_remove", user, Action.Kick.value, reason)
         else:
             raise ValueError("Invalid action set for voteout.")
 

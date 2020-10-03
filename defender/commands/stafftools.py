@@ -277,7 +277,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             if not emergency_mode:
                 self.emergency_mode[guild.id] = EmergencyMode(manual=True)
                 await self.send_notification(guild, alert_msg, ping=True)
-                await self.trigger_warden_emergency_rules(guild)
+                self.dispatch_event("emergency", guild)
             else:
                 await ctx.send("Emergency mode is already ongoing.")
         else:

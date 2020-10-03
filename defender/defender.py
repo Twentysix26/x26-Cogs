@@ -314,24 +314,6 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         df_cache.MSG_STORE_CAP = await self.config.cache_cap()
         df_cache.MSG_EXPIRATION_TIME = await self.config.cache_expiration()
 
-    async def trigger_warden_emergency_rules(self, guild):
-        rule: WardenRule
-        if not await self.config.guild(guild).warden_enabled():
-            return
-
-        rules = self.get_warden_rules_by_event(guild, WardenEvent.OnEmergency)
-        for rule in rules:
-            if await rule.satisfies_conditions(cog=self, rank=rule.rank, guild=guild):
-                try:
-                    await rule.do_actions(cog=self, guild=guild)
-                except (discord.Forbidden, discord.HTTPException) as e:
-                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
-                                                f"({rule.last_action.value}) - {str(e)}")
-                except Exception as e:
-                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
-                                                f"({rule.last_action.value}) - {str(e)}")
-                    log.error("Warden - unexpected error during actions execution", exc_info=e)
-
     async def send_announcements(self):
         new_announcements = get_announcements(only_recent=True)
         if not new_announcements:
@@ -433,6 +415,10 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         rules = self.active_warden_rules.get(guild.id, {}).values()
         rules = [r for r in rules if event in r.events]
         return sorted(rules, key=lambda k: k.priority)
+
+    def dispatch_event(self, event_name, *args):
+        event_name = "x26_defender_" + event_name
+        self.bot.dispatch(event_name, *args)
 
     async def red_delete_data_for_user(self, requester, user_id):
         # We store only IDs

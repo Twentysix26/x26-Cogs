@@ -49,12 +49,18 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
 
         if Action(action) == Action.Ban:
-            await guild.ban(author, reason="Posting an invite link (Defender autoban)", delete_message_days=0)
+            reason = "Posting an invite link (Defender autoban)"
+            await guild.ban(author, reason=reason, delete_message_days=0)
+            self.dispatch_event("member_remove", author, Action.Ban.value, reason)
         elif Action(action) == Action.Kick:
-            await guild.kick(author, reason="Posting an invite link (Defender autokick)")
+            reason = "Posting an invite link (Defender autokick)"
+            await guild.kick(author, reason=reason)
+            self.dispatch_event("member_remove", author, Action.Kick.value, reason)
         elif Action(action) == Action.Softban:
-            await guild.ban(author, reason="Posting an invite link (Defender autokick)", delete_message_days=1)
+            reason = "Posting an invite link (Defender autokick)"
+            await guild.ban(author, reason=reason, delete_message_days=1)
             await guild.unban(author)
+            self.dispatch_event("member_remove", author, Action.Softban.value, reason)
         elif Action(action) == Action.NoAction:
             pass
         else:
@@ -104,12 +110,18 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         if Action(action) == Action.Ban:
             delete_days = await self.config.guild(guild).raider_detection_wipe()
-            await guild.ban(author, reason="Message spammer (Defender autoban)", delete_message_days=delete_days)
+            reason = "Message spammer (Defender autoban)"
+            await guild.ban(author, reason=reason, delete_message_days=delete_days)
+            self.dispatch_event("member_remove", author, Action.Ban.value, reason)
         elif Action(action) == Action.Kick:
-            await guild.kick(author, reason="Message spammer (Defender autokick)")
+            reason = "Message spammer (Defender autokick)"
+            await guild.kick(author, reason=reason)
+            self.dispatch_event("member_remove", author, Action.Kick.value, reason)
         elif Action(action) == Action.Softban:
-            await guild.ban(author, reason="Message spammer (Defender autokick)", delete_message_days=1)
+            reason = "Message spammer (Defender autokick)"
+            await guild.ban(author, reason=reason, delete_message_days=1)
             await guild.unban(author)
+            self.dispatch_event("member_remove", author, Action.Softban.value, reason)
         elif Action(action) == Action.NoAction:
             fifteen_minutes_ago = message.created_at - datetime.timedelta(minutes=15)
             if guild.id in self.last_raid_alert:

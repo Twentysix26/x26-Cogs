@@ -79,10 +79,6 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def trigger_warden_emergency_rules(self, guild: discord.Guild):
-        raise NotImplementedError()
-
-    @abstractmethod
     async def send_announcements(self):
         raise NotImplementedError()
 
@@ -131,4 +127,8 @@ class MixinMeta(ABC):
 
     @abstractmethod
     def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def dispatch_event(self, event_name, *args):
         raise NotImplementedError()

@@ -515,15 +515,21 @@ class WardenRule:
                         value = Template(value).safe_substitute(templates_vars)
                     await user.edit(nick=value, reason=f"Changed nickname by Warden rule '{self.name}'")
                 elif action == Action.BanAndDelete:
-                    await guild.ban(user, delete_message_days=value, reason=f"Banned by Warden rule '{self.name}'")
+                    reason = f"Banned by Warden rule '{self.name}'"
+                    await guild.ban(user, delete_message_days=value, reason=reason)
                     last_expel_action = ModAction.Ban
+                    cog.dispatch_event("member_remove", user, ModAction.Ban.value, reason)
                 elif action == Action.Kick:
-                    await guild.kick(user, reason=f"Kicked by Warden action '{self.name}'")
+                    reason = f"Kicked by Warden action '{self.name}'"
+                    await guild.kick(user, reason=reason)
                     last_expel_action = Action.Kick
+                    cog.dispatch_event("member_remove", user, ModAction.Kick.value, reason)
                 elif action == Action.Softban:
-                    await guild.ban(user, delete_message_days=1, reason=f"Softbanned by Warden rule '{self.name}'")
+                    reason = f"Softbanned by Warden rule '{self.name}'"
+                    await guild.ban(user, delete_message_days=1, reason=reason)
                     await guild.unban(user)
                     last_expel_action = Action.Softban
+                    cog.dispatch_event("member_remove", user, ModAction.Softban.value, reason)
                 elif action == Action.Modlog:
                     if last_expel_action is None:
                         continue
