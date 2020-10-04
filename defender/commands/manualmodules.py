@@ -70,21 +70,19 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if self.is_in_emergency_mode(guild):
             return
 
-        to_delete = []
-
         async def check_audit_log():
             try:
                 await self.refresh_with_audit_logs_activity(guild)
             except discord.Forbidden: # No access to the audit log, welp
                 pass
 
-        async def cleanup_countdown():
-            channel = ctx.channel
-            if to_delete:
-                try:
-                    await channel.delete_messages(to_delete)
-                except:
-                    pass
+        async def maybe_delete(message):
+            if not message:
+                return
+            try:
+                await message.delete()
+            except:
+                pass
 
         await asyncio.sleep(60)
         await check_audit_log()
@@ -94,27 +92,29 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         minutes = await self.config.guild(guild).emergency_minutes()
         minutes -= 1
+        last_msg = None
 
         if minutes: # This whole countdown thing is skipped if the max inactivity is a single minute
             text = ("⚠️ No staff activity detected in the past minute. "
                     "Emergency mode will be engaged in {} minutes. "
                     "Please stand by. ⚠️")
 
-            await ctx.send(f"{ctx.author.mention} " + text.format(minutes))
+            last_msg = await ctx.send(f"{ctx.author.mention} " + text.format(minutes))
             await self.send_notification(guild, "⚠️ Seems like you're not around. I will automatically engage "
                                                 f"emergency mode in {minutes} minutes if you don't show up.")
             while minutes != 0:
                 await asyncio.sleep(60)
                 await check_audit_log()
                 if self.has_staff_been_active(guild, minutes=1):
-                    await cleanup_countdown()
+                    await maybe_delete(last_msg)
                     ctx.command.reset_cooldown(ctx)
                     await ctx.send("Staff activity detected. Alert deactivated. "
                                     "Thanks for helping keep the community safe.")
                     return
                 minutes -= 1
                 if minutes % 2: # Halves the # of messages
-                    to_delete.append(await ctx.send(text.format(minutes)))
+                    await maybe_delete(last_msg)
+                    last_msg = await ctx.send(text.format(minutes))
 
         guide = {
             EmergencyModules.Voteout: "voteout <user>` - Start a vote to expel a user from the server",
@@ -137,7 +137,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         await ctx.send(text)
         self.dispatch_event("emergency", guild)
-        await cleanup_countdown()
+        await maybe_delete(last_msg)
 
     @commands.command()
     @commands.guild_only()
