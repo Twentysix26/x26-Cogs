@@ -42,6 +42,16 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not result:
             return
 
+        exclude_own_invites = await self.config.guild(guild).invite_filter_exclude_own_invites()
+
+        if exclude_own_invites:
+            try:
+                is_own_invite = await self.is_own_invite(guild, result)
+                if is_own_invite:
+                    return
+            except Exception as e:
+                log.error("Unexpected error in invite filter's own invite check", exc_info=e)
+
         content = box(message.content)
         await message.delete()
         action = await self.config.guild(guild).invite_filter_action()
@@ -222,3 +232,20 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                     "`[p]defender notifynew 0` in the server.", embed=em)
                 except:
                     pass
+
+    async def is_own_invite(self, guild: discord.Guild, match):
+        if not guild.me.guild_permissions.manage_guild:
+            return False
+
+        has_vanity_url = "VANITY_URL" in guild.features
+
+        if has_vanity_url:
+            invite_url = await guild.vanity_invite()
+            if invite_url.code.lower() == match.group(2).lower():
+                return True
+
+        for invite in await guild.invites():
+            if invite.code == match.group(2):
+                return True
+
+        return False

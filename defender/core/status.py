@@ -33,6 +33,12 @@ async def make_status(ctx, cog):
     can_ban = ctx.channel.permissions_for(guild.me).ban_members
     can_kick = ctx.channel.permissions_for(guild.me).kick_members
     can_read_al = ctx.channel.permissions_for(guild.me).view_audit_log
+    can_see_own_invites = True
+    if not guild.me.guild_permissions.manage_guild:
+        if await cog.config.guild(guild).invite_filter_enabled():
+            exclude_own = await cog.config.guild(guild).invite_filter_exclude_own_invites()
+            if exclude_own:
+                can_see_own_invites = False
 
     msg = ("This is an overview of the status and the general settings.\n*Notify role* is the "
             "role that gets pinged in case of urgent matters.\n*Notify channel* is where I send "
@@ -49,6 +55,8 @@ async def make_status(ctx, cog):
         msg += "**Configuration issue:** I cannot read and/or send messages in the notify channel.\n"
     if not n_role:
         msg += f"**Configuration issue:** Notify role not set ({p}dset general notifyrole)\n"
+    if not can_see_own_invites:
+        msg += "**Configuration issue:** I need 'Manage server' permissions to see our own invites.\n"
     if not can_ban:
         msg += "**Possible configuration issue:** I'm not able to ban in this server.\n"
     if not can_kick:
@@ -165,10 +173,17 @@ async def make_status(ctx, cog):
         enabled = await cog.config.guild(guild).invite_filter_enabled()
     rank = await cog.config.guild(guild).invite_filter_rank()
     action = await cog.config.guild(guild).invite_filter_action()
+    own_invites = await cog.config.guild(guild).invite_filter_exclude_own_invites()
+    if own_invites:
+        oi_text = "Users are **allowed** to post invites that belong to this server."
+        if not guild.me.guild_permissions.manage_guild:
+            oi_text += " However I lack the 'Manage guild' permission. I need that to see our own invites."
+    else:
+        oi_text = "I will take action on **any invite**, even when they belong to this server."
     action = f"**{action}** any user" if action != "none" else "**delete the message** of any user"
     msg += ("**Invite filter**\nThis auto-module is designed to take care of advertisers. It can detect "
             f"a standard Discord invite and take action on the user.\nIt is set so that I will {action} "
-            f"who is **Rank {rank}** or below.\n")
+            f"who is **Rank {rank}** or below. {oi_text}\n")
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 

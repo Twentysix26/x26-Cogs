@@ -222,6 +222,18 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                            "the invite link and notify the staff about it.")
         await ctx.tick()
 
+    @invitefiltergroup.command(name="excludeowninvites")
+    async def invitefilterexcludeowninvites(self, ctx: commands.Context, yes_or_no: bool):
+        """Excludes this server's invites from the filter"""
+        await self.config.guild(ctx.guild).invite_filter_exclude_own_invites.set(yes_or_no)
+        if yes_or_no:
+            perms = ""
+            if not ctx.guild.me.guild_permissions.manage_guild:
+                perms = "However, I will need 'Manage server' permissions in order to do that."
+            await ctx.send(f"Got it. I will not take action on invites that belong to this server. {perms}")
+        else:
+            await ctx.send("Got it. I will take action on any invite, even ours.")
+
     @dset.group(name="alert")
     @commands.admin()
     async def alertgroup(self, ctx: commands.Context):
