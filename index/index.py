@@ -89,7 +89,7 @@ class Index(commands.Cog):
 
         async def nextp(*args, **kwargs):
             nonlocal selected
-            if selected == len(cache):
+            if selected == (len(cache) - 1):
                 selected = 0
             else:
                 selected += 1
@@ -286,7 +286,7 @@ class Index(commands.Cog):
 
         async def nextp(*args, **kwargs):
             nonlocal selected
-            if selected == len(cogs):
+            if selected == (len(cogs) - 1):
                 selected = 0
             else:
                 selected += 1
