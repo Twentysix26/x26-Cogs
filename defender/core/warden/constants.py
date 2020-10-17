@@ -54,7 +54,8 @@ ACTIONS_PARAM_TYPE = {
     Action.EnableEmergencyMode: [bool],
     Action.SetUserNickname: [str],
     Action.NoOp: [None],
-    Action.SendToMonitor: [str]
+    Action.SendToMonitor: [str],
+    Action.SendToChannel: [list],
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -89,6 +90,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.NoOp,
     Action.SendToMonitor,
     Action.EnableEmergencyMode,
+    Action.SendToChannel,
 ]
 
 ACTIONS_USER_CONTEXT = [
@@ -132,5 +134,6 @@ ALLOWED_ACTIONS = {
 # a mandatory # of "arguments"
 ACTIONS_ARGS_N = {
     Action.Dm: 2,
-    Action.NotifyStaffWithEmbed: 2
+    Action.NotifyStaffWithEmbed: 2,
+    Action.SendToChannel: 2,
 }

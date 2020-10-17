@@ -62,9 +62,20 @@ def _check_slowmode(*, author: discord.Member, action: Action, parameter: str):
                            "You must specify `seconds`, `minutes` or `hours`. Can be `0 seconds` to "
                            "deactivate slowmode.")
 
+def _check_is_valid_channel(*, author: discord.Member, action: Action, parameter: list):
+    guild = author.guild
+
+    _id_or_name = parameter[0]
+    channel_dest = guild.get_channel(_id_or_name)
+    if not channel_dest:
+        channel_dest = discord.utils.get(guild.channels, name=_id_or_name)
+    if not channel_dest:
+        raise InvalidRule(f"`{action.value}` Channel '{_id_or_name}' not found.")
+
 # A callable with author, action and parameter kwargs
 ACTIONS_SANITY_CHECK = {
     Action.AddRolesToUser: _check_role_hierarchy,
     Action.RemoveRolesFromUser: _check_role_hierarchy,
     Action.SetChannelSlowmode: _check_slowmode,
+    Action.SendToChannel: _check_is_valid_channel,
 }

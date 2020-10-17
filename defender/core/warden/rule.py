@@ -433,7 +433,7 @@ class WardenRule:
             templates_vars["message"] = message.content
             templates_vars["message_id"] = message.id
             templates_vars["message_created_at"] = message.created_at
-            templates_vars["message_link"] = f"https://discordapp.com/channels/{guild.id}/{channel.id}/{message.id}"
+            templates_vars["message_link"] = message.jump_url
             if message.attachments:
                 attachment = message.attachments[0]
                 templates_vars["attachment_filename"] = attachment.filename
@@ -484,6 +484,15 @@ class WardenRule:
                         await user_to_dm.send(content)
                     except: # Should we care if the DM fails?
                         pass
+                elif action == Action.SendToChannel:
+                    _id_or_name, content = (value[0], value[1])
+                    channel_dest = guild.get_channel(_id_or_name)
+                    if not channel_dest:
+                        channel_dest = discord.utils.get(guild.channels, name=_id_or_name)
+                    if not channel_dest:
+                        raise InvalidRule(f"Channel '{_id_or_name}' not found.")
+                    content = Template(content).safe_substitute(templates_vars)
+                    await channel_dest.send(content)
                 elif action == Action.AddRolesToUser:
                     to_assign = []
                     for role_id_or_name in value:

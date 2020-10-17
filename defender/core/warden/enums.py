@@ -45,6 +45,7 @@ class Action(enum.Enum):
     SetUserNickname = "set-user-nickname" # Changes nickname of user in context
     NoOp = "no-op" # Does nothing. For testing purpose.
     SendToMonitor = "send-to-monitor" # Posts a message to [p]defender monitor
+    SendToChannel = "send-to-channel" # Sends a message to an arbitrary channel
     # TODO Heat system / Warnings?
 
 class Condition(enum.Enum):
