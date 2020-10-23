@@ -15,8 +15,11 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-class SentryException(Exception):
+class WardenException(Exception):
     pass
 
-class InvalidRule(SentryException):
+class InvalidRule(WardenException):
+    pass
+
+class ExecutionError(WardenException):
     pass

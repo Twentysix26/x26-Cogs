@@ -19,10 +19,12 @@ from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import Rank
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
+from ..exceptions import ExecutionError
 from . import cache as df_cache
 from redbot.core import commands
 import discord
 import logging
+import asyncio
 
 log = logging.getLogger("red.x26cogs.defender")
 
@@ -63,7 +65,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         wd_expelled = await rule.do_actions(cog=self, message=message)
                         if wd_expelled:
                             expelled = True
-                    except (discord.Forbidden, discord.HTTPException) as e:
+                            await asyncio.sleep(0.1)
+                    except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
                     except Exception as e:
@@ -137,7 +140,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         wd_expelled = await rule.do_actions(cog=self, message=message)
                         if wd_expelled:
                             expelled = True
-                    except (discord.Forbidden, discord.HTTPException) as e:
+                            await asyncio.sleep(0.1)
+                    except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
                     except Exception as e:
@@ -175,7 +179,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
                     try:
                         await rule.do_actions(cog=self, message=message)
-                    except (discord.Forbidden, discord.HTTPException) as e:
+                    except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
                     except Exception as e:
@@ -200,7 +204,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
                     try:
                         await rule.do_actions(cog=self, user=member)
-                    except (discord.Forbidden, discord.HTTPException) as e:
+                    except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
                     except Exception as e:
@@ -229,7 +233,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
                     try:
                         await rule.do_actions(cog=self, user=member)
-                    except (discord.Forbidden, discord.HTTPException) as e:
+                    except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
                     except Exception as e:
@@ -262,7 +266,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             if await rule.satisfies_conditions(cog=self, rank=rule.rank, guild=guild):
                 try:
                     await rule.do_actions(cog=self, guild=guild)
-                except (discord.Forbidden, discord.HTTPException) as e:
+                except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                     self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                 f"({rule.last_action.value}) - {str(e)}")
                 except Exception as e:

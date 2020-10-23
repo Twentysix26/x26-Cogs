@@ -20,7 +20,7 @@ from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK
-from ...exceptions import InvalidRule
+from ...exceptions import InvalidRule, ExecutionError
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
 from string import Template
@@ -490,7 +490,7 @@ class WardenRule:
                     if not channel_dest:
                         channel_dest = discord.utils.get(guild.channels, name=_id_or_name)
                     if not channel_dest:
-                        raise InvalidRule(f"Channel '{_id_or_name}' not found.")
+                        raise ExecutionError(f"Channel '{_id_or_name}' not found.")
                     content = Template(content).safe_substitute(templates_vars)
                     await channel_dest.send(content)
                 elif action == Action.AddRolesToUser:
@@ -524,16 +524,22 @@ class WardenRule:
                         value = Template(value).safe_substitute(templates_vars)
                     await user.edit(nick=value, reason=f"Changed nickname by Warden rule '{self.name}'")
                 elif action == Action.BanAndDelete:
+                    if user not in guild.members:
+                        raise ExecutionError(f"User {user} ({user.id}) not in the server.")
                     reason = f"Banned by Warden rule '{self.name}'"
                     await guild.ban(user, delete_message_days=value, reason=reason)
                     last_expel_action = ModAction.Ban
                     cog.dispatch_event("member_remove", user, ModAction.Ban.value, reason)
                 elif action == Action.Kick:
+                    if user not in guild.members:
+                        raise ExecutionError(f"User {user} ({user.id}) not in the server.")
                     reason = f"Kicked by Warden action '{self.name}'"
                     await guild.kick(user, reason=reason)
                     last_expel_action = Action.Kick
                     cog.dispatch_event("member_remove", user, ModAction.Kick.value, reason)
                 elif action == Action.Softban:
+                    if user not in guild.members:
+                        raise ExecutionError(f"User {user} ({user.id}) not in the server.")
                     reason = f"Softbanned by Warden rule '{self.name}'"
                     await guild.ban(user, delete_message_days=1, reason=reason)
                     await guild.unban(user)
@@ -568,7 +574,7 @@ class WardenRule:
                 elif action == Action.NoOp:
                     pass
                 else:
-                    raise InvalidRule(f"Unhandled action '{self.name}'.")
+                    raise ExecutionError(f"Unhandled action '{self.name}'.")
 
         return bool(last_expel_action)
 
