@@ -56,7 +56,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         try:
             await message.delete()
         except Exception as e:
-            log.info(f"Attempted to delete an invite sent in {guild.name} ({guild.id}), however something already deleted")
+            log.info(f"Attempted to delete an invite sent in {guild.name} ({guild.id}), however something already deleted. Error: {e}")
 
         action = await self.config.guild(guild).invite_filter_action()
         if not action: # Only delete message
