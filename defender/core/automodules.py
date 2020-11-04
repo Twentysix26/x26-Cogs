@@ -53,7 +53,11 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 log.error("Unexpected error in invite filter's own invite check", exc_info=e)
 
         content = box(message.content)
-        await message.delete()
+        try:
+            await message.delete()
+        except Exception as e:
+            log.info("Attempted to delete an invite sent in {guild.name} ({guild.id}), however something already deleted")
+
         action = await self.config.guild(guild).invite_filter_action()
         if not action: # Only delete message
             return
