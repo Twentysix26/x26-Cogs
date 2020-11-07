@@ -53,7 +53,17 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 log.error("Unexpected error in invite filter's own invite check", exc_info=e)
 
         content = box(message.content)
-        await message.delete()
+
+        try:
+            await message.delete()
+        except discord.Forbidden:
+            self.send_to_monitor(guild, "[InviteFilter] Failed to delete message: "
+                                        f"no permissions in #{message.channel}")
+        except discord.NotFound:
+            pass
+        except Exception as e:
+            log.error("Unexpected error in invite filter's message deletion", exc_info=e)
+
         action = await self.config.guild(guild).invite_filter_action()
         if not action: # Only delete message
             return
