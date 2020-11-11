@@ -91,7 +91,7 @@ class Cog:
         em.add_field(name="Type", value=self.repo.rx_category, inline=True)
         em.add_field(name="Author", value=f"{', '.join(self.author)}", inline=True)
         if self.requirements:
-            em.add_field(name="Requirements", value=f"{', '.join(self.requirements)}", inline=True)
+            em.add_field(name="External libraries", value=f"{', '.join(self.requirements)}", inline=True)
         if self.required_cogs:
             em.add_field(name="Required cogs", value=f"{', '.join(self.required_cogs.keys())}", inline=True)
         if self.repo.rx_branch:
