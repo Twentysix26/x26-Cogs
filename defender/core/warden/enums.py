@@ -62,6 +62,7 @@ class Condition(enum.Enum):
     UserHasAnyRoleIn = "user-has-any-role-in"
     MessageContainsInvite = "message-contains-invite"
     MessageContainsMedia = "message-contains-media"
+    MessageContainsUrl = "message-contains-url"
     MessageContainsMTMentions = "message-contains-more-than-mentions"
     MessageContainsMTUniqueMentions = "message-contains-more-than-unique-mentions"
     IsStaff = "is-staff"

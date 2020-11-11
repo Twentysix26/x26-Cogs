@@ -41,6 +41,7 @@ RULE_REQUIRED_KEYS = ("name", "event", "rank", "if", "do")
 RULE_FACULTATIVE_KEYS = ("priority",)
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
+URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I)
 
 
 class WardenRule:
@@ -399,6 +400,9 @@ class WardenRule:
             elif condition == Condition.MessageContainsMedia:
                 has_media = MEDIA_URL_RE.search(message.content)
                 bools.append(bool(has_media) is value)
+            elif condition == Condition.MessageContainsUrl:
+                has_url = URL_RE.search(message.content)
+                bools.append(bool(has_url) is value)
             elif condition == Condition.MessageContainsMTMentions:
                 bools.append(len(message.raw_mentions) > value) # type: ignore
             elif condition == Condition.MessageContainsMTUniqueMentions:
