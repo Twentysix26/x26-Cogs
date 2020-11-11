@@ -26,6 +26,7 @@ CONDITIONS_PARAM_TYPE = {
     Condition.UserJoinedLessThan: [int],
     Condition.UserHasDefaultAvatar: [bool],
     Condition.ChannelMatchesAny: [list],
+    Condition.ChannelIsPublic: [bool],
     Condition.InEmergencyMode: [bool],
     Condition.MessageHasAttachment: [bool],
     Condition.UserHasAnyRoleIn: [list],
@@ -75,6 +76,7 @@ CONDITIONS_USER_CONTEXT = [
 CONDITIONS_MESSAGE_CONTEXT = [
     Condition.MessageMatchesAny,
     Condition.ChannelMatchesAny,
+    Condition.ChannelIsPublic,
     Condition.MessageHasAttachment,
     Condition.MessageContainsInvite,
     Condition.MessageContainsMedia,

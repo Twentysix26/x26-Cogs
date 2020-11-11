@@ -357,6 +357,10 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
+            elif condition == Condition.ChannelIsPublic:
+                everyone = guild.default_role
+                public = everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None)
+                bools.append(value is public)
             elif condition == Condition.UserCreatedLessThan:
                 if value == 0:
                     bools.append(True)
