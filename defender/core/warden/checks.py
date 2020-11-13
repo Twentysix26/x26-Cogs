@@ -72,10 +72,26 @@ def _check_is_valid_channel(*, author: discord.Member, action: Action, parameter
     if not channel_dest:
         raise InvalidRule(f"`{action.value}` Channel '{_id_or_name}' not found.")
 
+def _check_heatpoint(*, author: discord.Member, action: Action, parameter: str):
+    td = None
+    try:
+        td = parse_timedelta(parameter,
+                             maximum=datetime.timedelta(hours=24),
+                             minimum=datetime.timedelta(seconds=1),
+                             allowed_units=["hours", "minutes", "seconds"])
+    except BadArgument:
+        pass
+
+    if td is None:
+        raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
+                           "You must specify `seconds`, `minutes` or `hours`")
+
 # A callable with author, action and parameter kwargs
 ACTIONS_SANITY_CHECK = {
     Action.AddRolesToUser: _check_role_hierarchy,
     Action.RemoveRolesFromUser: _check_role_hierarchy,
     Action.SetChannelSlowmode: _check_slowmode,
     Action.SendToChannel: _check_is_valid_channel,
+    Action.AddUserHeatpoint: _check_heatpoint,
+    Action.AddChannelHeatpoint: _check_heatpoint,
 }

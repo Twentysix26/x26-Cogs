@@ -35,7 +35,11 @@ CONDITIONS_PARAM_TYPE = {
     Condition.MessageContainsUrl: [bool],
     Condition.MessageContainsMTMentions: [int],
     Condition.MessageContainsMTUniqueMentions: [int],
-    Condition.IsStaff: [bool]
+    Condition.IsStaff: [bool],
+    Condition.UserHeatIs: [int],
+    Condition.UserHeatMoreThan: [int],
+    Condition.ChannelHeatIs: [int],
+    Condition.ChannelHeatMoreThan: [int],
 }
 
 ACTIONS_PARAM_TYPE = {
@@ -58,6 +62,10 @@ ACTIONS_PARAM_TYPE = {
     Action.NoOp: [None],
     Action.SendToMonitor: [str],
     Action.SendToChannel: [list],
+    Action.AddUserHeatpoint: [str],
+    Action.AddChannelHeatpoint: [str],
+    Action.EmptyUserHeat: [None],
+    Action.EmptyChannelHeat: [None],
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -71,13 +79,17 @@ CONDITIONS_USER_CONTEXT = [
     Condition.UserJoinedLessThan,
     Condition.UserHasDefaultAvatar,
     Condition.UserHasAnyRoleIn,
-    Condition.IsStaff
+    Condition.IsStaff,
+    Condition.UserHeatIs,
+    Condition.UserHeatMoreThan,
 ]
 
 CONDITIONS_MESSAGE_CONTEXT = [
     Condition.MessageMatchesAny,
     Condition.ChannelMatchesAny,
     Condition.ChannelIsPublic,
+    Condition.ChannelHeatIs,
+    Condition.ChannelHeatMoreThan,
     Condition.MessageHasAttachment,
     Condition.MessageContainsInvite,
     Condition.MessageContainsMedia,
@@ -105,13 +117,17 @@ ACTIONS_USER_CONTEXT = [
     Action.Modlog,
     Action.AddRolesToUser,
     Action.RemoveRolesFromUser,
-    Action.SetUserNickname
+    Action.SetUserNickname,
+    Action.AddUserHeatpoint,
+    Action.EmptyUserHeat,
 ]
 
 ACTIONS_MESSAGE_CONTEXT = [
     Action.DeleteUserMessage,
     Action.SetChannelSlowmode,
-    Action.SendInChannel
+    Action.SendInChannel,
+    Action.AddChannelHeatpoint,
+    Action.EmptyChannelHeat,
 ]
 
 ALLOWED_CONDITIONS = {

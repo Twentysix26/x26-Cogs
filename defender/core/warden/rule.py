@@ -26,6 +26,7 @@ from redbot.core.commands.converter import parse_timedelta
 from string import Template
 from redbot.core import modlog
 from typing import Optional
+from . import heat
 import yaml
 import fnmatch
 import discord
@@ -410,6 +411,14 @@ class WardenRule:
             elif condition == Condition.IsStaff:
                 is_staff = await cog.bot.is_mod(user)
                 bools.append(is_staff is value)
+            elif condition == Condition.UserHeatIs:
+                bools.append(heat.get_user_heat(user) == value)
+            elif condition == Condition.ChannelHeatIs:
+                bools.append(heat.get_channel_heat(channel) == value)
+            elif condition == Condition.UserHeatMoreThan:
+                bools.append(heat.get_user_heat(user) > value) # type: ignore
+            elif condition == Condition.ChannelHeatMoreThan:
+                bools.append(heat.get_channel_heat(channel) > value) # type: ignore
 
         return bools
 
@@ -579,6 +588,16 @@ class WardenRule:
                 elif action == Action.SendToMonitor:
                     value = Template(value).safe_substitute(templates_vars)
                     cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
+                elif action == Action.AddUserHeatpoint:
+                    timedelta = parse_timedelta(value)
+                    heat.increase_user_heat(user, timedelta) # type: ignore
+                elif action == Action.AddChannelHeatpoint:
+                    timedelta = parse_timedelta(value)
+                    heat.increase_channel_heat(channel, timedelta) # type: ignore
+                elif action == Action.EmptyUserHeat:
+                    heat.empty_user_heat(user)
+                elif action == Action.EmptyChannelHeat:
+                    heat.empty_channel_heat(channel)
                 elif action == Action.NoOp:
                     pass
                 else:

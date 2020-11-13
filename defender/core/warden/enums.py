@@ -46,7 +46,10 @@ class Action(enum.Enum):
     NoOp = "no-op" # Does nothing. For testing purpose.
     SendToMonitor = "send-to-monitor" # Posts a message to [p]defender monitor
     SendToChannel = "send-to-channel" # Sends a message to an arbitrary channel
-    # TODO Heat system / Warnings?
+    AddUserHeatpoint = "add-user-heatpoint"
+    AddChannelHeatpoint = "add-channel-heatpoint"
+    EmptyUserHeat = "empty-user-heat"
+    EmptyChannelHeat = "empty-channel-heat"
 
 class Condition(enum.Enum):
     UsernameMatchesAny = "username-matches-any"
@@ -66,6 +69,10 @@ class Condition(enum.Enum):
     MessageContainsMTMentions = "message-contains-more-than-mentions"
     MessageContainsMTUniqueMentions = "message-contains-more-than-unique-mentions"
     IsStaff = "is-staff"
+    UserHeatIs = "user-heat-is"
+    ChannelHeatIs = "channel-heat-is"
+    UserHeatMoreThan = "user-heat-is-more-than"
+    ChannelHeatMoreThan = "channel-heat-more-than"
 
 class ConditionBlock(enum.Enum):
     IfAll = "if-all"
