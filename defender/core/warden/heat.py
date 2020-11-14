@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import discord
 import datetime
 import logging
+import asyncio
 from copy import deepcopy
 from datetime import timedelta
 from collections import defaultdict, deque
@@ -63,7 +64,7 @@ class HeatLevel:
         return q
 
     def __repr__(self):
-        return f"<HeatLevel: {len(self)}>"
+        return f"<HeatLevel: {len(self._heat_points)}>"
 
 def get_user_heat(user: discord.Member):
     heat = _heat_store[user.guild.id]["users"].get(user.id)
@@ -110,3 +111,14 @@ def discard_heatlevel(heatlevel: HeatLevel):
         del _heat_store[heatlevel.guild][heatlevel.type][heatlevel.id]
     except:
         pass
+
+async def remove_stale_heat():
+    # In case you're wondering wtf am I doing here:
+    # I'm calling len on each HeatLevel object to trigger
+    # its auto removal logic, so they don't linger indefinitely
+    # in the cache after the heatpoints are expired and the user is long gone
+    for c in _heat_store.values():
+        for cc in c.values():
+            for heat_level in list(cc.values()):
+                len(heat_level)
+        await asyncio.sleep(0)

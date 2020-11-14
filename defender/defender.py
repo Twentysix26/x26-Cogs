@@ -27,6 +27,7 @@ from .enums import Rank, Action, EmergencyModules
 from .exceptions import InvalidRule
 from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
+from .core.warden.heat import remove_stale_heat
 from .core.announcements import get_announcements
 from .core.cache import CacheUser
 from .core import cache as df_cache
@@ -255,6 +256,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             while True:
                 await asyncio.sleep(60 * 60)
                 await df_cache.discard_stale()
+                await remove_stale_heat()
         except asyncio.CancelledError:
             pass
 
