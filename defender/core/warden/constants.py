@@ -63,7 +63,9 @@ ACTIONS_PARAM_TYPE = {
     Action.SendToMonitor: [str],
     Action.SendToChannel: [list],
     Action.AddUserHeatpoint: [str],
+    Action.AddUserHeatpoints: [list],
     Action.AddChannelHeatpoint: [str],
+    Action.AddChannelHeatpoints: [list],
     Action.EmptyUserHeat: [None],
     Action.EmptyChannelHeat: [None],
 }
@@ -119,6 +121,7 @@ ACTIONS_USER_CONTEXT = [
     Action.RemoveRolesFromUser,
     Action.SetUserNickname,
     Action.AddUserHeatpoint,
+    Action.AddUserHeatpoints,
     Action.EmptyUserHeat,
 ]
 
@@ -127,6 +130,7 @@ ACTIONS_MESSAGE_CONTEXT = [
     Action.SetChannelSlowmode,
     Action.SendInChannel,
     Action.AddChannelHeatpoint,
+    Action.AddChannelHeatpoints,
     Action.EmptyChannelHeat,
 ]
 
@@ -156,4 +160,6 @@ ACTIONS_ARGS_N = {
     Action.Dm: 2,
     Action.NotifyStaffWithEmbed: 2,
     Action.SendToChannel: 2,
+    Action.AddUserHeatpoints: 2,
+    Action.AddChannelHeatpoints: 2,
 }

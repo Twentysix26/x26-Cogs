@@ -86,6 +86,23 @@ def _check_heatpoint(*, author: discord.Member, action: Action, parameter: str):
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
                            "You must specify `seconds`, `minutes` or `hours`")
 
+def _check_heatpoints(*, author: discord.Member, action: Action, parameter: list):
+    if parameter[0] < 1 or parameter[0] > 100:
+        raise InvalidRule(f"`{action.value}` Invalid parameter. You can only assign between 1 and 100 "
+                           "heatpoints.")
+    td = None
+    try:
+        td = parse_timedelta(parameter[1],
+                             maximum=datetime.timedelta(hours=24),
+                             minimum=datetime.timedelta(seconds=1),
+                             allowed_units=["hours", "minutes", "seconds"])
+    except BadArgument:
+        pass
+
+    if td is None:
+        raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
+                           "You must specify `seconds`, `minutes` or `hours`")
+
 # A callable with author, action and parameter kwargs
 ACTIONS_SANITY_CHECK = {
     Action.AddRolesToUser: _check_role_hierarchy,
@@ -94,4 +111,6 @@ ACTIONS_SANITY_CHECK = {
     Action.SendToChannel: _check_is_valid_channel,
     Action.AddUserHeatpoint: _check_heatpoint,
     Action.AddChannelHeatpoint: _check_heatpoint,
+    Action.AddUserHeatpoints: _check_heatpoints,
+    Action.AddChannelHeatpoints: _check_heatpoints,
 }

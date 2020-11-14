@@ -30,6 +30,7 @@ This system works by attaching "heat" points to members (or even channels) that 
 amount of time and are shared between different Warden rules.
 """
 
+MAX_HEATPOINTS = 100
 utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
 
@@ -43,7 +44,7 @@ class HeatLevel:
         self.guild = guild
         self.id = _id
         self.type = _type
-        self._heat_points = deque(maxlen=100)
+        self._heat_points = deque(maxlen=MAX_HEATPOINTS)
 
     def increase_heat(self, td: timedelta):
         ts = utcnow()
@@ -52,7 +53,7 @@ class HeatLevel:
 
     def _expire_heat(self):
         now = utcnow()
-        self._heat_points = [h for h in self._heat_points if h > now]
+        self._heat_points = deque([h for h in self._heat_points if h > now], maxlen=MAX_HEATPOINTS)
 
     def __len__(self):
         self._expire_heat()

@@ -47,7 +47,9 @@ class Action(enum.Enum):
     SendToMonitor = "send-to-monitor" # Posts a message to [p]defender monitor
     SendToChannel = "send-to-channel" # Sends a message to an arbitrary channel
     AddUserHeatpoint = "add-user-heatpoint"
+    AddUserHeatpoints = "add-user-heatpoints"
     AddChannelHeatpoint = "add-channel-heatpoint"
+    AddChannelHeatpoints = "add-channel-heatpoints"
     EmptyUserHeat = "empty-user-heat"
     EmptyChannelHeat = "empty-channel-heat"
 

@@ -444,6 +444,7 @@ class WardenRule:
             "user_nickname": str(user.nick),
             "user_created_at": user.created_at,
             "user_joined_at": user.joined_at,
+            "user_heat": heat.get_user_heat(user),
             })
 
         if message:
@@ -461,6 +462,7 @@ class WardenRule:
             templates_vars["channel_name"] = channel.name
             templates_vars["channel_id"] = channel.id
             templates_vars["channel_mention"] = channel.mention
+            templates_vars["channel_heat"] = heat.get_channel_heat(channel)
 
         last_expel_action = None
 
@@ -591,9 +593,23 @@ class WardenRule:
                 elif action == Action.AddUserHeatpoint:
                     timedelta = parse_timedelta(value)
                     heat.increase_user_heat(user, timedelta) # type: ignore
+                    templates_vars["user_heat"] = heat.get_user_heat(user)
+                elif action == Action.AddUserHeatpoints:
+                    points_n = value[0]
+                    timedelta = parse_timedelta(value[1])
+                    for _ in range(points_n):
+                        heat.increase_user_heat(user, timedelta) # type: ignore
+                    templates_vars["user_heat"] = heat.get_user_heat(user)
                 elif action == Action.AddChannelHeatpoint:
                     timedelta = parse_timedelta(value)
                     heat.increase_channel_heat(channel, timedelta) # type: ignore
+                    templates_vars["channel_heat"] = heat.get_channel_heat(channel)
+                elif action == Action.AddChannelHeatpoints:
+                    points_n = value[0]
+                    timedelta = parse_timedelta(value[1])
+                    for _ in range(points_n):
+                        heat.increase_channel_heat(channel, timedelta) # type: ignore
+                    templates_vars["channel_heat"] = heat.get_channel_heat(channel)
                 elif action == Action.EmptyUserHeat:
                     heat.empty_user_heat(user)
                 elif action == Action.EmptyChannelHeat:
