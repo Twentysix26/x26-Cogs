@@ -353,7 +353,7 @@ class WardenRule:
                 for channel_str in value:
                     if not isinstance(channel_str, str):
                         continue
-                    channel_obj = discord.utils.get(guild.channels, name=channel_str)
+                    channel_obj = discord.utils.get(guild.text_channels, name=channel_str)
                     if channel_obj is not None and channel_obj == channel:
                         bools.append(True)
                         break
@@ -507,7 +507,7 @@ class WardenRule:
                     _id_or_name, content = (value[0], value[1])
                     channel_dest = guild.get_channel(_id_or_name)
                     if not channel_dest:
-                        channel_dest = discord.utils.get(guild.channels, name=_id_or_name)
+                        channel_dest = discord.utils.get(guild.text_channels, name=_id_or_name)
                     if not channel_dest:
                         raise ExecutionError(f"Channel '{_id_or_name}' not found.")
                     content = Template(content).safe_substitute(templates_vars)

@@ -68,7 +68,7 @@ def _check_is_valid_channel(*, author: discord.Member, action: Action, parameter
     _id_or_name = parameter[0]
     channel_dest = guild.get_channel(_id_or_name)
     if not channel_dest:
-        channel_dest = discord.utils.get(guild.channels, name=_id_or_name)
+        channel_dest = discord.utils.get(guild.text_channels, name=_id_or_name)
     if not channel_dest:
         raise InvalidRule(f"`{action.value}` Channel '{_id_or_name}' not found.")
 
