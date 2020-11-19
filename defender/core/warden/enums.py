@@ -73,7 +73,7 @@ class Condition(enum.Enum):
     IsStaff = "is-staff"
     UserHeatIs = "user-heat-is"
     ChannelHeatIs = "channel-heat-is"
-    UserHeatMoreThan = "user-heat-is-more-than"
+    UserHeatMoreThan = "user-heat-more-than"
     ChannelHeatMoreThan = "channel-heat-more-than"
 
 class ConditionBlock(enum.Enum):
