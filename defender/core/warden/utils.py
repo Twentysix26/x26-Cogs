@@ -4,6 +4,7 @@ import discord
 import logging
 
 EMOJI_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:([0-9]+)>')
+REMOVE_C_EMOJIS_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:[0-9]+>')
 
 log = logging.getLogger("red.x26cogs.defender")
 
