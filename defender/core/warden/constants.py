@@ -35,6 +35,7 @@ CONDITIONS_PARAM_TYPE = {
     Condition.MessageContainsUrl: [bool],
     Condition.MessageContainsMTMentions: [int],
     Condition.MessageContainsMTUniqueMentions: [int],
+    Condition.MessageContainsMTEmojis: [int],
     Condition.IsStaff: [bool],
     Condition.UserHeatIs: [int],
     Condition.UserHeatMoreThan: [int],
@@ -98,6 +99,7 @@ CONDITIONS_MESSAGE_CONTEXT = [
     Condition.MessageContainsUrl,
     Condition.MessageContainsMTMentions,
     Condition.MessageContainsMTUniqueMentions,
+    Condition.MessageContainsMTEmojis,
 ]
 
 ACTIONS_ANY_CONTEXT = [

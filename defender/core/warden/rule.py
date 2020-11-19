@@ -20,6 +20,7 @@ from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK
+from .utils import has_x_or_more_emojis
 from ...exceptions import InvalidRule, ExecutionError
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
@@ -408,6 +409,9 @@ class WardenRule:
                 bools.append(len(message.raw_mentions) > value) # type: ignore
             elif condition == Condition.MessageContainsMTUniqueMentions:
                 bools.append(len(set(message.mentions)) > value) # type: ignore
+            elif condition == Condition.MessageContainsMTEmojis:
+                over_limit = has_x_or_more_emojis(cog.bot, guild, message.content, value + 1) # type: ignore
+                bools.append(over_limit)
             elif condition == Condition.IsStaff:
                 is_staff = await cog.bot.is_mod(user)
                 bools.append(is_staff is value)
