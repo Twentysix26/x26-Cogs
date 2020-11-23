@@ -60,6 +60,7 @@ class Condition(enum.Enum):
     UserCreatedLessThan = "user-created-less-than"
     UserJoinedLessThan = "user-joined-less-than"
     UserHasDefaultAvatar = "user-has-default-avatar"
+    UserHasSentLessThanMessages = "user-has-sent-less-than-messages"
     ChannelMatchesAny = "channel-matches-any"
     ChannelIsPublic = "channel-is-public"
     MessageHasAttachment = "message-has-attachment"

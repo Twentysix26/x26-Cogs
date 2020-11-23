@@ -87,6 +87,10 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def get_total_recorded_messages(self, member: discord.Member) -> int:
+        raise NotImplementedError()
+
+    @abstractmethod
     async def is_helper(self, member: discord.Member) -> bool:
         raise NotImplementedError()
 

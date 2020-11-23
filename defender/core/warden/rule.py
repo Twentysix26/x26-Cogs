@@ -404,6 +404,9 @@ class WardenRule:
                             break
                 else:
                     bools.append(False)
+            elif condition == Condition.UserHasSentLessThanMessages:
+                msg_n = await cog.get_total_recorded_messages(user)
+                bools.append(msg_n < value)
             elif condition == Condition.MessageContainsInvite:
                 has_invite = INVITE_URL_RE.search(message.content)
                 bools.append(bool(has_invite) is value)

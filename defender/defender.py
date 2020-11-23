@@ -116,7 +116,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         self.loop.create_task(self.message_cache_cleaner())
         self.monitor = defaultdict(lambda: Deque(maxlen=500))
 
-    async def rank_user(self, member):
+    async def rank_user(self, member: discord.Member):
         """Returns the user's rank"""
         is_mod = await self.bot.is_mod(member)
         if is_mod:
@@ -139,14 +139,20 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
         return Rank.Rank2
 
-    async def is_rank_4(self, member):
+    async def is_rank_4(self, member: discord.Member):
         # If messages aren't being counted Rank 4 is unobtainable
         if not await self.config.guild(member.guild).count_messages():
             return False
         min_m = await self.config.guild(member.guild).rank3_min_messages()
-        # Potential for slightly outdated data here, but oh well, it's just 60 seconds
-        messages = await self.config.member(member).messages()
+        messages = await self.get_total_recorded_messages(member)
         return messages < min_m
+
+    async def get_total_recorded_messages(self, member: discord.Member):
+        # The ones already stored in config...
+        msg_n = await self.config.member(member).messages()
+        # And the ones that will be stored in a few seconds
+        msg_n += self.message_counter[member.guild.id][member.id]
+        return msg_n
 
     def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
                          replace_backtick=False, pagify_log=False):
@@ -213,7 +219,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         self.staff_activity[guild.id] = timestamp
 
     async def make_identify_embed(self, message, user, rank=True, link=True):
-        messages = await self.config.member(user).messages()
+        messages = await self.get_total_recorded_messages(user)
         em = discord.Embed()
         avatar = user.avatar_url_as(static_format="png")
         em.set_thumbnail(url=avatar)
