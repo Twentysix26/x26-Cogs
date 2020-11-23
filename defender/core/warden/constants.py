@@ -38,6 +38,7 @@ CONDITIONS_PARAM_TYPE = {
     Condition.MessageContainsMTEmojis: [int],
     Condition.MessageHasMTCharacters: [int],
     Condition.IsStaff: [bool],
+    Condition.UserIsRank: [int],
     Condition.UserHeatIs: [int],
     Condition.UserHeatMoreThan: [int],
     Condition.ChannelHeatIs: [int],
@@ -84,6 +85,7 @@ CONDITIONS_USER_CONTEXT = [
     Condition.UserHasDefaultAvatar,
     Condition.UserHasAnyRoleIn,
     Condition.IsStaff,
+    Condition.UserIsRank,
     Condition.UserHeatIs,
     Condition.UserHeatMoreThan,
 ]

@@ -15,8 +15,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from .enums import Action
+from .enums import Action, Condition
 from ...exceptions import InvalidRule
+from ...enums import Rank
 from redbot.core.commands.converter import parse_timedelta
 from discord.ext.commands import BadArgument
 import datetime
@@ -103,6 +104,15 @@ def _check_heatpoints(*, author: discord.Member, action: Action, parameter: list
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
                            "You must specify `seconds`, `minutes` or `hours`")
 
+def _check_valid_rank(*, author: discord.Member, condition: Condition, parameter: int):
+    try:
+        rank = Rank(parameter)
+        if rank < Rank.Rank1 or rank > Rank.Rank4:
+            raise ValueError()
+    except ValueError:
+        raise InvalidRule(f"`{condition.value}` Invalid rank. Rank level must be between 1 and 4.")
+
+
 # A callable with author, action and parameter kwargs
 ACTIONS_SANITY_CHECK = {
     Action.AddRolesToUser: _check_role_hierarchy,
@@ -113,4 +123,8 @@ ACTIONS_SANITY_CHECK = {
     Action.AddChannelHeatpoint: _check_heatpoint,
     Action.AddUserHeatpoints: _check_heatpoints,
     Action.AddChannelHeatpoints: _check_heatpoints,
+}
+
+CONDITIONS_SANITY_CHECK = {
+    Condition.UserIsRank: _check_valid_rank,
 }

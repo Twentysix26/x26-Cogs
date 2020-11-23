@@ -19,7 +19,7 @@ from defender.core.warden.constants import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, 
 from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
-from .checks import ACTIONS_SANITY_CHECK
+from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE
 from ...exceptions import InvalidRule, ExecutionError
 from redbot.core.utils.common_filters import INVITE_URL_RE
@@ -173,6 +173,12 @@ class WardenRule:
             else:
                 human_type = _type.__name__ if _type is not None else "No parameter."
                 raise InvalidRule(f"Invalid parameter type for condition `{condition.value}`. Expected: `{human_type}`")
+
+            if author:
+                try:
+                    CONDITIONS_SANITY_CHECK[condition](author=author, condition=condition, parameter=parameter) # type: ignore
+                except KeyError:
+                    pass
 
         for raw_condition in self.conditions:
             condition = parameter = None
@@ -370,6 +376,8 @@ class WardenRule:
                     continue
                 x_hours_ago = utcnow() - datetime.timedelta(hours=value) # type: ignore
                 bools.append(user.created_at > x_hours_ago)
+            elif condition == Condition.UserIsRank:
+                bools.append(await cog.rank_user(user) == Rank(value)) # type: ignore
             elif condition == Condition.UserJoinedLessThan:
                 if value == 0:
                     bools.append(True)
