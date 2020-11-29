@@ -43,7 +43,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         guild = ctx.guild
         n_channel = guild.get_channel(await self.config.guild(guild).notify_channel())
         n_role = guild.get_role(await self.config.guild(guild).notify_role())
-        if not n_channel or not n_role:
+        admin_roles = await ctx.bot._config.guild(ctx.guild).admin_role()
+        mod_roles = await ctx.bot._config.guild(ctx.guild).mod_role()
+        has_core_roles_set = bool(admin_roles) or bool(mod_roles)
+
+        if not n_channel or not n_role or not has_core_roles_set:
             await ctx.send(f"Configuration issues detected. Check `{ctx.prefix}defender status` for more details.")
             return
 

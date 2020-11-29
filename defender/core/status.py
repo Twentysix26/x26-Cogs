@@ -44,11 +44,18 @@ async def make_status(ctx, cog):
             "role that gets pinged in case of urgent matters.\n*Notify channel* is where I send "
             "notifications about reports and actions I take.\n\n")
 
+    admin_roles = await ctx.bot._config.guild(ctx.guild).admin_role()
+    mod_roles = await ctx.bot._config.guild(ctx.guild).mod_role()
+    has_core_roles_set = bool(admin_roles) or bool(mod_roles)
+
     _not = "NOT " if not d_enabled else ""
     msg += f"Defender is **{_not}operational**.\n\n"
 
     p = ctx.prefix
 
+    if not has_core_roles_set:
+        msg += (f"**Configuration issue:** Core admin / mod roles are not set: see {p}set showsettings / "
+                f"{p}help set\n")
     if not n_channel:
         msg += f"**Configuration issue:** Notify channel not set ({p}dset general notifychannel)\n"
     if can_sm_in_n_channel is False or can_rm_in_n_channel is False:
