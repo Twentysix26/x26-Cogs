@@ -332,6 +332,13 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
+            elif condition == Condition.UserIdMatchesAny:
+                for _id in value:
+                    if _id == user.id:
+                        bools.append(True)
+                        break
+                else:
+                    bools.append(False)
             elif condition == Condition.UsernameMatchesAny:
                 # One match = Passed
                 name = user.name.lower()

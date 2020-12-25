@@ -54,6 +54,7 @@ class Action(enum.Enum):
     EmptyChannelHeat = "empty-channel-heat"
 
 class Condition(enum.Enum):
+    UserIdMatchesAny = "user-id-matches-any"
     UsernameMatchesAny = "username-matches-any"
     NicknameMatchesAny = "nickname-matches-any"
     MessageMatchesAny = "message-matches-any"

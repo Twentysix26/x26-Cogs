@@ -19,6 +19,7 @@ from .enums import Action, Condition, Event
 
 # The accepted types of each condition for basic sanity checking
 CONDITIONS_PARAM_TYPE = {
+    Condition.UserIdMatchesAny: [list],
     Condition.UsernameMatchesAny: [list],
     Condition.NicknameMatchesAny: [list],
     Condition.MessageMatchesAny: [list],
@@ -79,6 +80,7 @@ CONDITIONS_ANY_CONTEXT = [
 ]
 
 CONDITIONS_USER_CONTEXT = [
+    Condition.UserIdMatchesAny,
     Condition.UsernameMatchesAny,
     Condition.NicknameMatchesAny,
     Condition.UserCreatedLessThan,

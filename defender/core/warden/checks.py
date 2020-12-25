@@ -112,6 +112,11 @@ def _check_valid_rank(*, author: discord.Member, condition: Condition, parameter
     except ValueError:
         raise InvalidRule(f"`{condition.value}` Invalid rank. Rank level must be between 1 and 4.")
 
+def _check_valid_id(*, author: discord.Member, condition: Condition, parameter: list):
+    for _id in parameter:
+        if type(_id) is not int:
+            raise InvalidRule(f"`{condition.value}` Invalid ID. Must contain only valid Discord IDs.")
+
 
 # A callable with author, action and parameter kwargs
 ACTIONS_SANITY_CHECK = {
@@ -126,5 +131,6 @@ ACTIONS_SANITY_CHECK = {
 }
 
 CONDITIONS_SANITY_CHECK = {
+    Condition.UserIdMatchesAny: _check_valid_id,
     Condition.UserIsRank: _check_valid_rank,
 }
