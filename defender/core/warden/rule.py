@@ -39,6 +39,7 @@ log = logging.getLogger("red.x26cogs.defender")
 
 utcnow = datetime.datetime.utcnow
 
+ALLOW_ALL_MENTIONS = discord.AllowedMentions(everyone=True, roles=True, users=True)
 RULE_REQUIRED_KEYS = ("name", "event", "rank", "if", "do")
 RULE_FACULTATIVE_KEYS = ("priority",)
 
@@ -491,7 +492,8 @@ class WardenRule:
             })
 
         if message:
-            templates_vars["message"] = message.content
+            templates_vars["message"] = message.content.replace("@", "@\u200b")
+            templates_vars["message_clean"] = message.clean_content
             templates_vars["message_id"] = message.id
             templates_vars["message_created_at"] = message.created_at
             templates_vars["message_link"] = message.jump_url
@@ -522,17 +524,17 @@ class WardenRule:
                     await message.delete()
                 elif action == Action.NotifyStaff:
                     text = Template(value).safe_substitute(templates_vars)
-                    await cog.send_notification(guild, text)
+                    await cog.send_notification(guild, text, allow_everyone_ping=True)
                 elif action == Action.NotifyStaffAndPing:
                     text = Template(value).safe_substitute(templates_vars)
-                    await cog.send_notification(guild, text, ping=True)
+                    await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True)
                 elif action == Action.NotifyStaffWithEmbed:
                     title, content = (value[0], value[1])
                     em = self._build_embed(title, content, templates_vars=templates_vars)
-                    await cog.send_notification(guild, "", embed=em)
+                    await cog.send_notification(guild, "", embed=em, allow_everyone_ping=True)
                 elif action == Action.SendInChannel:
                     text = Template(value).safe_substitute(templates_vars)
-                    await channel.send(text)
+                    await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
                 elif action == Action.SetChannelSlowmode:
                     timedelta = parse_timedelta(value)
                     await channel.edit(slowmode_delay=timedelta.seconds)
@@ -556,7 +558,7 @@ class WardenRule:
                     if not channel_dest:
                         raise ExecutionError(f"Channel '{_id_or_name}' not found.")
                     content = Template(content).safe_substitute(templates_vars)
-                    await channel_dest.send(content)
+                    await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
                 elif action == Action.AddRolesToUser:
                     to_assign = []
                     for role_id_or_name in value:

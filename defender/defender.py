@@ -399,7 +399,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     async def send_notification(self, guild: discord.Guild, notification: str, *,
                                 ping=False, link_message: discord.Message=None,
                                 file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None):
+                                react: str=None, allow_everyone_ping=False):
         if ping:
             id_to_ping = await self.config.guild(guild).notify_role()
             if id_to_ping:
@@ -413,8 +413,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         notify_channel_id = await self.config.guild(guild).notify_channel()
         notify_channel = guild.get_channel(notify_channel_id)
         if notify_channel:
+            allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
             msg = await notify_channel.send(notification, file=file, embed=embed,
-                                            allowed_mentions=discord.AllowedMentions(roles=True))
+                                            allowed_mentions=allowed_mentions)
             if react:
                 await msg.add_reaction(react)
             return msg
