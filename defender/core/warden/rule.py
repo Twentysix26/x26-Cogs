@@ -365,10 +365,24 @@ class WardenRule:
                     bools.append(True)
                     continue
                 for channel_str in value:
-                    if not isinstance(channel_str, str):
-                        continue
+                    channel_str = str(channel_str)
                     channel_obj = discord.utils.get(guild.text_channels, name=channel_str)
                     if channel_obj is not None and channel_obj == channel:
+                        bools.append(True)
+                        break
+                else:
+                    bools.append(False)
+            elif condition == Condition.CategoryMatchesAny: # We accept IDs and category names
+                if channel.category is None:
+                    bools.append(False)
+                    continue
+                if channel.category.id in value:
+                    bools.append(True)
+                    continue
+                for category_str in value:
+                    category_str = str(category_str)
+                    category_obj = discord.utils.get(guild.categories, name=category_str)
+                    if category_obj is not None and category_obj == channel.category:
                         bools.append(True)
                         break
                 else:
@@ -491,6 +505,8 @@ class WardenRule:
             templates_vars["channel_name"] = channel.name
             templates_vars["channel_id"] = channel.id
             templates_vars["channel_mention"] = channel.mention
+            templates_vars["channel_category"] = channel.category.name if channel.category else "None"
+            templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
             templates_vars["channel_heat"] = heat.get_channel_heat(channel)
 
         last_expel_action = None

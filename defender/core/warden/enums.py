@@ -63,6 +63,7 @@ class Condition(enum.Enum):
     UserHasDefaultAvatar = "user-has-default-avatar"
     UserHasSentLessThanMessages = "user-has-sent-less-than-messages"
     ChannelMatchesAny = "channel-matches-any"
+    CategoryMatchesAny = "category-matches-any"
     ChannelIsPublic = "channel-is-public"
     MessageHasAttachment = "message-has-attachment"
     InEmergencyMode = "in-emergency-mode"
