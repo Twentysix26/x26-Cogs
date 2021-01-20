@@ -427,6 +427,8 @@ class WardenRule:
                 bools.append(len(message.raw_mentions) > value) # type: ignore
             elif condition == Condition.MessageContainsMTUniqueMentions:
                 bools.append(len(set(message.mentions)) > value) # type: ignore
+            elif condition == Condition.MessageContainsMTRolePings:
+                bools.append(len(message.role_mentions) > value) # type: ignore
             elif condition == Condition.MessageContainsMTEmojis:
                 over_limit = has_x_or_more_emojis(cog.bot, guild, message.content, value + 1) # type: ignore
                 bools.append(over_limit)

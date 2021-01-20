@@ -72,6 +72,7 @@ class Condition(enum.Enum):
     MessageContainsUrl = "message-contains-url"
     MessageContainsMTMentions = "message-contains-more-than-mentions"
     MessageContainsMTUniqueMentions = "message-contains-more-than-unique-mentions"
+    MessageContainsMTRolePings = "message-contains-more-than-role-pings"
     MessageContainsMTEmojis = "message-contains-more-than-emojis"
     MessageHasMTCharacters = "message-has-more-than-characters"
     UserIsRank = "user-is-rank"
