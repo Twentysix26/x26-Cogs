@@ -318,7 +318,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             rule = rule.strip("```")
 
         try:
-            new_rule = WardenRule(rule, author=ctx.author)
+            new_rule = WardenRule()
+            await new_rule.parse(rule, cog=self, author=ctx.author)
         except InvalidRule as e:
             return await ctx.send(f"Error parsing the rule: {e}")
         except Exception as e:

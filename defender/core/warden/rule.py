@@ -48,7 +48,7 @@ URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-
 
 
 class WardenRule:
-    def __init__(self, rule_str, author=None, do_not_raise_during_parse=False):
+    def __init__(self):
         self.parse_exception = None
         self.last_action = Action.NoOp
         self.name = None
@@ -56,16 +56,12 @@ class WardenRule:
         self.rank = Rank.Rank4
         self.conditions = []
         self.actions = {}
-        self.raw_rule = rule_str
+        self.raw_rule = ""
         self.priority = 2666
-        try:
-            self.parse(rule_str, author=author)
-        except Exception as e:
-            if not do_not_raise_during_parse:
-                raise e
-            self.parse_exception = e
 
-    def parse(self, rule_str, author=None):
+    async def parse(self, rule_str, cog, author=None):
+        self.raw_rule = rule_str
+
         try:
             rule = yaml.safe_load(rule_str)
         except:
@@ -146,7 +142,7 @@ class WardenRule:
                     return False
             return True
 
-        def validate_condition(cond):
+        async def validate_condition(cond):
             condition = parameter = None
             for r, p in cond.items():
                 condition, parameter = r, p
@@ -177,7 +173,7 @@ class WardenRule:
 
             if author:
                 try:
-                    CONDITIONS_SANITY_CHECK[condition](author=author, condition=condition, parameter=parameter) # type: ignore
+                    await CONDITIONS_SANITY_CHECK[condition](cog=cog, author=author, condition=condition, parameter=parameter) # type: ignore
                 except KeyError:
                     pass
 
@@ -205,9 +201,9 @@ class WardenRule:
                 if parameter is None:
                     raise InvalidRule("Condition blocks cannot be empty.")
                 for p in parameter:
-                    validate_condition(p)
+                    await validate_condition(p)
             else:
-                validate_condition(raw_condition)
+                await validate_condition(raw_condition)
 
         # Basically a list of one-key dicts
         # We need to preserve order of actions
@@ -252,7 +248,7 @@ class WardenRule:
 
                 if author:
                     try:
-                        ACTIONS_SANITY_CHECK[action](author=author, action=action, parameter=parameter)
+                        await ACTIONS_SANITY_CHECK[action](cog=cog, author=author, action=action, parameter=parameter)
                     except KeyError:
                         pass
 

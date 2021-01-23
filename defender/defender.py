@@ -305,22 +305,24 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
         for guid, rules in rules_to_load.items():
             for rule in rules.values():
+                new_rule = WardenRule()
+                # If the rule ends up not even having a name some extreme level of fuckery is going on
+                # At that point we might as well pretend it doesn't exist at config level
                 try:
-                    new_rule = WardenRule(rule, do_not_raise_during_parse=True)
-                    # If the rule ends up not even having a name some extreme level of fuckery is going on
-                    # At that point we might as well pretend it doesn't exist at config level
-                    if new_rule.parse_exception and new_rule.name is not None:
-                        raise new_rule.parse_exception
-                    elif new_rule.name is not None:
-                        self.active_warden_rules[int(guid)][new_rule.name] = new_rule
+                    await new_rule.parse(rule, self)
+                except InvalidRule as e:
+                    if new_rule.name is not None:
+                        self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule # type: ignore
                     else:
                         log.error("Warden - rule did not reach name "
-                                  "parsing during cog load", exc_info=new_rule.parse_exception)
-                except InvalidRule as e:
-                    self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule # type: ignore
+                                  "parsing during cog load", exc_info=e)
                 except Exception as e:
-                    self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule # type: ignore
+                    if new_rule.name is not None:
+                        self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule # type: ignore
                     log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
+                else:
+                    self.active_warden_rules[int(guid)][new_rule.name] = new_rule
+
 
     async def load_cache_settings(self):
         df_cache.MSG_STORE_CAP = await self.config.cache_cap()

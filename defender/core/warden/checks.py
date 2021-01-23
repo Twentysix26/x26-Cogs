@@ -24,7 +24,7 @@ import datetime
 import discord
 
 
-def _check_role_hierarchy(*, author: discord.Member, action: Action, parameter: list):
+async def _check_role_hierarchy(*, cog, author: discord.Member, action: Action, parameter: list):
     guild = author.guild
     roles = []
 
@@ -44,7 +44,7 @@ def _check_role_hierarchy(*, author: discord.Member, action: Action, parameter: 
                 raise InvalidRule(f"`{action.value}` Cannot assign or remove role `{r.name}` through Warden. "
                                 "You are autorized to only add or remove roles below your top role.")
 
-def _check_slowmode(*, author: discord.Member, action: Action, parameter: str):
+async def _check_slowmode(*, cog, author: discord.Member, action: Action, parameter: str):
     if not author.guild_permissions.manage_channels:
         raise InvalidRule(f"`{action.value}` You need `manage channels` permissions to make a rule with "
                            "this action.")
@@ -63,7 +63,7 @@ def _check_slowmode(*, author: discord.Member, action: Action, parameter: str):
                            "You must specify `seconds`, `minutes` or `hours`. Can be `0 seconds` to "
                            "deactivate slowmode.")
 
-def _check_is_valid_channel(*, author: discord.Member, action: Action, parameter: list):
+async def _check_is_valid_channel(*, cog, author: discord.Member, action: Action, parameter: list):
     guild = author.guild
 
     _id_or_name = parameter[0]
@@ -73,7 +73,7 @@ def _check_is_valid_channel(*, author: discord.Member, action: Action, parameter
     if not channel_dest:
         raise InvalidRule(f"`{action.value}` Channel '{_id_or_name}' not found.")
 
-def _check_heatpoint(*, author: discord.Member, action: Action, parameter: str):
+async def _check_heatpoint(*, cog, author: discord.Member, action: Action, parameter: str):
     td = None
     try:
         td = parse_timedelta(parameter,
@@ -87,7 +87,7 @@ def _check_heatpoint(*, author: discord.Member, action: Action, parameter: str):
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
                            "You must specify `seconds`, `minutes` or `hours`")
 
-def _check_heatpoints(*, author: discord.Member, action: Action, parameter: list):
+async def _check_heatpoints(*, cog, author: discord.Member, action: Action, parameter: list):
     if parameter[0] < 1 or parameter[0] > 100:
         raise InvalidRule(f"`{action.value}` Invalid parameter. You can only assign between 1 and 100 "
                            "heatpoints.")
@@ -104,7 +104,7 @@ def _check_heatpoints(*, author: discord.Member, action: Action, parameter: list
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
                            "You must specify `seconds`, `minutes` or `hours`")
 
-def _check_valid_rank(*, author: discord.Member, condition: Condition, parameter: int):
+async def _check_valid_rank(*, cog, author: discord.Member, condition: Condition, parameter: int):
     try:
         rank = Rank(parameter)
         if rank < Rank.Rank1 or rank > Rank.Rank4:
@@ -112,10 +112,16 @@ def _check_valid_rank(*, author: discord.Member, condition: Condition, parameter
     except ValueError:
         raise InvalidRule(f"`{condition.value}` Invalid rank. Rank level must be between 1 and 4.")
 
-def _check_valid_id(*, author: discord.Member, condition: Condition, parameter: list):
+async def _check_valid_id(*, cog, author: discord.Member, condition: Condition, parameter: list):
     for _id in parameter:
         if type(_id) is not int:
             raise InvalidRule(f"`{condition.value}` Invalid ID. Must contain only valid Discord IDs.")
+
+async def _check_regex_enabled(*, cog, author: discord.Member, condition: Condition, parameter: str):
+    enabled: bool = await cog.config.guild(author.guild).wd_regex_allowed()
+    if not enabled:
+        raise InvalidRule(f"`{condition.value}` Regex use is globally disabled. The bot owner must use "
+                           "`[p]dset warden regexallowed` to activate it.")
 
 
 # A callable with author, action and parameter kwargs
@@ -133,4 +139,7 @@ ACTIONS_SANITY_CHECK = {
 CONDITIONS_SANITY_CHECK = {
     Condition.UserIdMatchesAny: _check_valid_id,
     Condition.UserIsRank: _check_valid_rank,
+    Condition.MessageMatchesRegex: _check_regex_enabled,
+    Condition.UsernameMatchesRegex: _check_regex_enabled,
+    Condition.NicknameMatchesRegex: _check_regex_enabled,
 }
