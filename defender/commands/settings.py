@@ -418,6 +418,17 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("Warden auto-module disabled. Existing rules will have no effect.")
 
+    @wardenset.command(name="regexallowed")
+    @commands.is_owner()
+    async def wardensetregex(self, ctx: commands.Context, on_or_off: bool):
+        """Toggles the ability to create rules with user defined regex"""
+        await self.config.guild(ctx.guild).wd_regex_allowed.set(on_or_off)
+        if on_or_off:
+            await ctx.send("All servers will now be able to create Warden rules with user defined regex.")
+        else:
+            await ctx.send("The creation of Warden rules with user defined regex has been disabled for "
+                           "all servers. Existing rules with regex conditions will not work anymore.")
+
     @dset.group(name="voteout")
     @commands.admin()
     async def voteoutgroup(self, ctx: commands.Context):

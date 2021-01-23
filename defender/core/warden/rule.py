@@ -20,7 +20,7 @@ from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
-from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE
+from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex
 from ...exceptions import InvalidRule, ExecutionError
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
@@ -333,6 +333,16 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
+            elif condition == Condition.MessageMatchesRegex:
+                bools.append(
+                    await run_user_regex(
+                        rule_obj=self,
+                        cog=cog,
+                        guild=guild,
+                        regex=value, # type:ignore
+                        text=message.content
+                    )
+                )
             elif condition == Condition.UserIdMatchesAny:
                 for _id in value:
                     if _id == user.id:
@@ -349,6 +359,16 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
+            elif condition == Condition.UsernameMatchesRegex:
+                bools.append(
+                    await run_user_regex(
+                        rule_obj=self,
+                        cog=cog,
+                        guild=guild,
+                        regex=value, # type:ignore
+                        text=user.name
+                    )
+                )
             elif condition == Condition.NicknameMatchesAny:
                 # One match = Passed
                 if not user.nick:
@@ -361,6 +381,19 @@ class WardenRule:
                         break
                 else:
                     bools.append(False)
+            elif condition == Condition.NicknameMatchesRegex:
+                if not user.nick:
+                    bools.append(False)
+                    continue
+                bools.append(
+                    await run_user_regex(
+                        rule_obj=self,
+                        cog=cog,
+                        guild=guild,
+                        regex=value, # type:ignore
+                        text=user.nick
+                    )
+                )
             elif condition == Condition.ChannelMatchesAny: # We accept IDs and channel names
                 if channel.id in value:
                     bools.append(True)

@@ -56,8 +56,11 @@ class Action(enum.Enum):
 class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"
     UsernameMatchesAny = "username-matches-any"
+    UsernameMatchesRegex = "username-matches-regex"
     NicknameMatchesAny = "nickname-matches-any"
+    NicknameMatchesRegex = "nickname-matches-regex"
     MessageMatchesAny = "message-matches-any"
+    MessageMatchesRegex = "message-matches-regex"
     UserCreatedLessThan = "user-created-less-than"
     UserJoinedLessThan = "user-joined-less-than"
     UserHasDefaultAvatar = "user-has-default-avatar"

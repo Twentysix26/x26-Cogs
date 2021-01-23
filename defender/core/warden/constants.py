@@ -21,8 +21,11 @@ from .enums import Action, Condition, Event
 CONDITIONS_PARAM_TYPE = {
     Condition.UserIdMatchesAny: [list],
     Condition.UsernameMatchesAny: [list],
+    Condition.UsernameMatchesRegex: [str],
     Condition.NicknameMatchesAny: [list],
+    Condition.NicknameMatchesRegex: [str],
     Condition.MessageMatchesAny: [list],
+    Condition.MessageMatchesRegex: [str],
     Condition.UserCreatedLessThan: [int],
     Condition.UserJoinedLessThan: [int],
     Condition.UserHasDefaultAvatar: [bool],
@@ -84,7 +87,9 @@ CONDITIONS_ANY_CONTEXT = [
 CONDITIONS_USER_CONTEXT = [
     Condition.UserIdMatchesAny,
     Condition.UsernameMatchesAny,
+    Condition.UsernameMatchesRegex,
     Condition.NicknameMatchesAny,
+    Condition.NicknameMatchesRegex,
     Condition.UserCreatedLessThan,
     Condition.UserJoinedLessThan,
     Condition.UserHasDefaultAvatar,
@@ -98,6 +103,7 @@ CONDITIONS_USER_CONTEXT = [
 
 CONDITIONS_MESSAGE_CONTEXT = [
     Condition.MessageMatchesAny,
+    Condition.MessageMatchesRegex,
     Condition.ChannelMatchesAny,
     Condition.CategoryMatchesAny,
     Condition.ChannelIsPublic,

@@ -31,6 +31,7 @@ from .core.warden.heat import remove_stale_heat
 from .core.announcements import get_announcements
 from .core.cache import CacheUser
 from .core import cache as df_cache
+from multiprocessing.pool import Pool
 import datetime
 import discord
 import asyncio
@@ -68,6 +69,7 @@ default_guild_settings = {
     "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
     "warden_enabled": True,
     "wd_rules": {}, # Warden rules | I have to break the naming convention here due to config.py#L798
+    "wd_regex_allowed": True, # Allows the creation of Warden rules with user defined regex
     "alert_enabled": True, # Available to helper roles by default
     "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
     "silence_rank": 0, # ... and as such, this default will be 0
@@ -113,8 +115,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         self.loop.create_task(self.load_warden_rules())
         self.loop.create_task(self.send_announcements())
         self.loop.create_task(self.load_cache_settings())
-        self.loop.create_task(self.message_cache_cleaner())
+        self.mc_task = self.loop.create_task(self.message_cache_cleaner())
         self.monitor = defaultdict(lambda: Deque(maxlen=500))
+        self.wd_pool = Pool(maxtasksperchild=1000)
 
     async def rank_user(self, member: discord.Member):
         """Returns the user's rank"""
@@ -364,6 +367,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
     def cog_unload(self):
         self.counter_task.cancel()
+        self.mc_task.cancel()
+        self.wd_pool.close()
+        self.bot.loop.run_in_executor(None, self.wd_pool.join)
 
     async def callout_if_fake_admin(self, ctx):
         if ctx.invoked_subcommand is None:
