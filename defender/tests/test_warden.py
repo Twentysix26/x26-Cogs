@@ -61,18 +61,20 @@ def test_check_constants_consistency():
     assert x_contains_only_y(ACTIONS_USER_CONTEXT, Action)
     assert x_contains_only_y(ACTIONS_MESSAGE_CONTEXT, Action)
 
-def test_rule_parsing():
+@pytest.mark.asyncio
+async def test_rule_parsing():
     with pytest.raises(InvalidRule, match=r".*rank.*"):
-        WardenRule(INVALID_RANK)
+        await WardenRule().parse(INVALID_RANK, cog=None)
     with pytest.raises(InvalidRule, match=r".*event.*"):
-        WardenRule(INVALID_EVENT)
+        await WardenRule().parse(INVALID_EVENT, cog=None)
     with pytest.raises(InvalidRule, match=r".*number.*"):
-        WardenRule(INVALID_PRIORITY)
+        await WardenRule().parse(INVALID_PRIORITY, cog=None)
 
-    WardenRule(TUTORIAL_SIMPLE_RULE)
-    WardenRule(TUTORIAL_PRIORITY_RULE)
+    await WardenRule().parse(TUTORIAL_SIMPLE_RULE, cog=None)
+    await WardenRule().parse(TUTORIAL_PRIORITY_RULE, cog=None)
 
-    rule = WardenRule(TUTORIAL_COMPLEX_RULE)
+    rule = WardenRule()
+    await rule.parse(TUTORIAL_COMPLEX_RULE, cog=None)
     assert isinstance(rule.rank, Rank)
     assert rule.name and isinstance(rule.name, str)
     assert rule.raw_rule and isinstance(rule.raw_rule, str)
@@ -126,4 +128,4 @@ def test_rule_parsing():
         print(f"Testing {event.value} with {len(gen_conditions)} conditions and "
               f"{len(gen_actions)} actions.")
 
-        WardenRule(raw)
+        await WardenRule().parse(raw, cog=None)

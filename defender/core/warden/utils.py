@@ -9,8 +9,6 @@ import datetime
 
 EMOJI_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:([0-9]+)>')
 REMOVE_C_EMOJIS_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:[0-9]+>')
-WD_REGEX_BLOCK_GUILDS = {}
-WD_REGEX_BLOCK_TIME = 5 # minutes
 
 utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
@@ -49,13 +47,6 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
     if not allowed:
         return False
 
-    ts = WD_REGEX_BLOCK_GUILDS.get(guild.id)
-    if ts:
-        if utcnow() < ts:
-            return False
-        else:
-            WD_REGEX_BLOCK_GUILDS.pop(guild.id, None)
-
     try:
         regex_obj = re.compile(regex) # type: ignore
         process = cog.wd_pool.apply_async(regex_obj.findall, (text,))
@@ -65,7 +56,6 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
     except (multiprocessing.TimeoutError, asyncio.TimeoutError):
         log.warning(f"Warden - User defined regex timed out. Regex temporarily suspended for the guild."
                     f"\nGuild: {guild.id}\nRegex: {regex}")
-        WD_REGEX_BLOCK_GUILDS[guild.id] = utcnow() + datetime.timedelta(minutes=WD_REGEX_BLOCK_TIME)
         cog.active_warden_rules[guild.id].pop(rule_obj.name, None)
         cog.invalid_warden_rules[guild.id][rule_obj.name] = rule_obj
         async with cog.config.guild(guild).wd_rules() as warden_rules:
@@ -73,8 +63,7 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
             rule_obj.raw_rule = ":!!! Regex in this rule perform poorly. Fix the issue and remove this line !!!:\n" + rule_obj.raw_rule
             warden_rules[rule_obj.name] = rule_obj.raw_rule
         await cog.send_notification(guild, f"The Warden rule `{rule_obj.name}` has been disabled for poor regex performances. "
-                                           f"Regex in any other Warden rule will not be run for the next {WD_REGEX_BLOCK_TIME} "
-                                           "minutes. Please fix it to prevent this from happening again in the future.")
+                                           f"Please fix it to prevent this from happening again in the future.")
         return False
     except Exception as e:
         log.error("Warden - Unexpected error while running user defined regex", exc_info=e)
