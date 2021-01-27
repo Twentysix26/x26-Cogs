@@ -20,7 +20,7 @@ from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
-from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex
+from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion
 from ...exceptions import InvalidRule, ExecutionError
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
@@ -154,7 +154,8 @@ class WardenRule:
                     condition = ConditionBlock(condition)
                     raise InvalidRule(f"Invalid: `{condition.value}` can only be at root level.")
                 except ValueError:
-                    raise InvalidRule(f"Invalid condition: `{condition}`")
+                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition])
+                    raise InvalidRule(f"Invalid condition: `{condition}`.{suggestion}")
 
             if not is_condition_allowed_in_events(condition):
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
@@ -195,7 +196,8 @@ class WardenRule:
                 try:
                     condition = ConditionBlock(condition)
                 except ValueError:
-                    raise InvalidRule(f"Invalid condition: `{condition}`")
+                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition])
+                    raise InvalidRule(f"Invalid condition: `{condition}`.{suggestion}")
 
             if isinstance(condition, ConditionBlock):
                 if parameter is None:
@@ -220,7 +222,8 @@ class WardenRule:
                 try:
                     action = Action(action)
                 except ValueError:
-                    raise InvalidRule(f"Invalid action: `{action}`")
+                    suggestion = make_fuzzy_suggestion(action, [a.value for a in Action])
+                    raise InvalidRule(f"Invalid action: `{action}`.{suggestion}")
 
                 if not is_action_allowed_in_events(action):
                     raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")

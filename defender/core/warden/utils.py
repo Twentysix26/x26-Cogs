@@ -1,3 +1,4 @@
+from fuzzywuzzy import fuzz, process
 import emoji
 import re
 import discord
@@ -72,3 +73,11 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
         return False
     else:
         return bool(result)
+
+def make_fuzzy_suggestion(term, _list):
+    result = process.extract(term, _list, limit=1, scorer=fuzz.QRatio)
+    result = [r for r in result if r[1] > 10]
+    if result:
+        return f" Did you mean `{result[0][0]}`?"
+    else:
+        return ""
