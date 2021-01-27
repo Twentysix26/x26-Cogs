@@ -42,19 +42,21 @@ def has_x_or_more_emojis(bot: discord.Client, guild: discord.Guild, text: str, l
 async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, text: str):
     # This implementation is similar to what reTrigger does for safe-ish user regex. Thanks Trusty!
     # https://github.com/TrustyJAID/Trusty-cogs/blob/4d690f6ce51c1c5ebf98a2e05ff504ea26eac30b/retrigger/triggerhandler.py
-    allowed = await cog.config.guild(guild).wd_regex_allowed()
+    allowed = await cog.config.wd_regex_allowed()
 
     if not allowed:
         return False
 
+    # TODO This section might benefit from locks in case of faulty rules?
+
     try:
         regex_obj = re.compile(regex) # type: ignore
         process = cog.wd_pool.apply_async(regex_obj.findall, (text,))
-        task = functools.partial(process.get, timeout=0.1)
+        task = functools.partial(process.get, timeout=3)
         new_task = cog.bot.loop.run_in_executor(None, task)
-        result = await asyncio.wait_for(new_task, timeout=0.1)
+        result = await asyncio.wait_for(new_task, timeout=5)
     except (multiprocessing.TimeoutError, asyncio.TimeoutError):
-        log.warning(f"Warden - User defined regex timed out. Regex temporarily suspended for the guild."
+        log.warning(f"Warden - User defined regex timed out. This rule has been disabled."
                     f"\nGuild: {guild.id}\nRegex: {regex}")
         cog.active_warden_rules[guild.id].pop(rule_obj.name, None)
         cog.invalid_warden_rules[guild.id][rule_obj.name] = rule_obj

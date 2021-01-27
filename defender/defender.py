@@ -69,7 +69,6 @@ default_guild_settings = {
     "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
     "warden_enabled": True,
     "wd_rules": {}, # Warden rules | I have to break the naming convention here due to config.py#L798
-    "wd_regex_allowed": True, # Allows the creation of Warden rules with user defined regex
     "alert_enabled": True, # Available to helper roles by default
     "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
     "silence_rank": 0, # ... and as such, this default will be 0
@@ -91,6 +90,7 @@ default_member_settings = {
 default_owner_settings = {
     "cache_expiration" : 48, # Hours before a message will be removed from the cache
     "cache_cap": 3000, # Max messages to store for each user / channel
+    "wd_regex_allowed": False, # Allows the creation of Warden rules with user defined regex
 }
 
 class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeMetaClass):

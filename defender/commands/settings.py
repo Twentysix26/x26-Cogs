@@ -421,10 +421,13 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @wardenset.command(name="regexallowed")
     @commands.is_owner()
     async def wardensetregex(self, ctx: commands.Context, on_or_off: bool):
-        """Toggles the ability to create rules with user defined regex"""
-        await self.config.guild(ctx.guild).wd_regex_allowed.set(on_or_off)
+        """Toggles the ability to globally create rules with user defined regex"""
+        await self.config.wd_regex_allowed.set(on_or_off)
         if on_or_off:
-            await ctx.send("All servers will now be able to create Warden rules with user defined regex.")
+            await ctx.send("All servers will now be able to create Warden rules with user defined regex. "
+                           "Keep in mind that badly designed regex can affect bot performances. Defender, "
+                           "other than actively trying to prevent or mitigate this issue, will also report "
+                           "such occurrences in the bot logs.")
         else:
             await ctx.send("The creation of Warden rules with user defined regex has been disabled for "
                            "all servers. Existing rules with regex conditions will not work anymore.")

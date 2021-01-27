@@ -118,7 +118,7 @@ async def _check_valid_id(*, cog, author: discord.Member, condition: Condition, 
             raise InvalidRule(f"`{condition.value}` Invalid ID. Must contain only valid Discord IDs.")
 
 async def _check_regex_enabled(*, cog, author: discord.Member, condition: Condition, parameter: str):
-    enabled: bool = await cog.config.guild(author.guild).wd_regex_allowed()
+    enabled: bool = await cog.config.wd_regex_allowed()
     if not enabled:
         raise InvalidRule(f"`{condition.value}` Regex use is globally disabled. The bot owner must use "
                            "`[p]dset warden regexallowed` to activate it.")
