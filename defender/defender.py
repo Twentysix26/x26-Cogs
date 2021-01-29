@@ -15,7 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from typing import Deque
+from datetime import timedelta
+from typing import Deque, List
 from redbot.core import commands, Config
 from collections import Counter, defaultdict
 from redbot.core.utils.chat_formatting import pagify, box
@@ -91,6 +92,7 @@ default_owner_settings = {
     "cache_expiration" : 48, # Hours before a message will be removed from the cache
     "cache_cap": 3000, # Max messages to store for each user / channel
     "wd_regex_allowed": False, # Allows the creation of Warden rules with user defined regex
+    "wd_periodic_allowed": True, # Allows the creation of periodic Warden rules
 }
 
 class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeMetaClass):
@@ -116,6 +118,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         self.loop.create_task(self.send_announcements())
         self.loop.create_task(self.load_cache_settings())
         self.mc_task = self.loop.create_task(self.message_cache_cleaner())
+        self.wd_periodic_task = self.loop.create_task(self.wd_periodic_rules())
         self.monitor = defaultdict(lambda: Deque(maxlen=500))
         self.wd_pool = Pool(maxtasksperchild=1000)
 
@@ -294,6 +297,57 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         except asyncio.CancelledError:
             pass
 
+
+    async def wd_periodic_rules(self):
+        try:
+            while True:
+                await asyncio.sleep(60)
+                if await self.config.wd_periodic_allowed():
+                    await self.spin_wd_periodic_rules()
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            log.error(f"Defender's scheduler for Warden periodic rules errored: {e}")
+
+    async def spin_wd_periodic_rules(self):
+        log.debug("Processing periodic tasks")
+        all_guild_rules = self.active_warden_rules.copy()
+
+        for guid in all_guild_rules.keys():
+            guild = self.bot.get_guild(guid)
+            if guild is None:
+                continue
+
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.Periodic)
+
+            if not rules:
+                continue
+
+            if not await self.config.guild(guild).enabled():
+                continue
+
+            if not await self.config.guild(guild).warden_enabled():
+                continue
+
+            for rule in rules:
+                log.debug(f"Processing periodic rule {rule.name}")
+                if not rule.next_run <= utcnow() or rule.run_every is None:
+                    log.debug(f"Not yet time for periodic rule {rule.name}")
+                    continue
+                for member in guild.members:
+                    if member.bot:
+                        continue
+                    rank = await self.rank_user(member)
+                    if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
+                        try:
+                            await rule.do_actions(cog=self, user=member)
+                        except Exception as e:
+                            self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                        f"({rule.last_action.value}) - {str(e)}")
+                            log.error("Warden - unexpected error during actions execution", exc_info=e) # TODO remove could be spammy
+                log.debug(f"Periodic rule {rule.name} finished. Rescheduling...")
+                rule.next_run = utcnow() + rule.run_every
+
     async def load_warden_rules(self):
         rules_to_load = defaultdict()
         guilds = self.config._get_base_group(self.config.GUILD)
@@ -369,6 +423,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
     def cog_unload(self):
         self.counter_task.cancel()
+        self.wd_periodic_task.cancel()
         self.mc_task.cancel()
         self.wd_pool.close()
         self.bot.loop.run_in_executor(None, self.wd_pool.join)
@@ -429,7 +484,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             return msg
         return False
 
-    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent):
+    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
         rules = self.active_warden_rules.get(guild.id, {}).values()
         rules = [r for r in rules if event in r.events]
         return sorted(rules, key=lambda k: k.priority)

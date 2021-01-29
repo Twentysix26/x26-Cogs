@@ -25,6 +25,7 @@ class Event(enum.Enum):
     OnUserLeave = "on-user-leave"
     OnEmergency = "on-emergency"
     Manual = "manual"
+    Periodic = "periodic"
 
 class Action(enum.Enum):
     Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content

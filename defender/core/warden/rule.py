@@ -24,6 +24,7 @@ from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, mak
 from ...exceptions import InvalidRule, ExecutionError
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
+from discord.ext.commands import BadArgument
 from string import Template
 from redbot.core import modlog
 from typing import Optional
@@ -41,7 +42,7 @@ utcnow = datetime.datetime.utcnow
 
 ALLOW_ALL_MENTIONS = discord.AllowedMentions(everyone=True, roles=True, users=True)
 RULE_REQUIRED_KEYS = ("name", "event", "rank", "if", "do")
-RULE_FACULTATIVE_KEYS = ("priority",)
+RULE_FACULTATIVE_KEYS = ("priority", "run-every")
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
 URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I)
@@ -58,6 +59,8 @@ class WardenRule:
         self.actions = {}
         self.raw_rule = ""
         self.priority = 2666
+        self.next_run = None
+        self.run_every = None
 
     async def parse(self, rule_str, cog, author=None):
         self.raw_rule = rule_str
@@ -97,6 +100,32 @@ class WardenRule:
                 raise InvalidRule("Invalid event.")
         if not self.events:
             raise InvalidRule("A least one event must be defined.")
+
+        if Event.Periodic in self.events:
+            if not await cog.config.wd_periodic_allowed():
+                raise InvalidRule("The creation of periodic Warden rules is currently disabled. "
+                                  "The bot owner must use '[p]dset warden periodicallowed' to "
+                                  "enable them.")
+            if "run-every" not in rule.keys():
+                raise InvalidRule("The 'run-every' parameter is mandatory with "
+                                  "periodic rules.")
+            try:
+                td = parse_timedelta(str(rule["run-every"]),
+                                     maximum=datetime.timedelta(hours=24),
+                                     minimum=datetime.timedelta(minutes=5),
+                                     allowed_units=["hours", "minutes"])
+                if td is None:
+                    raise BadArgument()
+            except BadArgument:
+                raise InvalidRule("The 'run-every' parameter must be between 5 minutes "
+                                  "and 24 hours.")
+            else:
+                self.run_every = td
+                self.next_run = utcnow() + td
+        else:
+            if "run-every" in rule.keys():
+                raise InvalidRule("The 'periodic' event must be specified for rules with "
+                                  "a 'run-every' parameter.")
 
         try:
             self.rank = Rank(rule["rank"])

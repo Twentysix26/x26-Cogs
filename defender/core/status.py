@@ -228,12 +228,17 @@ async def make_status(ctx, cog):
     if invalid_rules:
         invalid_text = f", **{invalid_rules}** of which are invalid"
 
+    wd_periodic = "allowed" if await cog.config.wd_periodic_allowed() else "not allowed"
+    wd_regex = "allowed" if await cog.config.wd_regex_allowed() else "not allowed"
+
     msg = ("**Warden**\nThis auto-module is extremely versatile. Thanks to a rich set of  "
             "*events*, *conditions* and *actions* that you can combine Warden allows you to define "
             "custom rules to counter any common pattern of bad behaviour that you notice in your "
             "community.\nMessage filtering, assignation of roles to misbehaving users, "
             "custom staff alerts are only a few examples of what you can accomplish "
             f"with this powerful module.\nYou can learn more [here]({warden_guide}).\n")
+    msg += (f"The creation of periodic Warden rules is **{wd_periodic}**.\n")
+    msg += (f"The use of regex in Warden rules is **{wd_regex}**.\n")
     msg += (f"There are a total of **{total_rules}** rules defined{invalid_text}.\n")
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"

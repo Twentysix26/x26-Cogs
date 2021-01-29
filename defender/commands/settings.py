@@ -432,6 +432,21 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send("The creation of Warden rules with user defined regex has been disabled for "
                            "all servers. Existing rules with regex conditions will not work anymore.")
 
+    @wardenset.command(name="periodicallowed")
+    @commands.is_owner()
+    async def wardensetperiodic(self, ctx: commands.Context, on_or_off: bool):
+        """Toggles the ability to globally create periodic rules
+
+        Periodic rules are rules that can be scheduled to run against
+        an entire server userbase on an interval between 5 minutes and 24 hours
+        """
+        await self.config.wd_periodic_allowed.set(on_or_off)
+        if on_or_off:
+            await ctx.send("All servers will now be able to create periodic Warden rules.")
+        else:
+            await ctx.send("The creation of periodic Warden rules has been disabled for all servers. "
+                           "Existing periodic rules will not be run anymore.")
+
     @dset.group(name="voteout")
     @commands.admin()
     async def voteoutgroup(self, ctx: commands.Context):
