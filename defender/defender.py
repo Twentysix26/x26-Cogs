@@ -310,7 +310,6 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             log.error(f"Defender's scheduler for Warden periodic rules errored: {e}")
 
     async def spin_wd_periodic_rules(self):
-        log.debug("Processing periodic tasks")
         all_guild_rules = self.active_warden_rules.copy()
 
         for guid in all_guild_rules.keys():
@@ -330,9 +329,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 continue
 
             for rule in rules:
-                log.debug(f"Processing periodic rule {rule.name}")
                 if not rule.next_run <= utcnow() or rule.run_every is None:
-                    log.debug(f"Not yet time for periodic rule {rule.name}")
                     continue
                 for member in guild.members:
                     if member.bot:
@@ -344,8 +341,6 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                         except Exception as e:
                             self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                         f"({rule.last_action.value}) - {str(e)}")
-                            log.error("Warden - unexpected error during actions execution", exc_info=e) # TODO remove could be spammy
-                log.debug(f"Periodic rule {rule.name} finished. Rescheduling...")
                 rule.next_run = utcnow() + rule.run_every
 
     async def load_warden_rules(self):

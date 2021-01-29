@@ -401,12 +401,22 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             rules["invalid"].append(inline(v.name))
 
         text = "Active Warden rules per event:\n\n"
+        events_without_rules = []
+
         for k, v in rules.items():
+            if not v and k != "invalid":
+                events_without_rules.append(k.replace("-", " "))
+                continue
             if k == "invalid":
                 continue
             event_name = k.replace("-", " ").capitalize()
-            rule_names = ", ".join(v) if v else "No rules set."
+            rule_names = ", ".join(v)
             text += f"**{event_name}**:\n{rule_names}\n"
+
+        if events_without_rules:
+            text += "\nThese events have no rules: "
+            text += ", ".join(events_without_rules)
+
         if rules["invalid"]:
             text += f"\n**Invalid rules**:\n{', '.join(rules['invalid'])}\n"
             text += ("These rules failed the validation process at the last start. Check if "
