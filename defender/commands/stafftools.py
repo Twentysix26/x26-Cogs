@@ -310,9 +310,11 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     @wardengroup.command(name="add")
     async def wardengroupaddrule(self, ctx: commands.Context, *, rule: str):
         """Adds a new rule"""
-        EMOJI = "💾"
+        SAVE_EMOJI = "💾"
+        CONFIRM_EMOJI = "✅"
         guild = ctx.guild
         rule = rule.strip("\n")
+        prompts_sent = False
         if rule.startswith("```yaml"):
             rule = rule.lstrip("```yaml")
         if rule.startswith("```") or rule.endswith("```"):
@@ -327,30 +329,56 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
             return await ctx.send(f"Something very wrong happened during the rule parsing. Please check its format.")
 
-        asked_overwrite = False
+        if WardenEvent.Periodic in new_rule.events:
+            prompts_sent = True
+            affected = 0
+            async with ctx.typing():
+                msg: discord.Message = await ctx.send("Checking your new rule... Please wait and watch this message for updates.")
+
+                def confirm(r, user):
+                    return user == ctx.author and str(r.emoji) == CONFIRM_EMOJI and r.message.id == msg.id
+
+                for m in ctx.guild.members:
+                    if m.bot:
+                        continue
+                    rank = await self.rank_user(m)
+                    if await new_rule.satisfies_conditions(rank=rank, user=m, cog=self):
+                        affected += 1
+
+            if affected >= 10 or affected >= len(guild.members) / 2:
+                await msg.edit(content=f"You're adding a periodic rule. At the first run {affected} users will be affected. "
+                                       "Are you sure you want to continue?")
+                await msg.add_reaction(CONFIRM_EMOJI)
+                try:
+                    await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
+                except asyncio.TimeoutError:
+                    return await ctx.send("Not adding the rule.")
+            else:
+                await msg.edit(content="Safety checks passed.")
+
         if new_rule.name in self.active_warden_rules[guild.id] or new_rule.name in self.invalid_warden_rules[guild.id]:
             msg = await ctx.send("There is a rule with the same name already. Do you want to "
                                  "overwrite it? React to confirm.")
 
             def confirm(r, user):
-                return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
+                return user == ctx.author and str(r.emoji) == SAVE_EMOJI and r.message.id == msg.id
 
-            await msg.add_reaction(EMOJI)
+            await msg.add_reaction(SAVE_EMOJI)
             try:
                 r = await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
             except asyncio.TimeoutError:
                 return await ctx.send("Not proceeding with overwrite.")
-            asked_overwrite = True
+            prompts_sent = True
 
         async with self.config.guild(ctx.guild).wd_rules() as warden_rules:
             warden_rules[new_rule.name] = rule
         self.active_warden_rules[ctx.guild.id][new_rule.name] = new_rule
         self.invalid_warden_rules[ctx.guild.id].pop(new_rule.name, None)
 
-        if not asked_overwrite:
+        if not prompts_sent:
             await ctx.tick()
         else:
-            await ctx.send("The rule has been overwritten.")
+            await ctx.send("The rule has been added.")
 
     @wardengroup.command(name="remove")
     async def wardengroupremoverule(self, ctx: commands.Context, *, name: str):
