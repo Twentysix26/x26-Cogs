@@ -34,6 +34,7 @@ import asyncio
 import fnmatch
 import discord
 import datetime
+import tarfile
 
 log = logging.getLogger("red.x26cogs.defender")
 
@@ -449,18 +450,19 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         f = discord.File(BytesIO(rule.raw_rule.encode("utf-8")), f"{name}.yaml")
         await ctx.send(file=f)
 
-    @wardengroup.command(name="exportall", hidden=True)
+    @wardengroup.command(name="exportall")
     async def wardengroupexportall(self, ctx: commands.Context):
         """Sends all the rules as a tar.gz archive"""
-        return await ctx.send("Coming soon :tm:")
-        # TODO No idea what is wrong here but yeah, that's for later
         to_archive = {}
 
         for k, v in self.active_warden_rules[ctx.guild.id].items():
             to_archive[k] = BytesIO(v.raw_rule.encode("utf8"))
 
+        for k, v in self.invalid_warden_rules[ctx.guild.id].items():
+            to_archive[k] = BytesIO(v.raw_rule.encode("utf8"))
+
         if not to_archive:
-            return await ctx.send("There are no active rules to export")
+            return await ctx.send("There are no rules to export")
 
         tar_obj = BytesIO()
 
@@ -471,7 +473,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 tar.addfile(info, v)
 
         utc = utcnow()
-        await ctx.send(file=discord.File(tar_obj.getvalue(), f"rules-export-{utc}.tar.gz"))
+        await ctx.send(file=discord.File(tar_obj, f"rules-export-{utc}.tar.gz"))
 
     @wardengroup.command(name="run")
     async def wardengrouprun(self, ctx: commands.Context, *, name: str):

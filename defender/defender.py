@@ -300,6 +300,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
     async def wd_periodic_rules(self):
         try:
+            await self.bot.wait_until_red_ready()
             while True:
                 await asyncio.sleep(60)
                 if await self.config.wd_periodic_allowed():
