@@ -501,6 +501,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 tar.addfile(info, v)
 
         utc = utcnow()
+        tar_obj.seek(0)
         await ctx.send(file=discord.File(tar_obj, f"rules-export-{utc}.tar.gz"))
 
     @wardengroup.command(name="run")
