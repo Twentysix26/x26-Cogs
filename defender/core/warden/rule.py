@@ -29,6 +29,7 @@ from string import Template
 from redbot.core import modlog
 from typing import Optional
 from . import heat
+from copy import copy
 import yaml
 import fnmatch
 import discord
@@ -722,6 +723,26 @@ class WardenRule:
                     heat.empty_user_heat(user)
                 elif action == Action.EmptyChannelHeat:
                     heat.empty_channel_heat(channel)
+                elif action == Action.IssueCommand:
+                    issuer = guild.get_member(value[0])
+                    if issuer is None:
+                        raise ExecutionError(f"User {value[0]} is not in the server.")
+                    if message is not None:
+                        msg_obj = message
+                    else:
+                        # Uh-oh, we're not in a message context. Let's fish one from the cache
+                        for _cached_msg in cog.bot.cached_messages:
+                            if _cached_msg.guild == guild:
+                                msg_obj = _cached_msg
+                                break
+                        else:
+                            raise ExecutionError(f"Failed to issue command. Sorry!")
+                    prefix = await cog.bot.get_prefix(msg_obj)
+                    fake_msg = copy(msg_obj)
+                    fake_msg.id = 262626
+                    fake_msg.author = issuer
+                    fake_msg.content = prefix[0] + Template(str(value[1])).safe_substitute(templates_vars)
+                    cog.bot.dispatch("message", fake_msg)
                 elif action == Action.NoOp:
                     pass
                 else:

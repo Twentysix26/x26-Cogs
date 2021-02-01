@@ -78,6 +78,7 @@ ACTIONS_PARAM_TYPE = {
     Action.AddChannelHeatpoints: [list],
     Action.EmptyUserHeat: [None],
     Action.EmptyChannelHeat: [None],
+    Action.IssueCommand: [list],
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -129,6 +130,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.SendToMonitor,
     Action.EnableEmergencyMode,
     Action.SendToChannel,
+    Action.IssueCommand,
 ]
 
 ACTIONS_USER_CONTEXT = [
@@ -184,4 +186,5 @@ ACTIONS_ARGS_N = {
     Action.SendToChannel: 2,
     Action.AddUserHeatpoints: 2,
     Action.AddChannelHeatpoints: 2,
+    Action.IssueCommand: 2,
 }

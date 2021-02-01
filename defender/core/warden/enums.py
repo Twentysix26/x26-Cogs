@@ -53,6 +53,7 @@ class Action(enum.Enum):
     AddChannelHeatpoints = "add-channel-heatpoints"
     EmptyUserHeat = "empty-user-heat"
     EmptyChannelHeat = "empty-channel-heat"
+    IssueCommand = "issue-command"
 
 class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"

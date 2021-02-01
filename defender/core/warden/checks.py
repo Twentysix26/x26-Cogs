@@ -104,6 +104,11 @@ async def _check_heatpoints(*, cog, author: discord.Member, action: Action, para
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
                            "You must specify `seconds`, `minutes` or `hours`")
 
+async def _check_issue_command(*, cog, author: discord.Member, action: Action, parameter: list):
+    if parameter[0] != author.id:
+        raise InvalidRule(f"`{action.value}` The first parameter must be your ID. For security reasons "
+                          "you're not allowed to issue commands as other users.")
+
 async def _check_valid_rank(*, cog, author: discord.Member, condition: Condition, parameter: int):
     try:
         rank = Rank(parameter)
@@ -134,6 +139,7 @@ ACTIONS_SANITY_CHECK = {
     Action.AddChannelHeatpoint: _check_heatpoint,
     Action.AddUserHeatpoints: _check_heatpoints,
     Action.AddChannelHeatpoints: _check_heatpoints,
+    Action.IssueCommand: _check_issue_command,
 }
 
 CONDITIONS_SANITY_CHECK = {
