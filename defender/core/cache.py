@@ -17,7 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from collections import deque, defaultdict
 from datetime import timedelta
-from copy import deepcopy
+from copy import deepcopy, copy
+from typing import Optional
 from discord.ext.commands.errors import BadArgument
 from discord.ext.commands import IDConverter
 import re
@@ -34,6 +35,7 @@ MSG_EXPIRATION_TIME = 48 # Hours
 MSG_STORE_CAP = 3000
 _guild_dict = {"users": {}, "channels": {}}
 _message_cache = defaultdict(lambda: deepcopy(_guild_dict))
+_msg_obj = None # Warden use
 
 # We're gonna store *a lot* of messages in memory and we're gonna improve
 # performances by storing only a lite version of them
@@ -145,3 +147,20 @@ async def discard_messages_from_user(_id):
         for cid, store in _cache["channels"].items():
             _message_cache[guid]["channels"][cid] = deque([m for m in store if m.author_id != _id], maxlen=MSG_STORE_CAP)
         await asyncio.sleep(0)
+
+# This is a message object that we store to mock commands in Warden
+def maybe_store_msg_obj(message: discord.Message):
+    global _msg_obj
+
+    if _msg_obj is not None:
+        return
+    msg = copy(message)
+    msg.id = 262626
+    msg.author = None
+    msg.channel = None
+    msg.content = ""
+
+    _msg_obj = msg
+
+def get_msg_obj()->Optional[discord.Object]:
+    return copy(_msg_obj)

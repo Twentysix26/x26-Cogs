@@ -49,6 +49,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await self.inc_message_count(author)
 
         df_cache.add_message(message)
+        df_cache.maybe_store_msg_obj(message)
 
         is_staff = False
         expelled = False

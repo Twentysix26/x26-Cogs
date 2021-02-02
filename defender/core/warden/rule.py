@@ -22,6 +22,7 @@ from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion
 from ...exceptions import InvalidRule, ExecutionError
+from ...core import cache as df_cache
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
 from discord.ext.commands import BadArgument
@@ -29,7 +30,6 @@ from string import Template
 from redbot.core import modlog
 from typing import Optional
 from . import heat
-from copy import copy
 import yaml
 import fnmatch
 import discord
@@ -727,22 +727,20 @@ class WardenRule:
                     issuer = guild.get_member(value[0])
                     if issuer is None:
                         raise ExecutionError(f"User {value[0]} is not in the server.")
-                    if message is not None:
-                        msg_obj = message
-                    else:
-                        # Uh-oh, we're not in a message context. Let's fish one from the cache
-                        for _cached_msg in cog.bot.cached_messages:
-                            if _cached_msg.guild == guild:
-                                msg_obj = _cached_msg
-                                break
-                        else:
+                    msg_obj = df_cache.get_msg_obj()
+                    if msg_obj is None:
+                        raise ExecutionError(f"Failed to issue command. Sorry!")
+                    if message is None:
+                        notify_channel_id = await cog.config.guild(guild).notify_channel()
+                        msg_obj.channel = guild.get_channel(notify_channel_id)
+                        if msg_obj.channel is None:
                             raise ExecutionError(f"Failed to issue command. Sorry!")
+                    else:
+                        msg_obj.channel = message.channel
+                    msg_obj.author = issuer
                     prefix = await cog.bot.get_prefix(msg_obj)
-                    fake_msg = copy(msg_obj)
-                    fake_msg.id = 262626
-                    fake_msg.author = issuer
-                    fake_msg.content = prefix[0] + Template(str(value[1])).safe_substitute(templates_vars)
-                    cog.bot.dispatch("message", fake_msg)
+                    msg_obj.content = prefix[0] + Template(str(value[1])).safe_substitute(templates_vars)
+                    cog.bot.dispatch("message", msg_obj)
                 elif action == Action.NoOp:
                     pass
                 else:
