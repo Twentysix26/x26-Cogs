@@ -89,6 +89,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         conf = await self.config.guild(other_guild).all()
         to_copy = conf.copy()
+        to_copy.pop("enabled", None)
         enabled = to_copy.pop("notify_channel", None)
         to_copy.pop("notify_role", None)
         to_copy.pop("trusted_roles", None)
@@ -132,9 +133,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                     self.active_warden_rules[ctx.guild.id][rule.name] = rule
                     imported += 1
 
-        imported_txt = "" if not imported else f" Imported {imported} rules."
-        failed_txt = "" if not failed else f" Failed to import {failed} rules."
-        await ctx.send(f"Configuration import completed successfully.{imported_txt}{failed_txt}")
+        imported_txt = "" if not imported else f" Imported {imported} rules. "
+        failed_txt = "" if not failed else f" Failed to import {failed} rules. "
+        await ctx.send(f"Configuration import completed successfully.{imported_txt}{failed_txt}"
+                       f"\nPlease check `{ctx.prefix}def status` for any remaining feature left to "
+                       "set up.")
 
     @generalgroup.command(name="trustedroles")
     async def generalgrouptrustedroles(self, ctx: commands.Context, *roles: discord.Role):
