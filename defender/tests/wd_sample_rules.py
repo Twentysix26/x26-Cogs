@@ -67,9 +67,71 @@ INVALID_EVENT = """
         - no-op:
 """
 
+INVALID_PERIODIC_MISSING_RUN_EVERY = """
+    name: per
+    rank: 2
+    event: periodic
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - no-op:
+"""
+
+INVALID_PERIODIC_MISSING_EVENT = """
+    name: per
+    rank: 2
+    run-every: 2 hours
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - no-op:
+"""
+
+VALID_MIXED_RULE = """
+    name: spiders-are-spooky
+    rank: 1
+    event: [on-message, on-user-join]
+    if:
+    - username-matches-any: ["*spider*"]
+    do:
+    - set-user-nickname: bunny
+"""
+
+INVALID_MIXED_RULE_CONDITION = """
+    name: spiders-are-spooky
+    rank: 1
+    event: [on-message, on-user-join]
+    if:
+    - message-matches-any: ["*spider*"]
+    do:
+    - set-user-nickname: bunny
+"""
+
+INVALID_MIXED_RULE_ACTION = """
+    name: spiders-are-spooky
+    rank: 1
+    event: [on-message, on-user-join]
+    if:
+    - username-matches-any: ["*spider*"]
+    do:
+    - delete-user-message:
+"""
+
 DYNAMIC_RULE = """
     name: test
     rank: 3
+    event: {event}
+    if:
+{conditions}
+    do:
+{actions}
+"""
+
+DYNAMIC_RULE_PERIODIC = """
+    name: test
+    rank: 3
+    run-every: 15 minutes
     event: {event}
     if:
 {conditions}

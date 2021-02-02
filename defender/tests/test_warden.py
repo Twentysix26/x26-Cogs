@@ -5,8 +5,10 @@ from ..core.warden.constants import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONT
 from ..core.warden.constants import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, ACTIONS_ARGS_N
 from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
-from .wd_sample_rules import (DYNAMIC_RULE, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE,
-                              INVALID_RANK, INVALID_EVENT, TUTORIAL_PRIORITY_RULE, INVALID_PRIORITY)
+from .wd_sample_rules import (DYNAMIC_RULE, DYNAMIC_RULE_PERIODIC, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE,
+                              INVALID_RANK, INVALID_EVENT, TUTORIAL_PRIORITY_RULE, INVALID_PRIORITY,
+                              INVALID_PERIODIC_MISSING_EVENT, INVALID_PERIODIC_MISSING_RUN_EVERY, VALID_MIXED_RULE,
+                              INVALID_MIXED_RULE_CONDITION, INVALID_MIXED_RULE_ACTION)
 import pytest
 
 def test_check_constants_consistency():
@@ -69,9 +71,18 @@ async def test_rule_parsing():
         await WardenRule().parse(INVALID_EVENT, cog=None)
     with pytest.raises(InvalidRule, match=r".*number.*"):
         await WardenRule().parse(INVALID_PRIORITY, cog=None)
+    with pytest.raises(InvalidRule, match=r".*'run-every' parameter is mandatory.*"):
+        await WardenRule().parse(INVALID_PERIODIC_MISSING_RUN_EVERY, cog=None)
+    with pytest.raises(InvalidRule, match=r".*'periodic' event must be specified.*"):
+        await WardenRule().parse(INVALID_PERIODIC_MISSING_EVENT, cog=None)
+    with pytest.raises(InvalidRule, match=r".*Condition `message-matches-any` not allowed*"):
+        await WardenRule().parse(INVALID_MIXED_RULE_CONDITION, cog=None)
+    with pytest.raises(InvalidRule, match=r".*Action `delete-user-message` not allowed*"):
+        await WardenRule().parse(INVALID_MIXED_RULE_ACTION, cog=None)
 
     await WardenRule().parse(TUTORIAL_SIMPLE_RULE, cog=None)
     await WardenRule().parse(TUTORIAL_PRIORITY_RULE, cog=None)
+    await WardenRule().parse(VALID_MIXED_RULE, cog=None)
 
     rule = WardenRule()
     await rule.parse(TUTORIAL_COMPLEX_RULE, cog=None)
@@ -121,9 +132,14 @@ async def test_rule_parsing():
                 raise ValueError("Unhandled data type in allowed actions param types: "
                                  f"{ACTIONS_PARAM_TYPE[action]}")
 
-        raw = DYNAMIC_RULE.format(event=event.value,
-                                  conditions="\n".join(gen_conditions),
-                                  actions="\n".join(gen_actions))
+        if event != Event.Periodic:
+            raw = DYNAMIC_RULE.format(event=event.value,
+                                      conditions="\n".join(gen_conditions),
+                                      actions="\n".join(gen_actions))
+        else:
+            raw = DYNAMIC_RULE_PERIODIC.format(event=event.value,
+                                               conditions="\n".join(gen_conditions),
+                                               actions="\n".join(gen_actions))
 
         print(f"Testing {event.value} with {len(gen_conditions)} conditions and "
               f"{len(gen_actions)} actions.")

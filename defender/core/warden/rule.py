@@ -103,7 +103,8 @@ class WardenRule:
             raise InvalidRule("A least one event must be defined.")
 
         if Event.Periodic in self.events:
-            if not await cog.config.wd_periodic_allowed():
+            # cog is None when running tests
+            if cog and not await cog.config.wd_periodic_allowed():
                 raise InvalidRule("The creation of periodic Warden rules is currently disabled. "
                                   "The bot owner must use '[p]dset warden periodicallowed' to "
                                   "enable them.")
