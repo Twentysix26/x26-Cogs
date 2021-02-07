@@ -41,7 +41,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not await self.config.guild(guild).enabled():
             return
 
-        if message.id == 262626:
+        if message.nonce == "262626":
             # This is a mock command from Warden and we don't want to process it
             return
 
