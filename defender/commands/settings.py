@@ -95,7 +95,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         to_copy.pop("trusted_roles", None)
         to_copy.pop("helper_roles", None)
         to_copy.pop("announcements_sent", None)
-        rules = to_copy.pop("wd_rules", {})
+        has_rules = bool(to_copy.pop("wd_rules", {}))
 
         if not enabled:
             return await ctx.send("That server doesn't have Defender configured. Import aborted.")
@@ -105,7 +105,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         imported = 0
         failed = 0
-        if rules:
+        if has_rules:
             msg = await ctx.send("I have imported the settings. Do you also want to import their "
                                  "Warden rules? Any existing Warden rule with the same name will be "
                                  "overwritten. React to confirm.")
@@ -118,20 +118,22 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             except asyncio.TimeoutError:
                 return await ctx.send("Warden rules importation aborted.")
 
-            async with self.config.guild(ctx.guild).wd_rules() as wd_rules:
-                wd_rules.update(rules)
+            other_rules = self.active_warden_rules.get(other_guild.id, {})
+            to_add_raw = {}
+            for rule in other_rules.values():
+                new_rule = WardenRule()
 
-            all_rules = await self.config.guild(ctx.guild).wd_rules()
-
-            for raw_rule in all_rules.values():
-                rule = WardenRule()
                 try:
-                    await rule.parse(raw_rule, self, author=ctx.author)
+                    await new_rule.parse(rule.raw_rule, self, author=ctx.author)
                 except Exception:
                     failed += 1
                 else:
                     self.active_warden_rules[ctx.guild.id][rule.name] = rule
+                    to_add_raw[new_rule.name] = new_rule.raw_rule
                     imported += 1
+
+            async with self.config.guild(ctx.guild).wd_rules() as wd_rules:
+                wd_rules.update(to_add_raw)
 
         imported_txt = "" if not imported else f" Imported {imported} rules. "
         failed_txt = "" if not failed else f" Failed to import {failed} rules. "
