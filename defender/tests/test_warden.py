@@ -3,6 +3,7 @@ from ..enums import Rank
 from ..core.warden.constants import ALLOWED_ACTIONS, ALLOWED_CONDITIONS, CONDITIONS_PARAM_TYPE, ACTIONS_PARAM_TYPE
 from ..core.warden.constants import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
 from ..core.warden.constants import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, ACTIONS_ARGS_N
+from ..core.warden.constants import CONDITIONS_ARGS_N
 from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
 from .wd_sample_rules import (DYNAMIC_RULE, DYNAMIC_RULE_PERIODIC, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE,
@@ -106,7 +107,9 @@ async def test_rule_parsing():
             elif int in CONDITIONS_PARAM_TYPE[condition]:
                 gen_conditions.append(f'    - {condition.value}: 26')
             elif list in CONDITIONS_PARAM_TYPE[condition]:
-                gen_conditions.append(f'    - {condition.value}: ["*"]')
+                args_n = CONDITIONS_ARGS_N.get(condition, 1)
+                args = ['"*"' for i in range(args_n)]
+                gen_conditions.append(f'    - {condition.value}: [{", ".join(args)}]')
             elif bool in CONDITIONS_PARAM_TYPE[condition]:
                 gen_conditions.append(f'    - {condition.value}: true')
             elif None in CONDITIONS_PARAM_TYPE[condition]:

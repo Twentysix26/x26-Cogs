@@ -50,6 +50,8 @@ CONDITIONS_PARAM_TYPE = {
     Condition.UserHeatMoreThan: [int],
     Condition.ChannelHeatIs: [int],
     Condition.ChannelHeatMoreThan: [int],
+    Condition.CustomHeatIs: [list],
+    Condition.CustomHeatMoreThan: [list],
 }
 
 ACTIONS_PARAM_TYPE = {
@@ -76,8 +78,11 @@ ACTIONS_PARAM_TYPE = {
     Action.AddUserHeatpoints: [list],
     Action.AddChannelHeatpoint: [str],
     Action.AddChannelHeatpoints: [list],
+    Action.AddCustomHeatpoint: [list],
+    Action.AddCustomHeatpoints: [list],
     Action.EmptyUserHeat: [None],
     Action.EmptyChannelHeat: [None],
+    Action.EmptyCustomHeat: [str],
     Action.IssueCommand: [list],
 }
 
@@ -100,6 +105,8 @@ CONDITIONS_USER_CONTEXT = [
     Condition.UserIsRank,
     Condition.UserHeatIs,
     Condition.UserHeatMoreThan,
+    Condition.CustomHeatIs,
+    Condition.CustomHeatMoreThan,
 ]
 
 CONDITIONS_MESSAGE_CONTEXT = [
@@ -131,6 +138,9 @@ ACTIONS_ANY_CONTEXT = [
     Action.EnableEmergencyMode,
     Action.SendToChannel,
     Action.IssueCommand,
+    Action.AddCustomHeatpoint,
+    Action.AddCustomHeatpoints,
+    Action.EmptyCustomHeat,
 ]
 
 ACTIONS_USER_CONTEXT = [
@@ -178,6 +188,11 @@ ALLOWED_ACTIONS = {
     Event.Periodic: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
 }
 
+CONDITIONS_ARGS_N = {
+    Condition.CustomHeatIs: 2,
+    Condition.CustomHeatMoreThan: 2,
+}
+
 # These are for special commands such as DM, which require
 # a mandatory # of "arguments"
 ACTIONS_ARGS_N = {
@@ -186,5 +201,7 @@ ACTIONS_ARGS_N = {
     Action.SendToChannel: 2,
     Action.AddUserHeatpoints: 2,
     Action.AddChannelHeatpoints: 2,
+    Action.AddCustomHeatpoint: 2,
+    Action.AddCustomHeatpoints: 3,
     Action.IssueCommand: 2,
 }

@@ -22,6 +22,7 @@ import asyncio
 from copy import deepcopy
 from datetime import timedelta
 from collections import defaultdict, deque
+from typing import Union
 
 """
 This system is meant to enhance Warden in a way that allows to track (and act on) recurring events
@@ -35,13 +36,13 @@ MAX_HEATPOINTS = 100
 utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
 
-_guild_heat = {"channels" : {}, "users": {}}
+_guild_heat = {"channels" : {}, "users": {}, "custom": {}}
 _heat_store = defaultdict(lambda: deepcopy(_guild_heat))
 
 class HeatLevel:
     __slots__ = ("guild", "id", "type", "_heat_points",)
 
-    def __init__(self, guild: int, _id: int, _type: str):
+    def __init__(self, guild: int, _id: Union[str, int], _type: str):
         self.guild = guild
         self.id = _id
         self.type = _type
@@ -80,6 +81,14 @@ def get_channel_heat(channel: discord.TextChannel):
     else:
         return 0
 
+def get_custom_heat(guild: discord.Guild, key: str):
+    key = key.lower()
+    heat = _heat_store[guild.id]["custom"].get(key)
+    if heat:
+        return len(heat)
+    else:
+        return 0
+
 def empty_user_heat(user: discord.Member):
     heat = _heat_store[user.guild.id]["users"].get(user.id)
     if heat:
@@ -87,6 +96,12 @@ def empty_user_heat(user: discord.Member):
 
 def empty_channel_heat(channel: discord.TextChannel):
     heat = _heat_store[channel.guild.id]["channels"].get(channel.id)
+    if heat:
+        discard_heatlevel(heat)
+
+def empty_custom_heat(guild: discord.Guild, key: str):
+    key = key.lower()
+    heat = _heat_store[guild.id]["custom"].get(key)
     if heat:
         discard_heatlevel(heat)
 
@@ -106,10 +121,19 @@ def increase_channel_heat(channel: discord.TextChannel, td: timedelta):
         _heat_store[channel.guild.id]["channels"][channel.id] = HeatLevel(channel.guild.id, channel.id, "channels")
         _heat_store[channel.guild.id]["channels"][channel.id].increase_heat(td)
 
+def increase_custom_heat(guild: discord.Guild, key: str, td: timedelta):
+    key = key.lower()
+    heat = _heat_store[guild.id]["custom"].get(key)
+    if heat:
+        heat.increase_heat(td)
+    else:
+        _heat_store[guild.id]["custom"][key] = HeatLevel(guild.id, key, "custom")
+        _heat_store[guild.id]["custom"][key].increase_heat(td)
+
 def discard_heatlevel(heatlevel: HeatLevel):
     try:
         del _heat_store[heatlevel.guild][heatlevel.type][heatlevel.id]
-    except:
+    except Exception as e:
         pass
 
 async def remove_stale_heat():
@@ -122,3 +146,6 @@ async def remove_stale_heat():
             for heat_level in list(cc.values()):
                 len(heat_level)
         await asyncio.sleep(0)
+
+def get_custom_heat_keys(guild: discord.Guild):
+    return list(_heat_store[guild.id]["custom"].keys())

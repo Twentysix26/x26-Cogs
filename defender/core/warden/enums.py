@@ -51,8 +51,11 @@ class Action(enum.Enum):
     AddUserHeatpoints = "add-user-heatpoints"
     AddChannelHeatpoint = "add-channel-heatpoint"
     AddChannelHeatpoints = "add-channel-heatpoints"
+    AddCustomHeatpoint = "add-custom-heatpoint"
+    AddCustomHeatpoints = "add-custom-heatpoints"
     EmptyUserHeat = "empty-user-heat"
     EmptyChannelHeat = "empty-channel-heat"
+    EmptyCustomHeat = "empty-custom-heat"
     IssueCommand = "issue-command"
 
 class Condition(enum.Enum):
@@ -87,6 +90,8 @@ class Condition(enum.Enum):
     ChannelHeatIs = "channel-heat-is"
     UserHeatMoreThan = "user-heat-more-than"
     ChannelHeatMoreThan = "channel-heat-more-than"
+    CustomHeatIs = "custom-heat-is"
+    CustomHeatMoreThan = "custom-heat-more-than"
 
 class ConditionBlock(enum.Enum):
     IfAll = "if-all"

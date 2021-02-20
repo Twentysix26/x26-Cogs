@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from defender.core.warden.constants import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, CONDITIONS_PARAM_TYPE
+from defender.core.warden.constants import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, CONDITIONS_ARGS_N, CONDITIONS_PARAM_TYPE
 from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
@@ -197,7 +197,17 @@ class WardenRule:
                     break
                 elif _type is None:
                     continue
-                if isinstance(parameter, _type):
+                if _type == list and isinstance(parameter, list):
+                    mandatory_arg_number = CONDITIONS_ARGS_N.get(condition, None)
+                    if mandatory_arg_number is None:
+                        break
+                    p_number = len(parameter)
+                    if p_number != mandatory_arg_number:
+                        raise InvalidRule(f"Condition `{condition.value}` requires {mandatory_arg_number} "
+                                            f"arguments, got {p_number}.")
+                    else:
+                        break
+                elif isinstance(parameter, _type):
                     break
             else:
                 human_type = _type.__name__ if _type is not None else "No parameter."
@@ -346,6 +356,22 @@ class WardenRule:
             user = message.author
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
+
+        # We are only supporting a few template variables here for custom heatpoints
+        templates_vars = {
+            "rule_name": self.name,
+            "guild_id": guild.id
+        }
+
+        if user:
+            templates_vars["user_id"] = user.id
+
+        if message:
+            templates_vars["message_id"] = message.id
+
+        if channel:
+            templates_vars["channel_id"] = channel.id
+            templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
 
         for raw_condition in conditions:
 
@@ -522,10 +548,16 @@ class WardenRule:
                 bools.append(heat.get_user_heat(user) == value)
             elif condition == Condition.ChannelHeatIs:
                 bools.append(heat.get_channel_heat(channel) == value)
+            elif condition == Condition.CustomHeatIs:
+                heat_key = Template(value[0]).safe_substitute(templates_vars)
+                bools.append(heat.get_custom_heat(guild, heat_key) == value[1])
             elif condition == Condition.UserHeatMoreThan:
                 bools.append(heat.get_user_heat(user) > value) # type: ignore
             elif condition == Condition.ChannelHeatMoreThan:
                 bools.append(heat.get_channel_heat(channel) > value) # type: ignore
+            elif condition == Condition.CustomHeatMoreThan:
+                heat_key = Template(value[0]).safe_substitute(templates_vars)
+                bools.append(heat.get_custom_heat(guild, heat_key) > value[1])
 
         return bools
 
@@ -537,7 +569,7 @@ class WardenRule:
         channel: discord.Channel = message.channel if message else None
 
         templates_vars = {
-            "action_name": self.name,
+            "rule_name": self.name,
             "guild": str(guild),
             "guild_id": guild.id
         }
@@ -573,6 +605,9 @@ class WardenRule:
             templates_vars["channel_category"] = channel.category.name if channel.category else "None"
             templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
             templates_vars["channel_heat"] = heat.get_channel_heat(channel)
+
+        #for heat_key in heat.get_custom_heat_keys(guild):
+        #    templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
 
         last_expel_action = None
 
@@ -720,10 +755,25 @@ class WardenRule:
                     for _ in range(points_n):
                         heat.increase_channel_heat(channel, timedelta) # type: ignore
                     templates_vars["channel_heat"] = heat.get_channel_heat(channel)
+                elif action == Action.AddCustomHeatpoint:
+                    heat_key = Template(value[0]).safe_substitute(templates_vars)
+                    timedelta = parse_timedelta(value[1])
+                    heat.increase_custom_heat(guild, heat_key, timedelta) # type: ignore
+                    #templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
+                elif action == Action.AddCustomHeatpoints:
+                    heat_key = Template(value[0]).safe_substitute(templates_vars)
+                    points_n = value[1]
+                    timedelta = parse_timedelta(value[2])
+                    for _ in range(points_n):
+                        heat.increase_custom_heat(guild, heat_key, timedelta) # type: ignore
+                    #templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
                 elif action == Action.EmptyUserHeat:
                     heat.empty_user_heat(user)
                 elif action == Action.EmptyChannelHeat:
                     heat.empty_channel_heat(channel)
+                elif action == Action.EmptyCustomHeat:
+                    heat_key = Template(value).safe_substitute(templates_vars)
+                    heat.empty_custom_heat(guild, heat_key)
                 elif action == Action.IssueCommand:
                     issuer = guild.get_member(value[0])
                     if issuer is None:
