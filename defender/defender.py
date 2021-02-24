@@ -20,6 +20,7 @@ from typing import Deque, List
 from redbot.core import commands, Config
 from collections import Counter, defaultdict
 from redbot.core.utils.chat_formatting import pagify, box
+from redbot.core.utils import AsyncIter
 from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
 from .commands import Commands
@@ -283,7 +284,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 members = self.config._get_base_group(self.config.MEMBER)
                 async with members.all() as all_members:
                     for guid, counter in all_counters.items():
-                        for uid, n_messages in counter.items():
+                        async for uid, n_messages in AsyncIter(counter.items(), steps=50):
                             guid = str(guid)
                             uid = str(uid)
                             if guid not in all_members:
@@ -293,6 +294,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                             if "messages" not in all_members[guid][uid]:
                                 all_members[guid][uid]["messages"] = 0
                             all_members[guid][uid]["messages"] += n_messages
+                        await asyncio.sleep(0)
                 all_counters = None
         except asyncio.CancelledError:
             pass
