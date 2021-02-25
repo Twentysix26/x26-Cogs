@@ -23,6 +23,7 @@ from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion
 from ...exceptions import InvalidRule, ExecutionError
 from ...core import cache as df_cache
+from ...core.utils import is_own_invite
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.commands.converter import parse_timedelta
 from discord.ext.commands import BadArgument
@@ -519,8 +520,18 @@ class WardenRule:
                 msg_n = await cog.get_total_recorded_messages(user)
                 bools.append(msg_n < value)
             elif condition == Condition.MessageContainsInvite:
-                has_invite = INVITE_URL_RE.search(message.content)
-                bools.append(bool(has_invite) is value)
+                invite_match = INVITE_URL_RE.search(message.content)
+                if invite_match:
+                    has_invite = True
+                    try:
+                        if await is_own_invite(guild, invite_match):
+                            has_invite = False
+                    except Exception as e:
+                        log.error("Unexpected error in warden's own invite check", exc_info=e)
+                        has_invite = False
+                else:
+                    has_invite = False
+                bools.append(has_invite is value)
             elif condition == Condition.MessageContainsMedia:
                 has_media = MEDIA_URL_RE.search(message.content)
                 bools.append(bool(has_media) is value)

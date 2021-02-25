@@ -170,7 +170,7 @@ def maybe_store_msg_obj(message: discord.Message):
             except AttributeError:
                 pass
     except Exception as e:
-        log.warning("Failed to store the message object for issue-command use", exc_info=e)
+        return log.error("Failed to store the message object for issue-command use", exc_info=e)
 
     _msg_obj = msg
 

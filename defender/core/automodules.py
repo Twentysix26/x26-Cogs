@@ -23,6 +23,7 @@ from redbot.core.utils.common_filters import INVITE_URL_RE
 from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
+from ..core.utils import is_own_invite
 from redbot.core import modlog
 from io import BytesIO
 from collections import deque
@@ -46,11 +47,11 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         if exclude_own_invites:
             try:
-                is_own_invite = await self.is_own_invite(guild, result)
-                if is_own_invite:
-                    return
+                if await is_own_invite(guild, result):
+                    return False
             except Exception as e:
                 log.error("Unexpected error in invite filter's own invite check", exc_info=e)
+                return False
 
         content = box(message.content)
 
@@ -243,19 +244,3 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 except:
                     pass
 
-    async def is_own_invite(self, guild: discord.Guild, match):
-        if not guild.me.guild_permissions.manage_guild:
-            return False
-
-        has_vanity_url = "VANITY_URL" in guild.features
-
-        if has_vanity_url:
-            invite_url = await guild.vanity_invite()
-            if invite_url.code.lower() == match.group(2).lower():
-                return True
-
-        for invite in await guild.invites():
-            if invite.code == match.group(2):
-                return True
-
-        return False
