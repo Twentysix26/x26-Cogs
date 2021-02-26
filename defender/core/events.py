@@ -35,6 +35,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not hasattr(author, "guild") or not author.guild:
             return
         guild = author.guild
+        if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            return
         if author.bot:
             return
 
@@ -116,6 +118,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not hasattr(author, "guild") or not author.guild:
             return
         guild = author.guild
+        if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            return
         if author.bot:
             return
         if message_before.content == message.content:
@@ -169,6 +173,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not hasattr(author, "guild") or not author.guild:
             return
         guild = author.guild
+        if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            return
         if author.bot:
             return
 
@@ -198,6 +204,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
 
         guild = member.guild
+        if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            return
         if not await self.config.guild(guild).enabled():
             return
 
@@ -227,6 +235,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
 
         guild = member.guild
+        if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            return
         if not await self.config.guild(guild).enabled():
             return
 
@@ -250,6 +260,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     async def on_reaction_add(self, _, user: discord.Member):
         if not hasattr(user, "guild") or not user.guild or user.bot:
             return
+        if await self.bot.cog_disabled_in_guild(self, user.guild): # type: ignore
+            return
         if await self.bot.is_mod(user): # Is staff?
             await self.refresh_staff_activity(user.guild)
 
@@ -257,12 +269,16 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     async def on_reaction_remove(self, _, user: discord.Member):
         if not hasattr(user, "guild") or not user.guild or user.bot:
             return
+        if await self.bot.cog_disabled_in_guild(self, user.guild): # type: ignore
+            return
         if await self.bot.is_mod(user): # Is staff?
             await self.refresh_staff_activity(user.guild)
 
     @commands.Cog.listener()
     async def on_x26_defender_emergency(self, guild: discord.Guild):
         rule: WardenRule
+        if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            return
         if not await self.config.guild(guild).warden_enabled():
             return
 

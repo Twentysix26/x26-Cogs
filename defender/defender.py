@@ -318,6 +318,8 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             guild = self.bot.get_guild(guid)
             if guild is None:
                 continue
+            if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+                continue
 
             rules = self.get_warden_rules_by_event(guild, WardenEvent.Periodic)
 
@@ -392,6 +394,8 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             for guid, guild_data in all_guilds.items():
                 guild = self.bot.get_guild(int(guid))
                 if not guild:
+                    continue
+                if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
                     continue
                 notify_channel = guild_data.get("notify_channel", 0)
                 if not notify_channel:
