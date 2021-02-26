@@ -84,6 +84,7 @@ ACTIONS_PARAM_TYPE = {
     Action.EmptyChannelHeat: [None],
     Action.EmptyCustomHeat: [str],
     Action.IssueCommand: [list],
+    Action.DeleteLastMessageSentAfter: [str],
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -141,6 +142,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.AddCustomHeatpoint,
     Action.AddCustomHeatpoints,
     Action.EmptyCustomHeat,
+    Action.DeleteLastMessageSentAfter,
 ]
 
 ACTIONS_USER_CONTEXT = [

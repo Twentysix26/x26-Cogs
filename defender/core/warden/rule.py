@@ -20,7 +20,7 @@ from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
-from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion
+from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
 from ...exceptions import InvalidRule, ExecutionError
 from ...core import cache as df_cache
 from ...core.utils import is_own_invite
@@ -620,6 +620,7 @@ class WardenRule:
         #for heat_key in heat.get_custom_heat_keys(guild):
         #    templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
 
+        last_sent_message: Optional[discord.Message] = None
         last_expel_action = None
 
         for entry in self.actions:
@@ -628,22 +629,22 @@ class WardenRule:
                 self.last_action = action
                 if action == Action.DmUser:
                     text = Template(value).safe_substitute(templates_vars)
-                    await user.send(text)
+                    last_sent_message = await user.send(text)
                 elif action == Action.DeleteUserMessage:
                     await message.delete()
                 elif action == Action.NotifyStaff:
                     text = Template(value).safe_substitute(templates_vars)
-                    await cog.send_notification(guild, text, allow_everyone_ping=True)
+                    last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True)
                 elif action == Action.NotifyStaffAndPing:
                     text = Template(value).safe_substitute(templates_vars)
-                    await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True)
+                    last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True)
                 elif action == Action.NotifyStaffWithEmbed:
                     title, content = (value[0], value[1])
                     em = self._build_embed(title, content, templates_vars=templates_vars)
-                    await cog.send_notification(guild, "", embed=em, allow_everyone_ping=True)
+                    last_sent_message = await cog.send_notification(guild, "", embed=em, allow_everyone_ping=True)
                 elif action == Action.SendInChannel:
                     text = Template(value).safe_substitute(templates_vars)
-                    await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
+                    last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
                 elif action == Action.SetChannelSlowmode:
                     timedelta = parse_timedelta(value)
                     await channel.edit(slowmode_delay=timedelta.seconds)
@@ -656,7 +657,7 @@ class WardenRule:
                         continue
                     content = Template(content).safe_substitute(templates_vars)
                     try:
-                        await user_to_dm.send(content)
+                        last_sent_message = await user_to_dm.send(content)
                     except: # Should we care if the DM fails?
                         pass
                 elif action == Action.SendToChannel:
@@ -667,7 +668,7 @@ class WardenRule:
                     if not channel_dest:
                         raise ExecutionError(f"Channel '{_id_or_name}' not found.")
                     content = Template(content).safe_substitute(templates_vars)
-                    await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
+                    last_sent_message = await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
                 elif action == Action.AddRolesToUser:
                     to_assign = []
                     for role_id_or_name in value:
@@ -803,6 +804,11 @@ class WardenRule:
                     prefix = await cog.bot.get_prefix(msg_obj)
                     msg_obj.content = prefix[0] + Template(str(value[1])).safe_substitute(templates_vars)
                     cog.bot.dispatch("message", msg_obj)
+                elif action == Action.DeleteLastMessageSentAfter:
+                    if last_sent_message is not None:
+                        timedelta = parse_timedelta(value)
+                        cog.loop.create_task(delete_message_after(last_sent_message, timedelta.seconds))
+                        last_sent_message = None
                 elif action == Action.NoOp:
                     pass
                 else:

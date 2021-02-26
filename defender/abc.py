@@ -16,6 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from abc import ABC, abstractmethod
+from typing import Optional
 from redbot.core import Config, commands
 from redbot.core.bot import Red
 from .enums import Rank, EmergencyModules
@@ -102,7 +103,7 @@ class MixinMeta(ABC):
     async def send_notification(self, guild: discord.Guild, notification: str, *,
                                 ping=False, link_message: discord.Message=None,
                                 file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None):
+                                react: str=None) -> Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod

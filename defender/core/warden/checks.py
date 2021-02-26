@@ -146,6 +146,20 @@ async def _check_issue_command(*, cog, author: discord.Member, action: Action, p
         raise InvalidRule(f"`{action.value}` The first parameter must be your ID. For security reasons "
                           "you're not allowed to issue commands as other users.")
 
+async def _check_message_delete_after(*, cog, author: discord.Member, action: Action, parameter: str):
+    td = None
+    try:
+        td = parse_timedelta(parameter,
+                             maximum=datetime.timedelta(minutes=1),
+                             minimum=datetime.timedelta(seconds=1),
+                             allowed_units=["minutes", "seconds"])
+    except BadArgument:
+        pass
+
+    if td is None:
+        raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 1 minute. "
+                           "You must specify `seconds` or `minutes`")
+
 async def _check_valid_rank(*, cog, author: discord.Member, condition: Condition, parameter: int):
     try:
         rank = Rank(parameter)
@@ -187,6 +201,7 @@ ACTIONS_SANITY_CHECK = {
     Action.AddChannelHeatpoints: _check_heatpoints,
     Action.AddCustomHeatpoints: _check_custom_heatpoints,
     Action.IssueCommand: _check_issue_command,
+    Action.DeleteLastMessageSentAfter: _check_message_delete_after,
 }
 
 CONDITIONS_SANITY_CHECK = {

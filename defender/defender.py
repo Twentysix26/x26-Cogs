@@ -15,11 +15,10 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from datetime import timedelta
-from typing import Deque, List
+from typing import Deque, List, Optional
 from redbot.core import commands, Config
 from collections import Counter, defaultdict
-from redbot.core.utils.chat_formatting import pagify, box
+from redbot.core.utils.chat_formatting import pagify
 from redbot.core.utils import AsyncIter
 from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
@@ -460,7 +459,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     async def send_notification(self, guild: discord.Guild, notification: str, *,
                                 ping=False, link_message: discord.Message=None,
                                 file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None, allow_everyone_ping=False):
+                                react: str=None, allow_everyone_ping=False)->Optional[discord.Message]:
         if ping:
             id_to_ping = await self.config.guild(guild).notify_role()
             if id_to_ping:
@@ -480,7 +479,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             if react:
                 await msg.add_reaction(react)
             return msg
-        return False
+        return None
 
     def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
         rules = self.active_warden_rules.get(guild.id, {}).values()

@@ -81,3 +81,10 @@ def make_fuzzy_suggestion(term, _list):
         return f" Did you mean `{result[0][0]}`?"
     else:
         return ""
+
+async def delete_message_after(message: discord.Message, sleep_for: int):
+    await asyncio.sleep(sleep_for)
+    try:
+        await message.delete()
+    except:
+        pass
