@@ -310,10 +310,8 @@ class WardenRule:
         if message and not user:
             user = message.author
 
-        # For the condition block to pass, every "root level" condition (or block of conditions)
+        # For the rule's conditions to pass, every "root level" condition (or block of conditions)
         # must equal to True
-        bools = []
-
         for raw_condition in self.conditions:
             condition = None
             value = []
@@ -329,25 +327,28 @@ class WardenRule:
                 results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
-                bools.append(all(results))
+                cond_result = all(results)
             elif condition == ConditionBlock.IfAny:
                 results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
-                bools.append(any(results))
+                cond_result = any(results)
             elif condition == ConditionBlock.IfNot:
                 results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 results = [not r for r in results] # Bools are flipped
-                bools.append(all(results))
+                cond_result = all(results)
             else:
                 results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message, guild=guild)
                 if len(results) != 1:
                     raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
-                bools.append(results[0])
+                cond_result = results[0]
 
-        return all(bools)
+            if cond_result is False:
+                return False # If one root condition is False there's no need to continue
+
+        return True
 
     async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None,
                                    guild: discord.Guild=None):
