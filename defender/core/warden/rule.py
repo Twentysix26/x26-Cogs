@@ -824,3 +824,6 @@ class WardenRule:
         em.set_author(name=title)
         em.set_footer(text=f"Warden rule `{self.name}`")
         return em
+
+    def __repr__(self):
+        return f"<WardenRule '{self.name}'>"

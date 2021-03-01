@@ -313,6 +313,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
     async def spin_wd_periodic_rules(self):
         all_guild_rules = self.active_warden_rules.copy()
+        tasks = []
 
         for guid in all_guild_rules.keys():
             guild = self.bot.get_guild(guid)
@@ -332,20 +333,26 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             if not await self.config.guild(guild).warden_enabled():
                 continue
 
-            for rule in rules:
-                if not rule.next_run <= utcnow() or rule.run_every is None:
+            tasks.append(self.exec_wd_period_rules(guild, rules))
+
+        if tasks:
+            await asyncio.gather(*tasks)
+
+    async def exec_wd_period_rules(self, guild, rules):
+        for rule in rules:
+            if not rule.next_run <= utcnow() or rule.run_every is None:
+                continue
+            for member in guild.members:
+                if member.bot:
                     continue
-                for member in guild.members:
-                    if member.bot:
-                        continue
-                    rank = await self.rank_user(member)
-                    if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
-                        try:
-                            await rule.do_actions(cog=self, user=member)
-                        except Exception as e:
-                            self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
-                                                        f"({rule.last_action.value}) - {str(e)}")
-                rule.next_run = utcnow() + rule.run_every
+                rank = await self.rank_user(member)
+                if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
+                    try:
+                        await rule.do_actions(cog=self, user=member)
+                    except Exception as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+            rule.next_run = utcnow() + rule.run_every
 
     async def load_warden_rules(self):
         rules_to_load = defaultdict()
