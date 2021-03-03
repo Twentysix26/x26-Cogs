@@ -15,13 +15,14 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from collections import deque, defaultdict
+from collections import deque, defaultdict, namedtuple
 from datetime import timedelta
 from copy import deepcopy, copy
 from typing import Optional
 from discord.ext.commands.errors import BadArgument
 from discord.ext.commands import IDConverter
 from discord.utils import time_snowflake
+from redbot.core.utils import AsyncIter
 import re
 import datetime
 import discord
@@ -31,6 +32,7 @@ import asyncio
 utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
 
+MessageEdit = namedtuple("MessageEdit", ("content", "edited_at"))
 # These values are overriden at runtime with the owner's settings
 MSG_EXPIRATION_TIME = 48 # Hours
 MSG_STORE_CAP = 3000
@@ -42,13 +44,14 @@ _msg_obj = None # Warden use
 # performances by storing only a lite version of them
 
 class LiteMessage:
-    __slots__ = ("id", "created_at", "content", "channel_id", "author_id")
+    __slots__ = ("id", "created_at", "content", "channel_id", "author_id", "edits")
     def __init__(self, message: discord.Message):
         self.id = message.id
         self.created_at = message.created_at
         self.content = message.content
         self.author_id = message.author.id
         self.channel_id = message.channel.id
+        self.edits = deque(maxlen=20)
         if message.attachments:
             filename = message.attachments[0].filename
             self.content = f"(Attachment: {filename}) {self.content}"
@@ -111,6 +114,25 @@ def add_message(message):
         _message_cache[guild.id]["channels"][channel.id] = deque(maxlen=MSG_STORE_CAP)
 
     _message_cache[guild.id]["channels"][channel.id].appendleft(lite_message)
+
+async def add_message_edit(message):
+    author = message.author
+    guild = message.guild
+    channel = message.channel
+
+    # .edits will contain past edits
+    # .content will always be current
+    async for m in AsyncIter(_message_cache[guild.id]["users"].get(author.id, []), steps=10):
+        if m.id == message.id:
+            m.edits.appendleft(MessageEdit(content=m.content, edited_at=message.edited_at))
+            m.content = message.content
+            break
+    else:
+        async for m in AsyncIter(_message_cache[guild.id]["channels"].get(channel.id, []), steps=10):
+            if m.id == message.id:
+                m.edits.appendleft(MessageEdit(content=m.content, edited_at=message.edited_at))
+                m.content = message.content
+                break
 
 def get_user_messages(user):
     guild = user.guild

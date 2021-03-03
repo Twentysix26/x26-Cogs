@@ -22,6 +22,7 @@ from redbot.core.bot import Red
 from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
 import discord
+import asyncio
 
 class CompositeMetaClass(type(commands.Cog), type(ABC)):
     """
@@ -45,6 +46,7 @@ class MixinMeta(ABC):
         self.last_raid_alert: dict
         self.joined_users: dict
         self.monitor: dict
+        self.loop: asyncio.AbstractEventLoop
 
     @abstractmethod
     async def rank_user(self, member: discord.Member) -> Rank:
@@ -55,8 +57,8 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
-                         replace_backtick=False, pagify_log=False):
+    async def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
+                               replace_backtick=False, pagify_log=False):
         raise NotImplementedError()
 
     @abstractmethod

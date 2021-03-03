@@ -169,7 +169,8 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             until=None,
             channel=None,
         )
-        log = "\n".join(self.make_message_log(author, guild=author.guild)[:40])
+        past_messages = await self.make_message_log(author, guild=author.guild)
+        log = "\n".join(past_messages[:40])
         f = discord.File(BytesIO(log.encode("utf-8")), f"{author.id}-log.txt")
         await self.send_notification(guild, f"I have expelled user {author} ({author.id}) for posting {recent} "
                                      f"messages in {minutes} minutes. Attached their last stored messages.", file=f)

@@ -128,7 +128,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not await self.config.guild(guild).enabled():
             return
 
-        # TODO Log messages that have been edited
+        self.loop.create_task(df_cache.add_message_edit(message))
 
         is_staff = False
         expelled = False

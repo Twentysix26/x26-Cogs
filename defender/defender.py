@@ -160,14 +160,15 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         msg_n += self.message_counter[member.guild.id][member.id]
         return msg_n
 
-    def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
-                         replace_backtick=False, pagify_log=False):
+    async def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
+                               replace_backtick=False, pagify_log=False):
+        text_unauthorized = "[You are not authorized to access that channel]"
         _log = []
 
         if isinstance(obj, (discord.Member, CacheUser)):
             messages = df_cache.get_user_messages(obj)
 
-            for m in messages:
+            async for m in AsyncIter(messages, steps=20):
                 ts = m.created_at.strftime("%H:%M:%S")
                 channel = guild.get_channel(m.channel_id)
                 # If requester is None it means that it's not a user requesting the logs
@@ -177,16 +178,33 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 else:
                     requester_can_rm = True
                 channel = f"#{channel.name}" if channel else m.channel_id
-                content = m.content if requester_can_rm else "[You are not authorized to access that channel]"
-                _log.append(f"[{ts}]({channel}) {content}")
+                content = m.content if requester_can_rm else text_unauthorized
+                if m.edits:
+                    entry = len(m.edits) + 1
+                    _log.append(f"[{ts}]({channel})[{entry}] {m.content}")
+                    for edit in m.edits:
+                        entry -= 1
+                        ts = edit.edited_at.strftime("%H:%M:%S")
+                        content = edit.content if requester_can_rm else text_unauthorized
+                        _log.append(f"[{ts}]({channel})[{entry}] {edit.content}")
+                else:
+                    _log.append(f"[{ts}]({channel}) {content}")
         elif isinstance(obj, discord.TextChannel):
             messages = df_cache.get_channel_messages(obj)
 
-            for m in messages:
+            async for m in AsyncIter(messages, steps=20):
                 ts = m.created_at.strftime("%H:%M:%S")
                 user = guild.get_member(m.author_id)
                 user = f"{user}" if user else m.author_id
-                _log.append(f"[{ts}]({user}) {m.content}")
+                if m.edits:
+                    entry = len(m.edits) + 1
+                    _log.append(f"[{ts}]({user})[{entry}] {m.content}")
+                    for edit in m.edits:
+                        entry -= 1
+                        ts = edit.edited_at.strftime("%H:%M:%S")
+                        _log.append(f"[{ts}]({user})[{entry}] {edit.content}")
+                else:
+                    _log.append(f"[{ts}]({user}) {m.content}")
         else:
             raise ValueError("Invalid type passed to make_message_log")
 

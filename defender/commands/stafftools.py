@@ -90,8 +90,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         """Shows recent messages of a user"""
         author = ctx.author
 
-        pages = self.make_message_log(user, guild=author.guild, requester=author, pagify_log=True,
-                                      replace_backtick=True)
+        pages = await self.make_message_log(user, guild=author.guild, requester=author, pagify_log=True,
+                                            replace_backtick=True)
 
         if not pages:
             return await ctx.send("No messages recorded for that user.")
@@ -114,8 +114,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                             f"history of channel #{channel.name}")
             return await ctx.send("You do not have read permissions in that channel. Request denied.")
 
-        pages = self.make_message_log(channel, guild=author.guild, requester=author, pagify_log=True,
-                                      replace_backtick=True)
+        pages = await self.make_message_log(channel, guild=author.guild, requester=author, pagify_log=True,
+                                            replace_backtick=True)
 
         if not pages:
             return await ctx.send("No messages recorded in that channel.")
@@ -134,7 +134,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         """Exports recent messages of a user to a file"""
         author = ctx.author
 
-        _log = self.make_message_log(user, guild=author.guild, requester=author)
+        _log = await self.make_message_log(user, guild=author.guild, requester=author)
 
         if not _log:
             return await ctx.send("No messages recorded for that user.")
@@ -155,7 +155,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if not channel.permissions_for(author).read_messages:
             return await ctx.send("You do not have read permissions in that channel. Request denied.")
 
-        _log = self.make_message_log(channel, guild=author.guild, requester=author)
+        _log = await self.make_message_log(channel, guild=author.guild, requester=author)
 
         if not _log:
             return await ctx.send("No messages recorded in that channel.")
