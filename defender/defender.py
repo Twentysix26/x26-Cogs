@@ -181,12 +181,12 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 content = m.content if requester_can_rm else text_unauthorized
                 if m.edits:
                     entry = len(m.edits) + 1
-                    _log.append(f"[{ts}]({channel})[{entry}] {m.content}")
+                    _log.append(f"[{ts}]({channel})[{entry}] {content}")
                     for edit in m.edits:
                         entry -= 1
                         ts = edit.edited_at.strftime("%H:%M:%S")
                         content = edit.content if requester_can_rm else text_unauthorized
-                        _log.append(f"[{ts}]({channel})[{entry}] {edit.content}")
+                        _log.append(f"[{ts}]({channel})[{entry}] {content}")
                 else:
                     _log.append(f"[{ts}]({channel}) {content}")
         elif isinstance(obj, discord.TextChannel):
