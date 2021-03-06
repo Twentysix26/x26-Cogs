@@ -93,6 +93,7 @@ default_owner_settings = {
     "cache_cap": 3000, # Max messages to store for each user / channel
     "wd_regex_allowed": False, # Allows the creation of Warden rules with user defined regex
     "wd_periodic_allowed": True, # Allows the creation of periodic Warden rules
+    "wd_upload_max_size": 3, # Max size for Warden rule upload (in kilobytes)
 }
 
 class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeMetaClass):

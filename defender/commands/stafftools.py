@@ -21,12 +21,13 @@ from ..enums import Rank
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
 from ..core.warden.enums import Event as WardenEvent
+from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_prompt
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..exceptions import InvalidRule
 from ..core.announcements import get_announcements
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
-from redbot.core.utils.chat_formatting import pagify, box, inline
+from redbot.core.utils.chat_formatting import error, pagify, box, inline
 from redbot.core import commands
 from io import BytesIO
 import logging
@@ -310,8 +311,6 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     @wardengroup.command(name="add")
     async def wardengroupaddrule(self, ctx: commands.Context, *, rule: str):
         """Adds a new rule"""
-        SAVE_EMOJI = "💾"
-        CONFIRM_EMOJI = "✅"
         guild = ctx.guild
         rule = rule.strip("\n")
         prompts_sent = False
@@ -331,44 +330,13 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         if WardenEvent.Periodic in new_rule.events:
             prompts_sent = True
-            affected = 0
-            async with ctx.typing():
-                msg: discord.Message = await ctx.send("Checking your new rule... Please wait and watch this message for updates.")
-
-                def confirm(r, user):
-                    return user == ctx.author and str(r.emoji) == CONFIRM_EMOJI and r.message.id == msg.id
-
-                for m in ctx.guild.members:
-                    if m.bot:
-                        continue
-                    rank = await self.rank_user(m)
-                    if await new_rule.satisfies_conditions(rank=rank, user=m, cog=self):
-                        affected += 1
-
-            if affected >= 10 or affected >= len(guild.members) / 2:
-                await msg.edit(content=f"You're adding a periodic rule. At the first run {affected} users will be affected. "
-                                       "Are you sure you want to continue?")
-                await msg.add_reaction(CONFIRM_EMOJI)
-                try:
-                    await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
-                except asyncio.TimeoutError:
-                    return await ctx.send("Not adding the rule.")
-            else:
-                await msg.edit(content="Safety checks passed.")
+            if not await rule_add_periodic_prompt(cog=self, message=ctx.message, new_rule=new_rule):
+                return
 
         if new_rule.name in self.active_warden_rules[guild.id] or new_rule.name in self.invalid_warden_rules[guild.id]:
-            msg = await ctx.send("There is a rule with the same name already. Do you want to "
-                                 "overwrite it? React to confirm.")
-
-            def confirm(r, user):
-                return user == ctx.author and str(r.emoji) == SAVE_EMOJI and r.message.id == msg.id
-
-            await msg.add_reaction(SAVE_EMOJI)
-            try:
-                r = await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
-            except asyncio.TimeoutError:
-                return await ctx.send("Not proceeding with overwrite.")
             prompts_sent = True
+            if not await rule_add_overwrite_prompt(cog=self, message=ctx.message):
+                return
 
         async with self.config.guild(ctx.guild).wd_rules() as warden_rules:
             warden_rules[new_rule.name] = rule
@@ -465,6 +433,95 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except KeyError:
             return await ctx.send("There is no rule with that name.")
         await ctx.send(box(rule.raw_rule, lang="yaml"))
+
+    @commands.cooldown(1, 3600*24, commands.BucketType.guild) # only one session per guild
+    @wardengroup.command(name="upload")
+    async def wardengroupupload(self, ctx: commands.Context):
+        max_size = await self.config.wd_upload_max_size()
+        confirm_emoji = "✅"
+        guild = ctx.guild
+        await ctx.send("Please start sending your rules. Files must be in .yaml or .txt format. "
+                       "Type `quit` to stop this process.")
+
+        def is_valid_attachment(m):
+            if ctx.bot.get_cog("Defender") is not self:
+                raise asyncio.TimeoutError() # The cog has been reloaded
+            elif m.author.id != ctx.author.id or m.channel.id != ctx.channel.id:
+                return False
+            elif m.content.lower() in ("quit", "`quit`"):
+                raise asyncio.TimeoutError()
+            elif not m.attachments:
+                return False
+
+            attachment = m.attachments[0]
+            if not attachment.filename.endswith((".txt", ".TXT", ".yaml", ".YAML")):
+                self.loop.create_task(ctx.send("Invalid file type."))
+                return False
+            if attachment.height is not None:
+                return False
+
+            if attachment.size < 1 or attachment.size > (max_size*1024):
+                self.loop.create_task(ctx.send(f"The file is too big. The maximum size is {max_size}KB."))
+                return False
+
+            return True
+
+        while True:
+            try:
+                message = await ctx.bot.wait_for("message", check=is_valid_attachment, timeout=120)
+            except asyncio.TimeoutError:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send(f"Please reissue `{ctx.prefix}def warden upload` if you want to upload more rules")
+            except Exception as e:
+                ctx.command.reset_cooldown(ctx)
+                return log.error("Error during Warden rules upload", exc_info=e)
+
+            raw_rule = BytesIO()
+
+            try:
+                await message.attachments[0].save(raw_rule)
+                raw_rule = raw_rule.read().decode(encoding="utf-8", errors="strict")
+            except UnicodeError:
+                await ctx.send("Error while parsing your file: is it utf-8 encoded? Please try again.")
+                continue
+            except (discord.HTTPException, discord.NotFound) as e:
+                await ctx.send("Error while retrieving your rule. Please try again.")
+                continue
+            except Exception as e:
+                log.error("Unexpected error in Warden rule upload.", exc_info=e)
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send("Unexpected error while retrieving or parsing your file.")
+
+            try:
+                new_rule = WardenRule()
+                await new_rule.parse(raw_rule, cog=self, author=ctx.author)
+            except InvalidRule as e:
+                await ctx.send(f"Error parsing the rule: {e}")
+                continue
+            except Exception as e:
+                log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
+                await ctx.send(f"Something very wrong happened during the rule parsing. Please check its format.")
+                continue
+            else:
+                prompts_sent = False
+                if WardenEvent.Periodic in new_rule.events:
+                    prompts_sent = True
+                    if not await rule_add_periodic_prompt(cog=self, message=message, new_rule=new_rule):
+                        continue
+
+                if new_rule.name in self.active_warden_rules[guild.id] or new_rule.name in self.invalid_warden_rules[guild.id]:
+                    prompts_sent = True
+                    if not await rule_add_overwrite_prompt(cog=self, message=message):
+                        continue
+
+                async with self.config.guild(ctx.guild).wd_rules() as warden_rules:
+                    warden_rules[new_rule.name] = raw_rule
+                self.active_warden_rules[ctx.guild.id][new_rule.name] = new_rule
+                self.invalid_warden_rules[ctx.guild.id].pop(new_rule.name, None)
+                if not prompts_sent:
+                    await message.add_reaction(confirm_emoji)
+                else:
+                    await ctx.send("The rule has been added.")
 
     @wardengroup.command(name="export")
     async def wardengroupexport(self, ctx: commands.Context, *, name: str):

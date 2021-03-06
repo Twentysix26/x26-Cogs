@@ -88,3 +88,52 @@ async def delete_message_after(message: discord.Message, sleep_for: int):
         await message.delete()
     except:
         pass
+
+async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
+    confirm_emoji = "✅"
+    guild = message.guild
+    affected = 0
+    channel = message.channel
+    async with channel.typing():
+        msg: discord.Message = await channel.send("Checking your new rule... Please wait and watch this message for updates.")
+
+        def confirm(r, user):
+            return user == message.author and str(r.emoji) == confirm_emoji and r.message.id == msg.id
+
+        for m in guild.members:
+            if m.bot:
+                continue
+            rank = await cog.rank_user(m)
+            if await new_rule.satisfies_conditions(rank=rank, user=m, cog=cog):
+                affected += 1
+
+    if affected >= 10 or affected >= len(guild.members) / 2:
+        await msg.edit(content=f"You're adding a periodic rule. At the first run {affected} users will be affected. "
+                                "Are you sure you want to continue?")
+        await msg.add_reaction(confirm_emoji)
+        try:
+            await cog.bot.wait_for('reaction_add', check=confirm, timeout=15)
+        except asyncio.TimeoutError:
+            await channel.send("Not adding the rule.")
+            return False
+    else:
+        await msg.edit(content="Safety checks passed.")
+        return True
+
+async def rule_add_overwrite_prompt(*, cog, message: discord.Message):
+    save_emoji = "💾"
+    channel = message.channel
+    msg = await channel.send("There is a rule with the same name already. Do you want to "
+                            "overwrite it? React to confirm.")
+
+    def confirm(r, user):
+        return user == message.author and str(r.emoji) == save_emoji and r.message.id == msg.id
+
+    await msg.add_reaction(save_emoji)
+    try:
+        r = await cog.bot.wait_for('reaction_add', check=confirm, timeout=15)
+    except asyncio.TimeoutError:
+        await channel.send("Not proceeding with overwrite.")
+        return False
+    else:
+        return True

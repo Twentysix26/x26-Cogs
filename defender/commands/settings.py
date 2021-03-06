@@ -533,6 +533,17 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send("The creation of periodic Warden rules has been disabled for all servers. "
                            "Existing periodic rules will not be run anymore.")
 
+    @wardenset.command(name="uploadmaxsize")
+    @commands.is_owner()
+    async def wardenuploadmaxsize(self, ctx: commands.Context, kilobytes: int):
+        """Sets the maximum allowed size for Warden rules upload
+
+        Reccommended size is 3KB"""
+        if kilobytes < 2 or kilobytes > 50:
+            return await ctx.send("Maximum size must be between 2 and 50KB.")
+        await self.config.wd_upload_max_size.set(kilobytes)
+        await ctx.send(f"Size set. I will not accept any rule bigger than {kilobytes}KB.")
+
     @dset.group(name="voteout")
     @commands.admin()
     async def voteoutgroup(self, ctx: commands.Context):
