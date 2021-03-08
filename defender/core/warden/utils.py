@@ -116,6 +116,8 @@ async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
         except asyncio.TimeoutError:
             await channel.send("Not adding the rule.")
             return False
+        else:
+            return True
     else:
         await msg.edit(content="Safety checks passed.")
         return True
