@@ -635,6 +635,7 @@ class WardenRule:
                     except:
                         cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
                                             f"{user} ({user.id})")
+                        last_sent_message = None
                 elif action == Action.DeleteUserMessage:
                     await message.delete()
                 elif action == Action.NotifyStaff:
@@ -666,6 +667,7 @@ class WardenRule:
                     except:
                         cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
                                             f"{user_to_dm} ({user_to_dm.id})")
+                        last_sent_message = None
                 elif action == Action.SendToChannel:
                     _id_or_name, content = (value[0], value[1])
                     channel_dest = guild.get_channel(_id_or_name)
