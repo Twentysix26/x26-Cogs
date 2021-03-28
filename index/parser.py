@@ -86,10 +86,14 @@ class Cog:
             description = self.description
         else:
             description = self.short
+        if self.author:
+            author = ', '.join(self.author)
+        else:
+            author = self.repo.name
         em = discord.Embed(url=url, description=description, colour=discord.Colour.red())
         em.set_author(name=f"{self.name} from {self.repo.name}")
         em.add_field(name="Type", value=self.repo.rx_category, inline=True)
-        em.add_field(name="Author", value=f"{', '.join(self.author)}", inline=True)
+        em.add_field(name="Author", value=author, inline=True)
         if self.requirements:
             em.add_field(name="External libraries", value=f"{', '.join(self.requirements)}", inline=True)
         if self.required_cogs:
