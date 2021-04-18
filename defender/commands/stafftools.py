@@ -437,6 +437,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     @commands.cooldown(1, 3600*24, commands.BucketType.guild) # only one session per guild
     @wardengroup.command(name="upload")
     async def wardengroupupload(self, ctx: commands.Context):
+        """Starts a rule upload session"""
         max_size = await self.config.wd_upload_max_size()
         confirm_emoji = "✅"
         guild = ctx.guild

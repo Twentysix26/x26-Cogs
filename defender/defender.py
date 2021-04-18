@@ -361,7 +361,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         for rule in rules:
             if not rule.next_run <= utcnow() or rule.run_every is None:
                 continue
-            for member in guild.members:
+            async for member in AsyncIter(guild.members, steps=2):
                 if member.bot:
                     continue
                 rank = await self.rank_user(member)
