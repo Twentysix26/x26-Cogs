@@ -593,8 +593,8 @@ class WardenRule:
             "user_id": user.id,
             "user_mention": user.mention,
             "user_nickname": str(user.nick),
-            "user_created_at": user.created_at,
-            "user_joined_at": user.joined_at,
+            "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
+            "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
             "user_heat": heat.get_user_heat(user),
             })
 
@@ -610,7 +610,7 @@ class WardenRule:
                 templates_vars["attachment_url"] = attachment.url
 
         if channel:
-            templates_vars["channel"] = str(channel)
+            templates_vars["channel"] = f"#{channel}"
             templates_vars["channel_name"] = channel.name
             templates_vars["channel_id"] = channel.id
             templates_vars["channel_mention"] = channel.mention
