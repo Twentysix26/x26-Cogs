@@ -26,6 +26,7 @@ from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..exceptions import InvalidRule
 from ..core.announcements import get_announcements
+from redbot.core.utils import AsyncIter
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.chat_formatting import error, pagify, box, inline
 from redbot.core import commands
@@ -580,7 +581,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         targets = []
 
         async with ctx.typing():
-            for m in ctx.guild.members:
+            async for m in AsyncIter(ctx.guild.members, steps=2):
                 if m.bot:
                     continue
                 rank = await self.rank_user(m)
@@ -604,7 +605,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         errors = 0
         async with ctx.typing():
-            for m in targets:
+            async for m in AsyncIter(targets, steps=2):
                 try:
                     await rule.do_actions(user=m, cog=self)
                 except:

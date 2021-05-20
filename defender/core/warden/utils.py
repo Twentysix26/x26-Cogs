@@ -1,4 +1,5 @@
 from fuzzywuzzy import fuzz, process
+from redbot.core.utils import AsyncIter
 import emoji
 import re
 import discord
@@ -100,7 +101,7 @@ async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
         def confirm(r, user):
             return user == message.author and str(r.emoji) == confirm_emoji and r.message.id == msg.id
 
-        for m in guild.members:
+        async for m in AsyncIter(guild.members, steps=2):
             if m.bot:
                 continue
             rank = await cog.rank_user(m)
