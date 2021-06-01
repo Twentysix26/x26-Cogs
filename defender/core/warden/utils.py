@@ -24,22 +24,10 @@ def has_x_or_more_emojis(bot: discord.Client, guild: discord.Guild, text: str, l
     if n >= limit:
         return True
 
-    if "<" not in text: # No need to run a regex if no custom emoji can be present
-        return False
+    if "<" in text: # No need to run a regex if no custom emoji can be present
+        n += len(list(re.finditer(EMOJI_RE, text)))
 
-    for m in re.finditer(EMOJI_RE, text):
-        emoji_id = int(m.group(1))
-
-        if discord.utils.get(guild.emojis, id=emoji_id):
-            n += 1
-        else:
-            if discord.utils.get(bot.emojis, id=emoji_id):
-                n += 1
-
-        if n == limit:
-            return True
-
-    return False
+    return n >= limit
 
 async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, text: str):
     # This implementation is similar to what reTrigger does for safe-ish user regex. Thanks Trusty!
