@@ -433,7 +433,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 rule = self.invalid_warden_rules[ctx.guild.id][name]
         except KeyError:
             return await ctx.send("There is no rule with that name.")
-        await ctx.send(box(rule.raw_rule, lang="yaml"))
+
+        for p in pagify(rule.raw_rule, page_length=1950, escape_mass_mentions=False):
+            await ctx.send(box(p, lang="yaml"))
 
     @commands.cooldown(1, 3600*24, commands.BucketType.guild) # only one session per guild
     @wardengroup.command(name="upload")
