@@ -32,7 +32,6 @@ import asyncio
 utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
 
-NotificationMessage = namedtuple("NotificationMessage", ("content", "embed", "expiration"))
 MessageEdit = namedtuple("MessageEdit", ("content", "edited_at"))
 # These values are overriden at runtime with the owner's settings
 MSG_EXPIRATION_TIME = 48 # Hours
@@ -40,7 +39,6 @@ MSG_STORE_CAP = 3000
 _guild_dict = {"users": {}, "channels": {}}
 _message_cache = defaultdict(lambda: deepcopy(_guild_dict))
 _msg_obj = None # Warden use
-_last_notification = {}
 
 # We're gonna store *a lot* of messages in memory and we're gonna improve
 # performances by storing only a lite version of them
@@ -202,13 +200,3 @@ def get_msg_obj()->Optional[discord.Message]:
     msg = copy(_msg_obj)
     msg.id = time_snowflake(utcnow())
     return msg
-
-def get_last_notification(guild: discord.Guild)->Optional[NotificationMessage]:
-    return _last_notification.get(guild.id)
-
-def set_last_notification(guild: discord.Guild, m: discord.Message, do_not_repeat_for: datetime.timedelta)->Optional[NotificationMessage]:
-    _last_notification[guild.id] = NotificationMessage(
-        content=m.content,
-        embed=m.embeds[0].to_dict() if m.embeds else None,
-        expiration=utcnow() + do_not_repeat_for
-    )
