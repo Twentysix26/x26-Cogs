@@ -24,6 +24,7 @@ from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
 from ..core.utils import is_own_invite
+from .warden import heat
 from redbot.core import modlog
 from io import BytesIO
 from collections import deque
@@ -188,7 +189,6 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         users = await self.config.guild(guild).join_monitor_n_users()
         minutes = await self.config.guild(guild).join_monitor_minutes()
         x_minutes_ago = member.joined_at - datetime.timedelta(minutes=minutes)
-        fifteen_minutes_ago = member.joined_at - datetime.timedelta(minutes=15)
 
         recent_users = 0
 
@@ -197,15 +197,15 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 recent_users += 1
 
         if recent_users >= users:
-            if guild.id in self.last_raid_alert:
-                if self.last_raid_alert[guild.id] > fifteen_minutes_ago:
-                    return
-            self.last_raid_alert[guild.id] = member.joined_at
+            heat_key = "core-join-monitor"
+            if not heat.get_custom_heat(guild, heat_key) == 0:
+                return
 
             await self.send_notification(guild,
                                          f"Abnormal influx of new users ({recent_users} in the past "
                                          f"{minutes} minutes). Possible raid ongoing or about to start.",
                                          ping=True)
+            heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
             return True
 
     async def join_monitor_suspicious(self, member):
