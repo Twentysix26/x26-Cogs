@@ -23,6 +23,7 @@ from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
 import discord
 import asyncio
+import datetime
 
 class CompositeMetaClass(type(commands.Cog), type(ABC)):
     """
@@ -43,7 +44,6 @@ class MixinMeta(ABC):
         self.emergency_mode: dict
         self.active_warden_rules: dict
         self.invalid_warden_rules: dict
-        self.last_raid_alert: dict
         self.joined_users: dict
         self.monitor: dict
         self.loop: asyncio.AbstractEventLoop
@@ -105,7 +105,8 @@ class MixinMeta(ABC):
     async def send_notification(self, guild: discord.Guild, notification: str, *,
                                 ping=False, link_message: discord.Message=None,
                                 file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None) -> Optional[discord.Message]:
+                                react: str=None,
+                                do_not_repeat_for: datetime.timedelta=None) -> Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod

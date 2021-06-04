@@ -188,7 +188,6 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         users = await self.config.guild(guild).join_monitor_n_users()
         minutes = await self.config.guild(guild).join_monitor_minutes()
         x_minutes_ago = member.joined_at - datetime.timedelta(minutes=minutes)
-        fifteen_minutes_ago = member.joined_at - datetime.timedelta(minutes=15)
 
         recent_users = 0
 
@@ -197,15 +196,10 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 recent_users += 1
 
         if recent_users >= users:
-            if guild.id in self.last_raid_alert:
-                if self.last_raid_alert[guild.id] > fifteen_minutes_ago:
-                    return
-            self.last_raid_alert[guild.id] = member.joined_at
-
             await self.send_notification(guild,
                                          f"Abnormal influx of new users ({recent_users} in the past "
                                          f"{minutes} minutes). Possible raid ongoing or about to start.",
-                                         ping=True)
+                                         ping=True, do_not_repeat_for=datetime.timedelta(minutes=15))
             return True
 
     async def join_monitor_suspicious(self, member):

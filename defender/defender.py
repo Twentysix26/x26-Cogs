@@ -30,7 +30,7 @@ from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
 from .core.warden.heat import remove_stale_heat
 from .core.announcements import get_announcements
-from .core.cache import CacheUser
+from .core import cache
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 import datetime
@@ -166,7 +166,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         text_unauthorized = "[You are not authorized to access that channel]"
         _log = []
 
-        if isinstance(obj, (discord.Member, CacheUser)):
+        if isinstance(obj, (discord.Member, cache.CacheUser)):
             messages = df_cache.get_user_messages(obj)
 
             async for m in AsyncIter(messages, steps=20):
@@ -489,27 +489,37 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     async def send_notification(self, guild: discord.Guild, notification: str, *,
                                 ping=False, link_message: discord.Message=None,
                                 file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None, allow_everyone_ping=False)->Optional[discord.Message]:
+                                react: str=None, allow_everyone_ping=False,
+                                do_not_repeat_for: datetime.timedelta=None)->Optional[discord.Message]:
         if ping:
             id_to_ping = await self.config.guild(guild).notify_role()
             if id_to_ping:
                 notification = f"<@&{id_to_ping}>! {notification}"
 
         if link_message:
-            m = link_message
-            link = f"https://discordapp.com/channels/{m.guild.id}/{m.channel.id}/{m.id}"
-            notification = f"{notification}\n{link}"
+            notification += f"\n{link_message.jump_url}"
 
         notify_channel_id = await self.config.guild(guild).notify_channel()
         notify_channel = guild.get_channel(notify_channel_id)
-        if notify_channel:
-            allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
-            msg = await notify_channel.send(notification, file=file, embed=embed,
-                                            allowed_mentions=allowed_mentions)
-            if react:
-                await msg.add_reaction(react)
-            return msg
-        return None
+        if not notify_channel:
+            return None
+
+        if do_not_repeat_for is not None:
+            last_notif = cache.get_last_notification(guild)
+            if last_notif:
+                embed_dict = embed.to_dict() if embed else None
+                if embed_dict == last_notif.embed and notification == last_notif.content:
+                    if utcnow() < last_notif.expiration:
+                        return None
+
+        allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
+        msg = await notify_channel.send(notification, file=file, embed=embed,
+                                        allowed_mentions=allowed_mentions)
+        if do_not_repeat_for:
+            cache.set_last_notification(guild, msg, do_not_repeat_for)
+        if react:
+            await msg.add_reaction(react)
+        return msg
 
     def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
         rules = self.active_warden_rules.get(guild.id, {}).values()
