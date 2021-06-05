@@ -33,6 +33,7 @@ class Action(enum.Enum):
     Ban = "ban"
     Kick = "kick"
     Softban = "softban"
+    Punish = "punish"
 
 class EmergencyModules(enum.Enum):
     Voteout = "voteout"

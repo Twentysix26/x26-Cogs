@@ -34,6 +34,7 @@ async def make_status(ctx, cog):
     can_kick = ctx.channel.permissions_for(guild.me).kick_members
     can_read_al = ctx.channel.permissions_for(guild.me).view_audit_log
     can_see_own_invites = True
+    punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
     if not guild.me.guild_permissions.manage_guild:
         if await cog.config.guild(guild).invite_filter_enabled():
             exclude_own = await cog.config.guild(guild).invite_filter_exclude_own_invites()
@@ -42,7 +43,9 @@ async def make_status(ctx, cog):
 
     msg = ("This is an overview of the status and the general settings.\n*Notify role* is the "
             "role that gets pinged in case of urgent matters.\n*Notify channel* is where I send "
-            "notifications about reports and actions I take.\n\n")
+            "notifications about reports and actions I take.\n*Punish role* is the role that I "
+            "will assign to misbehaving users if the \"action\" of a Defender module is "
+            "set to \"punish\".\n\n")
 
     admin_roles = await ctx.bot._config.guild(ctx.guild).admin_role()
     mod_roles = await ctx.bot._config.guild(ctx.guild).mod_role()
@@ -81,9 +84,11 @@ async def make_status(ctx, cog):
     # 1.1 - Warden
     # 1.2 - Message cache
     # 1.2.1 - Warden enhancements
-    em.set_author(name="Defender system v1.2.1")
+    # 1.3 - Punish action type
+    em.set_author(name="Defender system v1.3")
     em.add_field(name="Notify role", value=n_role.mention if n_role else "None set", inline=True)
     em.add_field(name="Notify channel", value=n_channel.mention if n_channel else "None set", inline=True)
+    em.add_field(name="Punish role", value=punish_role.mention if punish_role else "None set", inline=True)
 
     pages.append(em)
 

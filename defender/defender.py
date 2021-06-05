@@ -46,8 +46,10 @@ default_guild_settings = {
     "enabled": False, # Defender system toggle
     "notify_channel": 0, # Staff channel where notifications are sent. Supposed to be private.
     "notify_role": 0, # Staff role to ping.
+    "punish_role": 0, # Role to apply if the "Action" is punish
     "trusted_roles": [], # Roles that can be considered safe
     "helper_roles": [], # Roles that are allowed to use special commands to help the staff
+    "punish_message": "", # Message to send after the punish role is assigned
     "rank3_joined_days": 1, # Users that joined < X days ago are considered new users (rank 3)
     "rank3_min_messages": 50, # Messages threshold that users should reach to be no longer classified as rank 4
     "count_messages": True, # Count users' messages. If disabled, rank4 will be unobtainable
@@ -510,6 +512,22 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 await msg.add_reaction(react)
             return msg
         return None
+
+    def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None):
+        if any((
+            role.permissions.manage_channels, role.permissions.manage_guild,
+            role.permissions.manage_messages, role.permissions.manage_roles,
+            role.permissions.ban_members, role.permissions.kick_members,
+            role.permissions.administrator)):
+            return True
+
+        if role.guild.me.top_role <= role:
+            return True
+
+        if issuers_top_role:
+            return role >= issuers_top_role
+        else:
+            return False
 
     def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
         rules = self.active_warden_rules.get(guild.id, {}).values()

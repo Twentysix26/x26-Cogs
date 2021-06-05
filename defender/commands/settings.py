@@ -196,6 +196,30 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                            "in the notify channel that you have set. I suggest to fix "
                            "this.")
 
+    @generalgroup.command(name="punishrole")
+    async def generalgrouppunishrole(self, ctx: commands.Context, role: discord.Role):
+        """Sets the role that will be assigned to misbehaving users
+
+        Note: this will only be assigned if the 'action' of a module
+        is set to 'punish'."""
+        if self.is_role_privileged(role, ctx.author.top_role):
+            return await ctx.send("I cannot let you proceed: that role has either privileged "
+                                  "permissions or is higher than your top role in the role hiararchy. "
+                                  "The punish role is meant to be assigned to misbehaving users, "
+                                  "it is not supposed to have any sort of privilege.")
+        await self.config.guild(ctx.guild).punish_role.set(role.id)
+        await ctx.send("Role set. Remember that you're supposed to configure this role in a way that is "
+                       "somehow limiting to the user. Whether this means preventing them from sending "
+                       "messages or only post in certain channels is up to you.")
+
+    @generalgroup.command(name="punishmessage")
+    async def generalgrouppunishmessage(self, ctx: commands.Context, *, message: str):
+        """Sets the messages that I will send after assigning the punish role"""
+        if len(message) > 1950: # Since 4k messages might soon be a thing let's check for this
+            return await ctx.send("The message is too long.")
+        await self.config.guild(ctx.guild).punish_message.set(message)
+        await ctx.tick()
+
     @generalgroup.command(name="countmessages")
     async def generalgroupcountmessages(self, ctx: commands.Context, on_or_off: bool):
         """Toggles message count (and rank 4)"""
@@ -299,12 +323,12 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
     @invitefiltergroup.command(name="action")
     async def invitefiltergroupaction(self, ctx: commands.Context, action: str):
-        """Sets action (ban, kick, softban or none (deletion only))"""
+        """Sets action (ban, kick, softban, punish or none (deletion only))"""
         action = action.lower()
         try:
             Action(action)
         except:
-            await ctx.send("Not a valid action. Must be ban, kick, softban or none.")
+            await ctx.send("Not a valid action. Must be ban, kick, softban, punish or none.")
             return
         await self.config.guild(ctx.guild).invite_filter_action.set(action)
         if Action(action) == Action.NoAction:
@@ -464,12 +488,12 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
     @raiderdetectiongroup.command(name="action")
     async def raiderdetectiongroupaction(self, ctx: commands.Context, action: str):
-        """Sets action (ban, kick, softban or none (notify only))"""
+        """Sets action (ban, kick, softban, punish or none (notify only))"""
         action = action.lower()
         try:
             Action(action)
         except:
-            await ctx.send("Not a valid action. Must be ban, kick, softban or none.")
+            await ctx.send("Not a valid action. Must be ban, kick, softban, punish or none.")
             return
         await self.config.guild(ctx.guild).raider_detection_action.set(action)
         if Action(action) == Action.NoAction:
@@ -575,14 +599,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
     @voteoutgroup.command(name="action")
     async def voteoutgroupaction(self, ctx: commands.Context, action: str):
-        """Sets action (ban, kick, softban)"""
+        """Sets action (ban, kick, softban, punish)"""
         action = action.lower()
         try:
             if action == Action.NoAction.value:
                 raise ValueError()
             Action(action)
         except:
-            await ctx.send("Not a valid action. Must be ban, kick or softban ")
+            await ctx.send("Not a valid action. Must be ban, kick, softban or punish.")
             return
         await self.config.guild(ctx.guild).voteout_action.set(action)
         await ctx.tick()

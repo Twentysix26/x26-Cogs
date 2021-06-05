@@ -121,6 +121,10 @@ async def _check_custom_heatpoint(*, cog, author: discord.Member, action: Action
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
                            "You must specify `seconds`, `minutes` or `hours`")
 
+    if parameter[0].startswith("core-"):
+        raise InvalidRule(f"`{action.value}` Invalid parameter. Your custom heatpoint's name cannot "
+                           "start with 'core-': this is reserved for internal use.")
+
 async def _check_custom_heatpoints(*, cog, author: discord.Member, action: Action, parameter: list):
     if not isinstance(parameter[0], str):
         raise InvalidRule(f"`{action.value}` Invalid parameter. The custom heat key must be a string.")
@@ -140,6 +144,10 @@ async def _check_custom_heatpoints(*, cog, author: discord.Member, action: Actio
     if td is None:
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 24 hours. "
                            "You must specify `seconds`, `minutes` or `hours`")
+
+    if parameter[0].startswith("core-"):
+        raise InvalidRule(f"`{action.value}` Invalid parameter. Your custom heatpoint's name cannot "
+                           "start with 'core-': this is reserved for internal use.")
 
 async def _check_issue_command(*, cog, author: discord.Member, action: Action, parameter: list):
     if parameter[0] != author.id:

@@ -56,6 +56,10 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
     async def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
                                replace_backtick=False, pagify_log=False):
         raise NotImplementedError()

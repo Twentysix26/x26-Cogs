@@ -88,8 +88,13 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
             if rank >= inv_filter_rank:
-                expelled = await self.invite_filter(message)
-
+                try:
+                    expelled = await self.invite_filter(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[InviteFilter] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.warning("Unexpected error in InviteFilter", exc_info=e)
         if expelled:
             return
 
@@ -97,8 +102,13 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if rd_enabled and not is_staff:
             rd_rank = await self.config.guild(guild).raider_detection_rank()
             if rank >= rd_rank:
-                expelled = await self.detect_raider(message)
-
+                try:
+                    expelled = await self.detect_raider(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[RaiderDetection] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.warning("Unexpected error in RaiderDetection", exc_info=e)
         if expelled:
             return
 
@@ -165,7 +175,13 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
             if rank >= inv_filter_rank:
-                expelled = await self.invite_filter(message)
+                try:
+                    expelled = await self.invite_filter(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[InviteFilter] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.warning("Unexpected error in InviteFilter", exc_info=e)
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):

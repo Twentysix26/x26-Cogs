@@ -83,29 +83,38 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await guild.ban(author, reason=reason, delete_message_days=1)
             await guild.unban(author)
             self.dispatch_event("member_remove", author, Action.Softban.value, reason)
+        elif Action(action) == Action.Punish:
+            punish_role = guild.get_role(await self.config.guild(guild).punish_role())
+            punish_message = await self.config.guild(guild).punish_message()
+            if punish_role and not self.is_role_privileged(punish_role):
+                await author.add_roles(punish_role, reason="Defender: punish role assignation")
+                if punish_message:
+                    await message.channel.send(f"{author.mention} {punish_message}")
+                await self.send_notification(guild, f"I have punished {author} ({author.id}) for posting this message:\n{content}")
+            else:
+                self.send_to_monitor(guild, "[InviteFilter] Failed to punish user. Is the punish role "
+                                            "still present and with *no* privileges?")
+            return
         elif Action(action) == Action.NoAction:
-            pass
+            return await self.send_notification(guild, f"I have deleted a message from {author} ({author.id}) with this content:\n{content}")
         else:
             raise ValueError("Invalid action for invite filter")
 
-        if Action(action) != Action.NoAction:
-            await self.send_notification(guild, f"I have expelled user {author} ({author.id}) for posting this message:\n{content}")
+        await self.send_notification(guild, f"I have expelled user {author} ({author.id}) for posting this message:\n{content}")
 
-            await modlog.create_case(
-                self.bot,
-                guild,
-                message.created_at,
-                action,
-                author,
-                guild.me,
-                "Posting an invite link",
-                until=None,
-                channel=None,
-            )
+        await modlog.create_case(
+            self.bot,
+            guild,
+            message.created_at,
+            action,
+            author,
+            guild.me,
+            "Posting an invite link",
+            until=None,
+            channel=None,
+        )
 
-            return True
-        else:
-            await self.send_notification(guild, f"I have deleted a message from {author} ({author.id}) with this content:\n{content}")
+        return True
 
     async def detect_raider(self, message):
         author = message.author
@@ -145,16 +154,28 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await guild.unban(author)
             self.dispatch_event("member_remove", author, Action.Softban.value, reason)
         elif Action(action) == Action.NoAction:
-            fifteen_minutes_ago = message.created_at - datetime.timedelta(minutes=15)
-            if guild.id in self.last_raid_alert:
-                if self.last_raid_alert[guild.id] > fifteen_minutes_ago:
-                    return
-            self.last_raid_alert[guild.id] = message.created_at
+            heat_key = f"core-rd-{author.id}"
+            if not heat.get_custom_heat(guild, heat_key) == 0:
+                return
             await self.send_notification(guild,
                                         f"User {author} ({author.id}) is spamming messages ({recent} "
                                         f"messages in {minutes} minutes).",
                                         link_message=message,
                                         ping=True)
+            heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
+            return
+        elif Action(action) == Action.Punish:
+            punish_role = guild.get_role(await self.config.guild(guild).punish_role())
+            punish_message = await self.config.guild(guild).punish_message()
+            if punish_role and not self.is_role_privileged(punish_role):
+                await author.add_roles(punish_role, reason="Defender: punish role assignation")
+                if punish_message:
+                    await message.channel.send(f"{author.mention} {punish_message}")
+                await self.send_notification(guild, f"I have punished {author} ({author.id}) for spamming messages.",
+                                             link_message=message)
+            else:
+                self.send_to_monitor(guild, "[RaiderDetection] Failed to punish user. Is the punish role "
+                                            "still present and with *no* privileges?")
             return
         else:
             raise ValueError("Invalid action for raider detection")
@@ -197,7 +218,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 recent_users += 1
 
         if recent_users >= users:
-            heat_key = "core-join-monitor"
+            heat_key = "core-jm"
             if not heat.get_custom_heat(guild, heat_key) == 0:
                 return
 
