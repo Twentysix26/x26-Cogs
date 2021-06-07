@@ -22,6 +22,7 @@ from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_prompt
+from ..core.warden import heat
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..exceptions import InvalidRule
@@ -620,3 +621,29 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             text += f"\n**{errors}** of them triggered an error on this rule."
 
         await ctx.send(text)
+
+    @wardengroup.command(name="memory")
+    async def wardengroupmemory(self, ctx: commands.Context, empty: bool=False):
+        """Shows or resets the memory of Warden
+
+        Pass 'on' to reset Warden's memory"""
+        if empty:
+            heat.empty_state(ctx.guild)
+            return await ctx.send("Warden's memory has been emptied.")
+
+        state = heat.get_state(ctx.guild)
+        text = ""
+        for _type in ("custom", "users", "channels"):
+            to_add = []
+            for k, v in sorted(state[_type].items()):
+                to_add.append(f"{k}: {len(v)}")
+            if to_add:
+                if text: text += "\n"
+                text += f"**{_type.title()} heat levels**\n"
+                text += ", ".join(to_add)
+
+        if text:
+            for p in pagify(text):
+                await ctx.send(p)
+        else:
+            await ctx.send("There is currently nothing stored in Warden's memory.")

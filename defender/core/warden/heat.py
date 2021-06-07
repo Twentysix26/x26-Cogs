@@ -147,5 +147,14 @@ async def remove_stale_heat():
                 len(heat_level)
         await asyncio.sleep(0)
 
+def get_state(guild):
+    return _heat_store[guild.id].copy()
+
+def empty_state(guild):
+    try:
+        del _heat_store[guild.id]
+    except KeyError:
+        pass
+
 def get_custom_heat_keys(guild: discord.Guild):
     return list(_heat_store[guild.id]["custom"].keys())
