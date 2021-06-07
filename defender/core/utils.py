@@ -15,8 +15,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from ..enums import Action
 import discord
 import re
+
+ACTIONS_VERBS = {
+    Action.Ban: "banned",
+    Action.Softban: "softbanned",
+    Action.Kick: "kicked",
+    Action.Punish: "punished",
+    Action.NoAction: "",
+}
 
 async def is_own_invite(guild: discord.Guild, match: re.Match):
     if not guild.me.guild_permissions.manage_guild:

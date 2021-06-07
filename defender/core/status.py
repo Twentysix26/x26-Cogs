@@ -172,7 +172,7 @@ async def make_status(ctx, cog):
     action = await cog.config.guild(guild).raider_detection_action()
     wipe = await cog.config.guild(guild).raider_detection_wipe()
 
-    msg = ("**Raider detection**\nThis auto-module is designed to counter raiders. It can detect large "
+    msg = ("**Raider detection   🦹**\nThis auto-module is designed to counter raiders. It can detect large "
             "amounts of messages in a set time window and take action on the user.\n")
     msg += (f"It is set so that if a **Rank {rank}** user (or below) sends **{messages} messages** in "
             f"**{minutes} minutes** I will **{action}** them.\n")
@@ -193,7 +193,7 @@ async def make_status(ctx, cog):
     else:
         oi_text = "I will take action on **any invite**, even when they belong to this server."
     action = f"**{action}** any user" if action != "none" else "**delete the message** of any user"
-    msg += ("**Invite filter**\nThis auto-module is designed to take care of advertisers. It can detect "
+    msg += ("**Invite filter   🔥📧**\nThis auto-module is designed to take care of advertisers. It can detect "
             f"a standard Discord invite and take action on the user.\nIt is set so that I will {action} "
             f"who is **Rank {rank}** or below. {oi_text}\n")
     msg += "This module is currently "
@@ -205,7 +205,7 @@ async def make_status(ctx, cog):
     minutes = await cog.config.guild(guild).join_monitor_minutes()
     newhours = await cog.config.guild(guild).join_monitor_susp_hours()
 
-    msg += ("**Join monitor**\nThis auto-module is designed to report suspicious user joins. It is able "
+    msg += ("**Join monitor   🔎🕵️**\nThis auto-module is designed to report suspicious user joins. It is able "
             "to detect an abnormal influx of new users and report any account that has been recently "
             "created.\n")
     msg += (f"It is set so that if **{users} users** join in the span of **{minutes} minutes** I will notify "
@@ -236,7 +236,7 @@ async def make_status(ctx, cog):
     wd_periodic = "allowed" if await cog.config.wd_periodic_allowed() else "not allowed"
     wd_regex = "allowed" if await cog.config.wd_regex_allowed() else "not allowed"
 
-    msg = ("**Warden**\nThis auto-module is extremely versatile. Thanks to a rich set of  "
+    msg = ("**Warden   👮**\nThis auto-module is extremely versatile. Thanks to a rich set of  "
             "*events*, *conditions* and *actions* that you can combine Warden allows you to define "
             "custom rules to counter any common pattern of bad behaviour that you notice in your "
             "community.\nMessage filtering, assignation of roles to misbehaving users, "
@@ -259,7 +259,7 @@ async def make_status(ctx, cog):
     em_modules = await cog.config.guild(guild).emergency_modules()
     minutes = await cog.config.guild(guild).emergency_minutes()
 
-    msg = ("**Alert**\nThis manual module is designed to aid helper roles in reporting bad actors to "
+    msg = ("**Alert   🚨**\nThis manual module is designed to aid helper roles in reporting bad actors to "
             f"the staff. Upon issuing the `{p}alert` command the staff will get pinged in the set notification "
             "channel and will be given context from where the alert was issued.\nFurther, if any manual module is "
             "set to be used in case of staff inactivity (*emergency mode*), they will be rendered available to "
@@ -275,7 +275,7 @@ async def make_status(ctx, cog):
     if d_enabled:
         enabled = await cog.config.guild(guild).vaporize_enabled()
 
-    msg += ("**Vaporize**\nThis manual module is designed to get rid of vast amounts of bad actors in a quick way "
+    msg += ("**Vaporize   ☁️**\nThis manual module is designed to get rid of vast amounts of bad actors in a quick way "
             "without creating a mod-log entry. To prevent misuse only **Rank 3** and below are targetable by this "
             "module. This module can be rendered available to helper roles in *emergency mode*.\n")
     if EmergencyModules.Vaporize.value in em_modules:
@@ -290,7 +290,7 @@ async def make_status(ctx, cog):
 
     rank_silenced = await cog.config.guild(guild).silence_rank()
 
-    msg += ("**Silence**\nThis manual module allows to enable auto-deletion of messages for the selected ranks.\n"
+    msg += ("**Silence   🔇**\nThis manual module allows to enable auto-deletion of messages for the selected ranks.\n"
             "It can be rendered available to helper roles in *emergency mode*.\n")
     if rank_silenced:
         msg += (f"It is set to silence **Rank {rank_silenced}** and below.\n")
@@ -317,7 +317,7 @@ async def make_status(ctx, cog):
     action = await cog.config.guild(guild).voteout_action()
     wipe = await cog.config.guild(guild).voteout_wipe()
 
-    msg = ("**Voteout**\nThis manual module allows to start a voting session to expel a user from the "
+    msg = ("**Voteout   👍 👎**\nThis manual module allows to start a voting session to expel a user from the "
            "server. It is most useful to helper roles, however staff can also use this.\n"
            "It can be rendered available to helper roles in *emergency mode*.\n")
     msg += (f"It is set so that **{votes} votes** (including the issuer) are required to **{action}** "

@@ -18,6 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import discord
 from datetime import datetime
 
+TITLE_TEXT = "Defender update"
+FOOTER_TEXT = "A message from 26, creator of Defender"
 REPO_LINK = "https://github.com/Twentysix26/x26-Cogs"
 WARDEN_URL = "https://github.com/Twentysix26/x26-Cogs/wiki/Warden"
 WARDEN_ANNOUNCEMENT = ("Hello. There is a new auto-module available: **Warden**.\nThis auto-module allows you to define "
@@ -35,11 +37,23 @@ ANNOUNCEMENTS = {
 
 def _make_announcement_embed(content):
     em = discord.Embed(color=discord.Colour.red(), description=content)
-    em.set_author(name="Defender update")
-    em.set_footer(text="A message from 26, creator of Defender")
+    em.set_author(name=TITLE_TEXT)
+    em.set_footer(text=FOOTER_TEXT)
     return em
 
-def get_announcements(*, only_recent=True):
+def get_announcements_text(*, only_recent=True):
+    to_send = {}
+    now = datetime.utcnow()
+
+    for k, v in ANNOUNCEMENTS.items():
+        ts = datetime.utcfromtimestamp(k)
+        if only_recent is True and now > ts: # The announcement is old
+            continue
+        to_send[k] = {"title": TITLE_TEXT, "description": v, "footer": FOOTER_TEXT}
+
+    return to_send
+
+def get_announcements_embed(*, only_recent=True):
     to_send = {}
     now = datetime.utcnow()
 

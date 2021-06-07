@@ -640,14 +640,18 @@ class WardenRule:
                     await message.delete()
                 elif action == Action.NotifyStaff:
                     text = Template(value).safe_substitute(templates_vars)
-                    last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True)
+                    last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True,
+                                                                    force_text_only=True)
                 elif action == Action.NotifyStaffAndPing:
                     text = Template(value).safe_substitute(templates_vars)
-                    last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True)
+                    last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
+                                                                    force_text_only=True)
                 elif action == Action.NotifyStaffWithEmbed:
                     title, content = (value[0], value[1])
-                    em = self._build_embed(title, content, templates_vars=templates_vars)
-                    last_sent_message = await cog.send_notification(guild, "", embed=em, allow_everyone_ping=True)
+                    content = Template(content).safe_substitute(templates_vars)
+                    last_sent_message = await cog.send_notification(guild, content,
+                                                                    title=title, footer=f"Warden rule `{self.name}`",
+                                                                    allow_everyone_ping=True)
                 elif action == Action.SendInChannel:
                     text = Template(value).safe_substitute(templates_vars)
                     last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
@@ -823,14 +827,6 @@ class WardenRule:
                     raise ExecutionError(f"Unhandled action '{self.name}'.")
 
         return bool(last_expel_action)
-
-    def _build_embed(self, title: str, content: str, *, templates_vars: dict):
-        title = Template(title).safe_substitute(templates_vars)
-        content = Template(content).safe_substitute(templates_vars)
-        em = discord.Embed(color=discord.Colour.red(), description=content)
-        em.set_author(name=title)
-        em.set_footer(text=f"Warden rule `{self.name}`")
-        return em
 
     def __repr__(self):
         return f"<WardenRule '{self.name}'>"

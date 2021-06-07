@@ -19,6 +19,7 @@ from ..enums import EmergencyMode
 from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import EmergencyModules, Action, Rank
 from redbot.core import commands, modlog
+from redbot.core.utils.chat_formatting import box
 import discord
 import asyncio
 
@@ -30,6 +31,12 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     async def alert(self, ctx):
         """Alert the staff members"""
         guild = ctx.guild
+        author = ctx.author
+        message = ctx.message
+        EMBED_TITLE = "🚨 • Alert"
+        EMBED_FIELDS = [{"name": "Issuer", "value": f"`{author}`"},
+                        {"name": "ID", "value": f"`{author.id}`"},
+                        {"name": "Channel", "value": message.channel.mention}]
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).alert_enabled()
         if not enabled or not d_enabled:
@@ -51,14 +58,15 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         react_text = ""
         emoji = None
         if emergency_modules:
-            react_text = "\nReacting to this message or taking some actions in this server will disable the emergency timer."
+            react_text = " React to this message or take some actions in this server to disable the emergency timer."
             emoji = "⚠️"
 
         await self.send_notification(guild,
-                                     (f"Alert issued by {ctx.author.mention} in {ctx.channel.mention}."
-                                      f"{react_text}"),
+                                    f"An alert has been issued!{react_text}",
+                                     title=EMBED_TITLE,
+                                     fields=EMBED_FIELDS,
                                      ping=True,
-                                     link_message=ctx.message,
+                                     jump_to=ctx.message,
                                      react=emoji)
         await ctx.send("The staff has been notified. Please keep calm, I'm sure everything is fine. 🔥")
 
@@ -101,7 +109,8 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
             last_msg = await ctx.send(f"{ctx.author.mention} " + text.format(minutes))
             await self.send_notification(guild, "⚠️ Seems like you're not around. I will automatically engage "
-                                                f"emergency mode in {minutes} minutes if you don't show up.")
+                                                f"emergency mode in {minutes} minutes if you don't show up.",
+                                                force_text_only=True)
             while minutes != 0:
                 await asyncio.sleep(60)
                 await check_audit_log()
@@ -133,7 +142,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         self.emergency_mode[guild.id] = EmergencyMode(manual=False)
 
         await self.send_notification(guild, "⚠️ Emergency mode engaged. Our helpers are now able to use the "
-                                            f"**{', '.join(emergency_modules)}** modules.")
+                                            f"**{', '.join(emergency_modules)}** modules.", force_text_only=True)
 
         await ctx.send(text)
         self.dispatch_event("emergency", guild)
@@ -147,6 +156,10 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         Works only on Rank 3 and under"""
         guild = ctx.guild
         channel = ctx.channel
+        EMBED_TITLE = "☁️ • Vaporize"
+        EMBED_FIELDS = [{"name": "Issuer", "value": f"`{ctx.author}`"},
+                        {"name": "ID", "value": f"`{ctx.author.id}`"},
+                        {"name": "Channel", "value": channel.mention}]
         has_ban_perms = channel.permissions_for(ctx.author).ban_members
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).vaporize_enabled()
@@ -214,7 +227,8 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
 
         total = len(members) - len(errored)
-        await self.send_notification(guild, f"🔥 {ctx.author} ({ctx.author.id}) has vaporized {total} users. 🔥")
+        await self.send_notification(guild, f"{total} users have been vaporized.",
+                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=ctx.message)
 
     @commands.cooldown(1, 22, commands.BucketType.guild)  # More useful as a lock of sorts in this case
     @commands.command(cooldown_after_parsing=True)        # Only one concurrent session per guild
@@ -226,6 +240,10 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         EMOJI = "👢"
         guild = ctx.guild
         channel = ctx.channel
+        EMBED_TITLE = "👍 👎 • Voteout"
+        EMBED_FIELDS = [{"name": "Username", "value": f"`{user}`"},
+                        {"name": "ID", "value": f"`{user.id}`"},
+                        {"name": "Channel", "value": channel.mention}]
         action = await self.config.guild(guild).voteout_action()
         user_perms = channel.permissions_for(ctx.author)
         if Action(action) == Action.Ban:
@@ -316,7 +334,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             ctx.command.reset_cooldown(ctx)
             return await ctx.send("Vote aborted: insufficient votes.")
 
-        voters_list = ", ".join([f"{v} ({v.id})" for v in voters])
+        voters_list = "\n".join([f"{v} ({v.id})" for v in voters])
         if Action(action) == Action.Ban:
             action_text = "Votebanned with Defender."
             days = await self.config.guild(guild).voteout_wipe()
@@ -337,9 +355,11 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             raise ValueError("Invalid action set for voteout.")
 
-        await self.send_notification(guild, f"User {user} ({user.id}) has been expelled with "
-                                            f"a vote.\nVoters: `{voters_list}`",
-                                     link_message=msg)
+        await self.send_notification(guild, f"A user has been expelled with "
+                                            f"a vote.\nVoters:\n{box(voters_list)}",
+                                     title=EMBED_TITLE,
+                                     fields=EMBED_FIELDS,
+                                     jump_to=msg)
 
         await modlog.create_case(
             self.bot,
@@ -364,6 +384,9 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         Only applicable to Ranks 2-4. 0 will disable this."""
         guild = ctx.guild
         channel = ctx.channel
+        EMBED_TITLE = "🔇 • Silence"
+        EMBED_FIELDS = [{"name": "Issuer", "value": f"`{ctx.author}`"},
+                        {"name": "ID", "value": f"`{ctx.author.id}`"}]
         has_mm_perms = channel.permissions_for(ctx.author).manage_messages
         d_enabled = await self.config.guild(guild).enabled()
         enabled = await self.config.guild(guild).silence_enabled()
@@ -412,7 +435,12 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 return
         await self.config.guild(ctx.guild).silence_rank.set(rank)
         if rank:
+            await self.send_notification(guild, "This module has been enabled. "
+                                                f"Message from users belonging to rank {rank} or below will be deleted.",
+                                         title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=ctx.message)
             await ctx.send(f"Any message from Rank {rank} and below will be deleted. "
                            "Set 0 to disable silence mode.")
         else:
+            await self.send_notification(guild, "This module has been disabled. Messages will no longer be deleted.",
+                                         title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=ctx.message)
             await ctx.send("Silence mode disabled.")

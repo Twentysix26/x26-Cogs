@@ -105,10 +105,12 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def send_notification(self, guild: discord.Guild, notification: str, *,
-                                ping=False, link_message: discord.Message=None,
-                                file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None) -> Optional[discord.Message]:
+    async def send_notification(self, destination: discord.abc.Messageable, description: str, *,
+                                title: str=None, fields: list=[], footer: str=None,
+                                thumbnail: str=None,
+                                ping=False, file: discord.File=None, react: str=None,
+                                jump_to: discord.Message=None,
+                                allow_everyone_ping=False, force_text_only=False)->Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod

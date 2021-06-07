@@ -35,6 +35,18 @@ class Action(enum.Enum):
     Softban = "softban"
     Punish = "punish"
 
+class AutoModules(enum.Enum):
+    RaiderDetection = "Raider detection"
+    InviteFilter = "Invite filter"
+    JoinMonitor = "Join monitor"
+    Warden = "Warden"
+
+class ManualModules(enum.Enum):
+    Alert = "Alert"
+    Vaporize = "Vaporize"
+    Silence = "Silence"
+    Voteout = "Voteout"
+
 class EmergencyModules(enum.Enum):
     Voteout = "voteout"
     Vaporize = "vaporize"
