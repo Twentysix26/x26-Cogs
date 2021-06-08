@@ -623,14 +623,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         await ctx.send(text)
 
     @wardengroup.command(name="memory")
-    async def wardengroupmemory(self, ctx: commands.Context, empty: bool=False):
-        """Shows or resets the memory of Warden
-
-        Pass 'on' to reset Warden's memory"""
-        if empty:
-            heat.empty_state(ctx.guild)
-            return await ctx.send("Warden's memory has been emptied.")
-
+    async def wardengroupmemory(self, ctx: commands.Context):
+        """Shows or resets the memory of Warden"""
         prod_state = heat.get_state(ctx.guild)
         dev_state = heat.get_state(ctx.guild, debug=True)
         text = ""
