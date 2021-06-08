@@ -21,6 +21,8 @@ from redbot.core import Config, commands
 from redbot.core.bot import Red
 from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
+from .core.warden.rule import WardenRule
+from typing import List
 import discord
 import asyncio
 
@@ -138,7 +140,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent):
+    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
         raise NotImplementedError()
 
     @abstractmethod

@@ -207,3 +207,15 @@ ACTIONS_ARGS_N = {
     Action.AddCustomHeatpoints: 3,
     Action.IssueCommand: 2,
 }
+
+ALLOWED_DEBUG_ACTIONS = [
+    Action.AddUserHeatpoint,
+    Action.AddUserHeatpoints,
+    Action.AddChannelHeatpoint,
+    Action.AddChannelHeatpoints,
+    Action.AddCustomHeatpoint,
+    Action.AddCustomHeatpoints,
+    Action.EmptyUserHeat,
+    Action.EmptyChannelHeat,
+    Action.EmptyCustomHeat,
+]
