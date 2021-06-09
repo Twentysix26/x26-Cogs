@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from defender.core.warden.rule import WardenRule
 from ..abc import MixinMeta, CompositeMetaClass
-from ..enums import EmergencyModules, Action, Rank
+from ..enums import EmergencyModules, Action, Rank, PerspectiveAttributes
 from redbot.core import commands
 from ..core import cache as df_cache
 from redbot.core.commands import GuildConverter
@@ -567,6 +567,103 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return await ctx.send("Maximum size must be between 2 and 50KB.")
         await self.config.wd_upload_max_size.set(kilobytes)
         await ctx.send(f"Size set. I will not accept any rule bigger than {kilobytes}KB.")
+
+    @dset.group(name="commentanalysis")
+    @commands.admin()
+    async def caset(self, ctx: commands.Context):
+        """Comment analysis configuration
+
+        See [p]defender status for more information about this module"""
+
+    @caset.command(name="enable")
+    async def casetenable(self, ctx: commands.Context, on_or_off: bool):
+        """Toggles comment analysis"""
+        if not await self.config.guild(ctx.guild).ca_token():
+            return await ctx.send("There is no Perspective API token set.")
+        await self.config.guild(ctx.guild).ca_enabled.set(on_or_off)
+        if on_or_off:
+            await ctx.send("Comment analysis enabled.")
+        else:
+            await ctx.send("Comment analysis disabled.")
+
+    @caset.command(name="token")
+    async def casettoken(self, ctx: commands.Context, token: str):
+        """Sets Perspective API token
+
+        https://developers.perspectiveapi.com/s/docs"""
+        if len(token) < 30 or len(token) > 50:
+            return await ctx.send("That doesn't look like a valid Perspective API token.")
+        await self.config.guild(ctx.guild).ca_token.set(token)
+        await ctx.tick()
+
+    @caset.command(name="attributes")
+    async def casetattributes(self, ctx: commands.Context, *attributes: str):
+        """Sets the attributes that CA will check
+
+        See the full list here:
+        https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages"""
+        for attribute in attributes:
+            try:
+                PerspectiveAttributes(attribute)
+            except ValueError:
+                attributes_list = "\n".join([a.value for a in PerspectiveAttributes])
+                return await ctx.send("Invalid attribute(s). You must insert one or more of "
+                                      f"the following attributes:\n{attributes_list}")
+        await self.config.guild(ctx.guild).ca_attributes.set(attributes)
+        await ctx.tick()
+
+    @caset.command(name="threshold")
+    async def casetthreshold(self, ctx: commands.Context, threshold: int):
+        """Sets the threshold that will trigger CA's action (20-100)"""
+        if threshold < 20 or threshold > 100:
+            return await ctx.send("The threshold must be a value between 20 and 100.")
+        await self.config.guild(ctx.guild).ca_threshold.set(threshold)
+        await ctx.tick()
+
+    @caset.command(name="rank")
+    async def casetrank(self, ctx: commands.Context, rank: int):
+        """Sets target rank"""
+        try:
+            Rank(rank)
+        except:
+            await ctx.send("Not a valid rank. Must be 1-4.")
+            return
+        await self.config.guild(ctx.guild).ca_rank.set(rank)
+        await ctx.tick()
+
+    @caset.command(name="action")
+    async def casetaction(self, ctx: commands.Context, action: str):
+        """Sets action (ban, kick, softban, punish or none (notification only))"""
+        action = action.lower()
+        try:
+            Action(action)
+        except:
+            await ctx.send("Not a valid action. Must be ban, kick, softban or none.")
+            return
+        await self.config.guild(ctx.guild).ca_action.set(action)
+        if Action(action) == Action.NoAction:
+            await ctx.send("Action set. Since you've chosen 'none' I will only delete "
+                           "the invite link and notify the staff about it.")
+        await ctx.tick()
+
+    @caset.command(name="reason")
+    async def casetreason(self, ctx: commands.Context, *, reason: str):
+        """Sets a reason for the action (modlog use)"""
+        if len(reason) < 1 or len(reason) > 500:
+            return await ctx.send("The reason can only contain a maximum of 500 characters.")
+        await self.config.guild(ctx.guild).ca_reason.set(reason)
+        await ctx.tick()
+
+    @caset.command(name="wipe")
+    async def casetwipe(self, ctx: commands.Context, days: int):
+        """Sets how many days worth of messages to delete if the action is ban
+
+        Setting 0 will not delete any message"""
+        if days < 0 or days > 7:
+            return await ctx.send("Value must be between 0 and 7.")
+        await self.config.guild(ctx.guild).ca_wipe.set(days)
+        await ctx.send(f"Value set. I will delete {days} days worth "
+                       "of messages if the action is ban.")
 
     @dset.group(name="voteout")
     @commands.admin()

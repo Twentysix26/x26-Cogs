@@ -24,7 +24,7 @@ from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
 from .commands import Commands
 from .core.events import Events
-from .enums import Rank, Action, EmergencyModules
+from .enums import Rank, Action, EmergencyModules, PerspectiveAttributes
 from .exceptions import InvalidRule
 from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
@@ -72,6 +72,14 @@ default_guild_settings = {
     "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
     "warden_enabled": True,
     "wd_rules": {}, # Warden rules | I have to break the naming convention here due to config.py#L798
+    "ca_enabled": False, # Comment analysis
+    "ca_token": None, # CA token
+    "ca_attributes": [PerspectiveAttributes.SevereToxicity.value], # Attributes to query
+    "ca_threshold": 80, # Percentage for CA to trigger
+    "ca_action": Action.NoAction.value,
+    "ca_rank": Rank.Rank3.value,
+    "ca_reason": "Bad comment", # Mod-log reason
+    "ca_wipe": 0, # If action is ban, wipe X days worth of messages
     "alert_enabled": True, # Available to helper roles by default
     "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
     "silence_rank": 0, # ... and as such, this default will be 0

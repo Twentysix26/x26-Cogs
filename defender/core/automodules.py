@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Most automodules are too small to have their own files
 
 from ..abc import MixinMeta, CompositeMetaClass
-from redbot.core.utils.chat_formatting import box, humanize_timedelta
+from redbot.core.utils.chat_formatting import box, humanize_timedelta, inline
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from ..abc import CompositeMetaClass
 from ..enums import Action
@@ -31,7 +31,10 @@ from collections import deque
 import discord
 import datetime
 import logging
+import aiohttp
 
+PERSPECTIVE_API_URL = "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key={}"
+AIOHTTP_TIMEOUT = aiohttp.ClientTimeout(total=5)
 log = logging.getLogger("red.x26cogs.defender")
 
 class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
@@ -281,3 +284,105 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 except (discord.Forbidden, discord.HTTPException):
                     pass
 
+    async def comment_analysis(self, message):
+        guild = message.guild
+        author = message.author
+        EMBED_TITLE = "💬 • Comment analysis"
+        EMBED_FIELDS = [{"name": "Username", "value": f"`{author}`"},
+                        {"name": "ID", "value": f"`{author.id}`"},
+                        {"name": "Channel", "value": message.channel.mention}]
+
+        body = {
+            "comment": {
+                "text": message.content
+            },
+            "requestedAttributes": {},
+            "doNotStore": True,
+        }
+
+        token = await self.config.guild(guild).ca_token()
+        attributes = await self.config.guild(guild).ca_attributes()
+        threshold = await self.config.guild(guild).ca_threshold()
+
+        for attribute in attributes:
+            body["requestedAttributes"][attribute] = {}
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(PERSPECTIVE_API_URL.format(token), json=body, timeout=AIOHTTP_TIMEOUT) as r:
+                if r.status == 200:
+                    results = await r.json()
+                else:
+                    if r.status != 400:
+                        # Not explicitly documented but if the API doesn't recognize the language error 400 is returned
+                        # We can safely ignore those cases
+                        log.error("Error querying Perspective API")
+                        log.debug(f"Sent: '{message.content}', received {r.status}")
+                    return
+
+        scores = results["attributeScores"]
+        for attribute in scores:
+            attribute_score = scores[attribute]["summaryScore"]["value"] * 100
+            if attribute_score >= threshold:
+                triggered_attribute = attribute
+                break
+        else:
+            return
+
+        action = Action(await self.config.guild(guild).ca_action())
+
+        sanitized_content = message.content.replace("`", "'")
+        exp_text = f"I have {ACTIONS_VERBS[action]} the user for this message.\n" if action != Action.NoAction else ""
+        text = (f"Possible rule breaking message detected. {exp_text}"
+                f'The following message scored {round(attribute_score, 2)}% in the **{triggered_attribute}** category:\n'
+                f"{box(sanitized_content)}")
+
+        if action == Action.NoAction:
+            heat_key = f"core-ca-{message.channel.id}-{author.id}"
+            if heat.get_custom_heat(guild, heat_key) == 0:
+                await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
+                heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
+            return
+
+        reason = await self.config.guild(guild).ca_reason()
+
+        if action == Action.Ban:
+            delete_days = await self.config.guild(guild).ca_wipe()
+            await guild.ban(author, reason=reason, delete_message_days=delete_days)
+            self.dispatch_event("member_remove", author, Action.Ban.value, reason)
+        elif action == Action.Kick:
+            await guild.kick(author, reason=reason)
+            self.dispatch_event("member_remove", author, Action.Kick.value, reason)
+        elif action == Action.Softban:
+            await guild.ban(author, reason=reason, delete_message_days=1)
+            await guild.unban(author)
+            self.dispatch_event("member_remove", author, Action.Softban.value, reason)
+        elif action == Action.Punish:
+            punish_role = guild.get_role(await self.config.guild(guild).punish_role())
+            punish_message = await self.config.guild(guild).punish_message()
+            if punish_role and not self.is_role_privileged(punish_role):
+                await author.add_roles(punish_role, reason="Defender: punish role assignation")
+                if punish_message:
+                    await message.channel.send(f"{author.mention} {punish_message}")
+            else:
+                self.send_to_monitor(guild, "[CommentAnalysis] Failed to punish user. Is the punish role "
+                                            "still present and with *no* privileges?")
+                return
+
+        await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
+
+        try:
+            await message.delete()
+        except:
+            pass
+
+        await modlog.create_case(
+            self.bot,
+            guild,
+            message.created_at,
+            action.value,
+            author,
+            guild.me,
+            reason,
+            until=None,
+            channel=None,
+        )

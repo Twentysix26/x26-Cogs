@@ -169,14 +169,19 @@ async def make_status(ctx, cog):
     rank = await cog.config.guild(guild).raider_detection_rank()
     messages = await cog.config.guild(guild).raider_detection_messages()
     minutes = await cog.config.guild(guild).raider_detection_minutes()
-    action = await cog.config.guild(guild).raider_detection_action()
+    action = Action(await cog.config.guild(guild).raider_detection_action())
     wipe = await cog.config.guild(guild).raider_detection_wipe()
+    if action == Action.NoAction:
+        action = "**notify** the staff about it"
+    else:
+        action = f"**{action.value}** them"
+
 
     msg = ("**Raider detection   🦹**\nThis auto-module is designed to counter raiders. It can detect large "
             "amounts of messages in a set time window and take action on the user.\n")
     msg += (f"It is set so that if a **Rank {rank}** user (or below) sends **{messages} messages** in "
-            f"**{minutes} minutes** I will **{action}** them.\n")
-    if Action(action) == Action.Ban and wipe:
+            f"**{minutes} minutes** I will {action}.\n")
+    if action == Action.Ban and wipe:
         msg += f"The **ban** will also delete **{wipe} days** worth of messages.\n"
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
@@ -248,8 +253,41 @@ async def make_status(ctx, cog):
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 
+    PERSPECTIVE_URL = "https://www.perspectiveapi.com/"
+    PERSPECTIVE_API_URL = "https://developers.perspectiveapi.com/s/docs-get-started"
+    ca_token = await cog.config.guild(guild).ca_token()
+    if ca_token:
+        ca_token = f"The API key is currently set: **{ca_token[:3]}...{ca_token[len(ca_token)-3:]}**"
+    else:
+        ca_token = f"The API key is **NOT** set. Get one [here]({PERSPECTIVE_API_URL})"
+
+    ca_action = Action(await cog.config.guild(guild).ca_action())
+    ca_wipe = await cog.config.guild(guild).ca_wipe()
+    if ca_action == Action.Ban:
+        ca_action = f"**ban** the author and **delete {ca_wipe} days** worth of messages"
+    elif ca_action == Action.NoAction:
+        ca_action = "**delete** it and **notify** the staff"
+    else:
+        ca_action = f"**{ca_action.value}** the author"
+
+    ca_rank = await cog.config.guild(guild).ca_rank()
+    ca_attributes = len(await cog.config.guild(guild).ca_attributes())
+    ca_threshold = await cog.config.guild(guild).ca_threshold()
+    enabled = await cog.config.guild(guild).ca_enabled()
+
+    msg += ("**Comment analysis    💬**\nThis automodule interfaces with Google's "
+            f"[Perspective API]({PERSPECTIVE_URL}) to analyze the messages in your server and "
+            "detect abusive content.\nIt supports a variety of languages and it is a powerful tool "
+            "for monitoring and prevention. Be mindful of *false positives*: context is not taken "
+            f"in consideration.\n{ca_token}.\nIt is set so that if I detect an abusive message I will "
+            f"{ca_action}. The offending user must be **Rank {ca_rank}** or below.\nI will take action "
+            f"only if the **{ca_threshold}%** threshold is reached for any of the **{ca_attributes}** "
+            f"attribute(s) that have been set.\n")
+    msg += "This module is currently "
+    msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
+
     em = discord.Embed(color=discord.Colour.red(), description=msg)
-    em.set_footer(text=f"`{p}dset warden` `{p}defender warden` to configure.")
+    em.set_footer(text=f"`{p}dset warden` `{p}def warden` `{p}dset commentanalysis` to configure.")
     em.set_author(name="Auto modules (2/2)")
 
     pages.append(em)
