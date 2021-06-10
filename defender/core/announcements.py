@@ -36,7 +36,7 @@ CA_ANNOUNCEMENT = ("Hello, a new auto-module is available: **Comment analysis**.
                    "[Perspective API](https://www.perspectiveapi.com/) to detect all kinds of abusive messages, turning Defender "
                    "in an even smarter tool for monitoring and prevention.\n\nThis update also brings you some new "
                    "debugging tools for Warden (check `[p]def warden`) and more consistent notifications for every module.\n"
-                   "To finish up there is now also the possibility to assign a *punishing role* through the automodules: "
+                   "To finish up there is now the possibility to assign a *punishing role* through the automodules: "
                    "this is convenient if you want to prevent an offending user from sending messages instead of just expelling "
                    "them. As usual, `[p]def status` will guide you through the setup.\nEnjoy!")
 

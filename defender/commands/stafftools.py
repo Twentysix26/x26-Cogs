@@ -676,8 +676,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         A Warden event must be passed with the proper target ID (user or local message)
 
         When this command is issued all the rules registered to the event will be
-        processed in a safe way. The conditions will be evaluated against the target
-        and if the target satisfies the conditions, *only* the heatpoint related actions
+        processed in a safe way against the target, if any.
+        If the target satisfies the conditions, *only* the heatpoint related actions
         will be carried on.
         The heatpoint actions will be "sandboxed", so the newly added heatpoints won't
         have any effect outside this test.
