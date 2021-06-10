@@ -98,18 +98,18 @@ def get_custom_heat(guild: discord.Guild, key: str, *, debug=False):
 def empty_user_heat(user: discord.Member, *, debug=False):
     heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)
     if heat:
-        discard_heatlevel(heat)
+        discard_heatlevel(heat, debug=debug)
 
 def empty_channel_heat(channel: discord.TextChannel, *, debug=False):
     heat = get_heat_store(channel.guild.id, debug)["channels"].get(channel.id)
     if heat:
-        discard_heatlevel(heat)
+        discard_heatlevel(heat, debug=debug)
 
 def empty_custom_heat(guild: discord.Guild, key: str, *, debug=False):
     key = key.lower()
     heat = get_heat_store(guild.id, debug)["custom"].get(key)
     if heat:
-        discard_heatlevel(heat)
+        discard_heatlevel(heat, debug=debug)
 
 def increase_user_heat(user: discord.Member, td: timedelta, *, debug=False):
     heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)

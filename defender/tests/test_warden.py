@@ -6,11 +6,51 @@ from ..core.warden.constants import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, A
 from ..core.warden.constants import CONDITIONS_ARGS_N
 from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
-from .wd_sample_rules import (DYNAMIC_RULE, DYNAMIC_RULE_PERIODIC, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE,
+from .wd_sample_rules import (CHECK_EMPTY_HEATPOINTS, CHECK_HEATPOINTS, DYNAMIC_RULE, DYNAMIC_RULE_PERIODIC, EMPTY_HEATPOINTS,
+                              INCREASE_HEATPOINTS, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE,
                               INVALID_RANK, INVALID_EVENT, TUTORIAL_PRIORITY_RULE, INVALID_PRIORITY,
                               INVALID_PERIODIC_MISSING_EVENT, INVALID_PERIODIC_MISSING_RUN_EVERY, VALID_MIXED_RULE,
-                              INVALID_MIXED_RULE_CONDITION, INVALID_MIXED_RULE_ACTION)
+                              INVALID_MIXED_RULE_CONDITION, INVALID_MIXED_RULE_ACTION, CONDITION_TEST_POSITIVE,
+                              CONDITION_TEST_NEGATIVE)
+from datetime import datetime
 import pytest
+
+class FakeGuild:
+    id = 852499907842801727
+
+FAKE_GUILD = FakeGuild()
+
+class FakeChannel:
+    id = 852499907842801728
+    name = "fake"
+    guild = FAKE_GUILD
+    category = None
+    mention = "<@852499907842801728>"
+
+FAKE_CHANNEL = FakeChannel()
+
+class FakeUser:
+    nick = None
+    name = "Twentysix"
+    id = 852499907842801726
+    guild = FAKE_GUILD
+    mention = "<@852499907842801726>"
+    created_at = datetime.utcnow()
+    joined_at = datetime.utcnow()
+
+FAKE_USER = FakeUser()
+
+class FakeMessage:
+    id = 852499907842801729
+    guild = FAKE_GUILD
+    channel = FAKE_CHANNEL
+    author = FAKE_USER
+    content = clean_content = "increase"
+    created_at = datetime.utcnow()
+    jump_url = ""
+    attachments = []
+
+FAKE_MESSAGE = FakeMessage()
 
 def test_check_constants_consistency():
     def x_contains_only_y(x, y):
@@ -148,3 +188,133 @@ async def test_rule_parsing():
               f"{len(gen_actions)} actions.")
 
         await WardenRule().parse(raw, cog=None)
+
+@pytest.mark.asyncio
+async def test_rule_cond_eval():
+    rule = WardenRule()
+    await rule.parse(CONDITION_TEST_POSITIVE, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        user=FAKE_USER)) is True
+
+    rule = WardenRule()
+    await rule.parse(CONDITION_TEST_NEGATIVE, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        user=FAKE_USER)) is False
+
+    ##### Sandbox store
+    rule = WardenRule()
+    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)) is False
+
+    rule = WardenRule()
+    await rule.parse(INCREASE_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)) is True
+    await rule.do_actions(cog=None,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)
+
+    rule = WardenRule()
+    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)) is True
+    ##############
+
+    ##### Prod store
+    rule = WardenRule()
+    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is False
+
+    rule = WardenRule()
+    await rule.parse(INCREASE_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is True
+    await rule.do_actions(cog=None,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)
+
+    rule = WardenRule()
+    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is True
+    ##############
+
+    rule = WardenRule()
+    await rule.parse(EMPTY_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is True
+    await rule.do_actions(cog=None,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)
+
+    rule = WardenRule()
+    await rule.parse(CHECK_EMPTY_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is True
+
+
+    rule = WardenRule()
+    await rule.parse(CHECK_EMPTY_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)) is False
+
+    rule = WardenRule()
+    await rule.parse(EMPTY_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)) is True
+    await rule.do_actions(cog=None,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)
+
+    rule = WardenRule()
+    await rule.parse(CHECK_EMPTY_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)) is True
