@@ -204,7 +204,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         is set to 'punish'."""
         if self.is_role_privileged(role, ctx.author.top_role):
             return await ctx.send("I cannot let you proceed: that role has either privileged "
-                                  "permissions or is higher than your top role in the role hiararchy. "
+                                  "permissions or is higher than your top role in the role hierarchy. "
                                   "The punish role is meant to be assigned to misbehaving users, "
                                   "it is not supposed to have any sort of privilege.")
         await self.config.guild(ctx.guild).punish_role.set(role.id)
@@ -602,6 +602,8 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         See the full list here:
         https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages"""
+        if not attributes:
+            return await ctx.send_help()
         for attribute in attributes:
             try:
                 PerspectiveAttributes(attribute)
