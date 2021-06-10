@@ -55,7 +55,7 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
             rule_obj.raw_rule = ":!!! Regex in this rule perform poorly. Fix the issue and remove this line !!!:\n" + rule_obj.raw_rule
             warden_rules[rule_obj.name] = rule_obj.raw_rule
         await cog.send_notification(guild, f"The Warden rule `{rule_obj.name}` has been disabled for poor regex performances. "
-                                           f"Please fix it to prevent this from happening again in the future.")
+                                           f"Please fix it to prevent this from happening again in the future.", title="👮 • Warden")
         return False
     except Exception as e:
         log.error("Warden - Unexpected error while running user defined regex", exc_info=e)

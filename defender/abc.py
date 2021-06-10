@@ -21,6 +21,8 @@ from redbot.core import Config, commands
 from redbot.core.bot import Red
 from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
+from .core.warden.rule import WardenRule
+from typing import List
 import discord
 import asyncio
 
@@ -43,7 +45,6 @@ class MixinMeta(ABC):
         self.emergency_mode: dict
         self.active_warden_rules: dict
         self.invalid_warden_rules: dict
-        self.last_raid_alert: dict
         self.joined_users: dict
         self.monitor: dict
         self.loop: asyncio.AbstractEventLoop
@@ -54,6 +55,10 @@ class MixinMeta(ABC):
 
     @abstractmethod
     async def is_rank_4(self, member: discord.Member) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    async def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None) -> bool:
         raise NotImplementedError()
 
     @abstractmethod
@@ -102,10 +107,12 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def send_notification(self, guild: discord.Guild, notification: str, *,
-                                ping=False, link_message: discord.Message=None,
-                                file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None) -> Optional[discord.Message]:
+    async def send_notification(self, destination: discord.abc.Messageable, description: str, *,
+                                title: str=None, fields: list=[], footer: str=None,
+                                thumbnail: str=None,
+                                ping=False, file: discord.File=None, react: str=None,
+                                jump_to: discord.Message=None,
+                                allow_everyone_ping=False, force_text_only=False)->Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -125,6 +132,10 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def comment_analysis(self, message: discord.Message):
+        raise NotImplementedError()
+
+    @abstractmethod
     async def make_identify_embed(self, message, user, rank=True, link=True):
         raise NotImplementedError()
 
@@ -133,7 +144,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent):
+    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
         raise NotImplementedError()
 
     @abstractmethod

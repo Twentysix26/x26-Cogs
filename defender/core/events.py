@@ -88,8 +88,13 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
             if rank >= inv_filter_rank:
-                expelled = await self.invite_filter(message)
-
+                try:
+                    expelled = await self.invite_filter(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[InviteFilter] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.warning("Unexpected error in InviteFilter", exc_info=e)
         if expelled:
             return
 
@@ -97,8 +102,13 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if rd_enabled and not is_staff:
             rd_rank = await self.config.guild(guild).raider_detection_rank()
             if rank >= rd_rank:
-                expelled = await self.detect_raider(message)
-
+                try:
+                    expelled = await self.detect_raider(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[RaiderDetection] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.warning("Unexpected error in RaiderDetection", exc_info=e)
         if expelled:
             return
 
@@ -111,6 +121,19 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                     await message.delete()
                 except:
                     pass
+
+        ca_enabled = await self.config.guild(guild).ca_enabled()
+
+        if ca_enabled and not is_staff:
+            rank_ca = await self.config.guild(guild).ca_rank()
+            if rank_ca and rank >= rank_ca:
+                try:
+                    await self.comment_analysis(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[CommentAnalysis] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.error("Unexpected error in CommentAnalysis", exc_info=e)
 
     @commands.Cog.listener()
     async def on_message_edit(self, message_before: discord.Message, message: discord.Message):
@@ -165,7 +188,26 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
             if rank >= inv_filter_rank:
-                expelled = await self.invite_filter(message)
+                try:
+                    expelled = await self.invite_filter(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[InviteFilter] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.warning("Unexpected error in InviteFilter", exc_info=e)
+
+        ca_enabled = await self.config.guild(guild).ca_enabled()
+        if ca_enabled and not is_staff:
+            rank_ca = await self.config.guild(guild).ca_rank()
+            if rank_ca and rank >= rank_ca:
+                try:
+                    await self.comment_analysis(message)
+                except discord.Forbidden as e:
+                    self.send_to_monitor(guild, "[CommentAnalysis] Failed to take action on "
+                                                f"user {author.id}. Please check my permissions.")
+                except Exception as e:
+                    log.error("Unexpected error in CommentAnalysis", exc_info=e)
+
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message):

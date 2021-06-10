@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from defender.core.warden.constants import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, CONDITIONS_ARGS_N, CONDITIONS_PARAM_TYPE
-from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N
+from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N, ALLOWED_DEBUG_ACTIONS
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
@@ -49,6 +49,28 @@ RULE_FACULTATIVE_KEYS = ("priority", "run-every")
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
 URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I)
 
+class ConditionResult:
+    """This is used to store the condition evaluations at runtime
+    It is designed to aid the user in debugging the rules"""
+    def __init__(self, rule_name, debug):
+        self.rule_name = rule_name
+        self.conditions = []
+        self.result = False
+        self.debug = debug
+
+    def add_condition(self, condition: Condition, result: bool):
+        if self.debug:
+            self.conditions.append((condition, result))
+
+    def add_condition_block(self, condition_block: ConditionBlock, inner_conditions: list, results: list):
+        if self.debug:
+            block = (condition_block, [])
+            for i, c in enumerate(inner_conditions):
+                block[1].append((next(iter(c)), results[i]))
+            self.conditions.append(block)
+
+    def __bool__(self):
+        return self.result
 
 class WardenRule:
     def __init__(self):
@@ -299,9 +321,11 @@ class WardenRule:
 
 
     async def satisfies_conditions(self, *, rank: Optional[Rank], cog, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None):
+                                   guild: discord.Guild=None, debug=False)->ConditionResult:
+        cr = ConditionResult(rule_name=self.name, debug=debug)
+
         if rank < self.rank:
-            return False
+            return cr
 
         # Due to the strict checking done during parsing we can
         # expect to always have available the variables that we need for
@@ -324,34 +348,39 @@ class WardenRule:
                 condition = Condition(condition)
 
             if condition == ConditionBlock.IfAll:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild, debug=debug)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
+                cr.add_condition_block(condition, value, results) # type: ignore
                 cond_result = all(results)
             elif condition == ConditionBlock.IfAny:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild, debug=debug)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
+                cr.add_condition_block(condition, value, results) # type: ignore
                 cond_result = any(results)
             elif condition == ConditionBlock.IfNot:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild, debug=debug)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
+                cr.add_condition_block(condition, value, results) # type: ignore
                 results = [not r for r in results] # Bools are flipped
                 cond_result = all(results)
             else:
-                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message, guild=guild)
+                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message, guild=guild, debug=debug)
                 if len(results) != 1:
                     raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
+                cr.add_condition(condition, results[0]) # type: ignore
                 cond_result = results[0]
 
             if cond_result is False:
-                return False # If one root condition is False there's no need to continue
+                return cr # If one root condition is False there's no need to continue
 
-        return True
+        cr.result = True
+        return cr
 
     async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None):
+                                   guild: discord.Guild=None, debug):
         bools = []
 
         if message and not user:
@@ -557,24 +586,24 @@ class WardenRule:
                 is_staff = await cog.bot.is_mod(user)
                 bools.append(is_staff is value)
             elif condition == Condition.UserHeatIs:
-                bools.append(heat.get_user_heat(user) == value)
+                bools.append(heat.get_user_heat(user, debug=debug) == value)
             elif condition == Condition.ChannelHeatIs:
-                bools.append(heat.get_channel_heat(channel) == value)
+                bools.append(heat.get_channel_heat(channel, debug=debug) == value)
             elif condition == Condition.CustomHeatIs:
                 heat_key = Template(value[0]).safe_substitute(templates_vars)
-                bools.append(heat.get_custom_heat(guild, heat_key) == value[1])
+                bools.append(heat.get_custom_heat(guild, heat_key, debug=debug) == value[1])
             elif condition == Condition.UserHeatMoreThan:
-                bools.append(heat.get_user_heat(user) > value) # type: ignore
+                bools.append(heat.get_user_heat(user, debug=debug) > value) # type: ignore
             elif condition == Condition.ChannelHeatMoreThan:
-                bools.append(heat.get_channel_heat(channel) > value) # type: ignore
+                bools.append(heat.get_channel_heat(channel, debug=debug) > value) # type: ignore
             elif condition == Condition.CustomHeatMoreThan:
                 heat_key = Template(value[0]).safe_substitute(templates_vars)
-                bools.append(heat.get_custom_heat(guild, heat_key) > value[1])
+                bools.append(heat.get_custom_heat(guild, heat_key, debug=debug) > value[1])
 
         return bools
 
     async def do_actions(self, *, cog, user: discord.Member=None, message: discord.Message=None,
-                         guild: discord.Guild=None):
+                         guild: discord.Guild=None, debug=False):
         if message and not user:
             user = message.author
         guild = guild if guild else user.guild
@@ -595,7 +624,7 @@ class WardenRule:
             "user_nickname": str(user.nick),
             "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
             "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
-            "user_heat": heat.get_user_heat(user),
+            "user_heat": heat.get_user_heat(user, debug=debug),
             })
 
         if message:
@@ -616,7 +645,7 @@ class WardenRule:
             templates_vars["channel_mention"] = channel.mention
             templates_vars["channel_category"] = channel.category.name if channel.category else "None"
             templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
-            templates_vars["channel_heat"] = heat.get_channel_heat(channel)
+            templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
 
         #for heat_key in heat.get_custom_heat_keys(guild):
         #    templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
@@ -628,6 +657,8 @@ class WardenRule:
             for action, value in entry.items():
                 action = Action(action)
                 self.last_action = action
+                if debug and action not in ALLOWED_DEBUG_ACTIONS:
+                    continue
                 if action == Action.DmUser:
                     text = Template(value).safe_substitute(templates_vars)
                     try:
@@ -640,14 +671,18 @@ class WardenRule:
                     await message.delete()
                 elif action == Action.NotifyStaff:
                     text = Template(value).safe_substitute(templates_vars)
-                    last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True)
+                    last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True,
+                                                                    force_text_only=True)
                 elif action == Action.NotifyStaffAndPing:
                     text = Template(value).safe_substitute(templates_vars)
-                    last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True)
+                    last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
+                                                                    force_text_only=True)
                 elif action == Action.NotifyStaffWithEmbed:
                     title, content = (value[0], value[1])
-                    em = self._build_embed(title, content, templates_vars=templates_vars)
-                    last_sent_message = await cog.send_notification(guild, "", embed=em, allow_everyone_ping=True)
+                    content = Template(content).safe_substitute(templates_vars)
+                    last_sent_message = await cog.send_notification(guild, content,
+                                                                    title=title, footer=f"Warden rule `{self.name}`",
+                                                                    allow_everyone_ping=True)
                 elif action == Action.SendInChannel:
                     text = Template(value).safe_substitute(templates_vars)
                     last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
@@ -757,43 +792,43 @@ class WardenRule:
                     cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
                 elif action == Action.AddUserHeatpoint:
                     timedelta = parse_timedelta(value)
-                    heat.increase_user_heat(user, timedelta) # type: ignore
-                    templates_vars["user_heat"] = heat.get_user_heat(user)
+                    heat.increase_user_heat(user, timedelta, debug=debug) # type: ignore
+                    templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
                 elif action == Action.AddUserHeatpoints:
                     points_n = value[0]
                     timedelta = parse_timedelta(value[1])
                     for _ in range(points_n):
-                        heat.increase_user_heat(user, timedelta) # type: ignore
-                    templates_vars["user_heat"] = heat.get_user_heat(user)
+                        heat.increase_user_heat(user, timedelta, debug=debug) # type: ignore
+                    templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
                 elif action == Action.AddChannelHeatpoint:
                     timedelta = parse_timedelta(value)
-                    heat.increase_channel_heat(channel, timedelta) # type: ignore
-                    templates_vars["channel_heat"] = heat.get_channel_heat(channel)
+                    heat.increase_channel_heat(channel, timedelta, debug=debug) # type: ignore
+                    templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
                 elif action == Action.AddChannelHeatpoints:
                     points_n = value[0]
                     timedelta = parse_timedelta(value[1])
                     for _ in range(points_n):
-                        heat.increase_channel_heat(channel, timedelta) # type: ignore
-                    templates_vars["channel_heat"] = heat.get_channel_heat(channel)
+                        heat.increase_channel_heat(channel, timedelta, debug=debug) # type: ignore
+                    templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
                 elif action == Action.AddCustomHeatpoint:
                     heat_key = Template(value[0]).safe_substitute(templates_vars)
                     timedelta = parse_timedelta(value[1])
-                    heat.increase_custom_heat(guild, heat_key, timedelta) # type: ignore
+                    heat.increase_custom_heat(guild, heat_key, timedelta, debug=debug) # type: ignore
                     #templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
                 elif action == Action.AddCustomHeatpoints:
                     heat_key = Template(value[0]).safe_substitute(templates_vars)
                     points_n = value[1]
                     timedelta = parse_timedelta(value[2])
                     for _ in range(points_n):
-                        heat.increase_custom_heat(guild, heat_key, timedelta) # type: ignore
+                        heat.increase_custom_heat(guild, heat_key, timedelta, debug=debug) # type: ignore
                     #templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
                 elif action == Action.EmptyUserHeat:
-                    heat.empty_user_heat(user)
+                    heat.empty_user_heat(user, debug=debug)
                 elif action == Action.EmptyChannelHeat:
-                    heat.empty_channel_heat(channel)
+                    heat.empty_channel_heat(channel, debug=debug)
                 elif action == Action.EmptyCustomHeat:
                     heat_key = Template(value).safe_substitute(templates_vars)
-                    heat.empty_custom_heat(guild, heat_key)
+                    heat.empty_custom_heat(guild, heat_key, debug=debug)
                 elif action == Action.IssueCommand:
                     issuer = guild.get_member(value[0])
                     if issuer is None:
@@ -823,14 +858,6 @@ class WardenRule:
                     raise ExecutionError(f"Unhandled action '{self.name}'.")
 
         return bool(last_expel_action)
-
-    def _build_embed(self, title: str, content: str, *, templates_vars: dict):
-        title = Template(title).safe_substitute(templates_vars)
-        content = Template(content).safe_substitute(templates_vars)
-        em = discord.Embed(color=discord.Colour.red(), description=content)
-        em.set_author(name=title)
-        em.set_footer(text=f"Warden rule `{self.name}`")
-        return em
 
     def __repr__(self):
         return f"<WardenRule '{self.name}'>"

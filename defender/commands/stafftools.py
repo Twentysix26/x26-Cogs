@@ -20,12 +20,13 @@ from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import Rank
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
-from ..core.warden.enums import Event as WardenEvent
+from ..core.warden.enums import Event as WardenEvent, ConditionBlock
 from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_prompt
+from ..core.warden import heat
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..exceptions import InvalidRule
-from ..core.announcements import get_announcements
+from ..core.announcements import get_announcements_embed
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.chat_formatting import error, pagify, box, inline
@@ -279,21 +280,23 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if on_or_off:
             if not emergency_mode:
                 self.emergency_mode[guild.id] = EmergencyMode(manual=True)
-                await self.send_notification(guild, alert_msg, ping=True)
+                await self.send_notification(guild, alert_msg, title="Emergency mode",
+                                             ping=True, jump_to=ctx.message)
                 self.dispatch_event("emergency", guild)
             else:
                 await ctx.send("Emergency mode is already ongoing.")
         else:
             if emergency_mode:
                 del self.emergency_mode[guild.id]
-                await self.send_notification(guild, "⚠️ Emergency mode manually disabled.")
+                await self.send_notification(guild, "⚠️ Emergency mode manually disabled.",
+                                             title="Emergency mode", jump_to=ctx.message)
             else:
                 await ctx.send("Emergency mode is already off.")
 
     @defender.command(name="updates")
     async def defendererupdates(self, ctx: commands.Context):
         """Shows all the past announcements of Defender"""
-        announcements = get_announcements(only_recent=False)
+        announcements = get_announcements_embed(only_recent=False)
         if announcements:
             announcements = list(announcements.values())
             await menu(ctx, announcements, DEFAULT_CONTROLS)
@@ -620,3 +623,136 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             text += f"\n**{errors}** of them triggered an error on this rule."
 
         await ctx.send(text)
+
+    @wardengroup.command(name="memory")
+    async def wardengroupmemory(self, ctx: commands.Context):
+        """Shows or resets the memory of Warden"""
+        prod_state = heat.get_state(ctx.guild)
+        dev_state = heat.get_state(ctx.guild, debug=True)
+        text = ""
+
+        def show_state(state, state_name):
+            text = ""
+            first_run = True
+            for _type in ("custom", "users", "channels"):
+                to_add = []
+                for k, v in sorted(state[_type].items()):
+                    to_add.append(f"{k}: {len(v)}")
+                if to_add:
+                    if first_run:
+                        text += f"- **{state_name}**:"
+                        first_run = False
+                    if text: text += "\n"
+                    text += f"`{_type.title()} heat levels`\n"
+                    text += ", ".join(to_add)
+            return text
+
+        text = (show_state(prod_state, "Production heat store") + "\n\n" +
+                show_state(dev_state, "Sandbox heat store"))
+
+        if text == "\n\n":
+            return await ctx.send("There is currently nothing stored in Warden's memory.")
+
+        text += "\nIf you want to empty Warden's memory, say `free` in the next 10 seconds."
+
+        for p in pagify(text):
+            await ctx.send(p)
+
+        def say_free(m):
+            return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() == "free"
+
+        try:
+            message = await ctx.bot.wait_for("message", check=say_free, timeout=10)
+        except asyncio.TimeoutError:
+            pass
+        else:
+            heat.empty_state(ctx.guild)
+            heat.empty_state(ctx.guild, debug=True)
+            await message.add_reaction("✅")
+
+
+    @wardengroup.command(name="debug")
+    async def wardengroupdebug(self, ctx: commands.Context, _id: int, *, event: WardenEvent):
+        """Simulate and give a detailed summary of an event
+
+        A Warden event must be passed with the proper target ID (user or local message)
+
+        When this command is issued all the rules registered to the event will be
+        processed in a safe way against the target, if any.
+        If the target satisfies the conditions, *only* the heatpoint related actions
+        will be carried on.
+        The heatpoint actions will be "sandboxed", so the newly added heatpoints won't
+        have any effect outside this test.
+        Remember that Warden evaluates each condition in order and stops at the first failed
+        root condition: the last condition you'll see in a failed rule is where Warden
+        stopped evaluating them.
+        See the documentation for a full list of Warden events.
+
+        Example:
+        [p]def warden debug <valid_user_id> on-user-join
+        [p]def warden debug <valid_message_id> on-message"""
+        rules = self.get_warden_rules_by_event(ctx.guild, event)
+        if not rules:
+            return await ctx.send("There are no rules associated with that event.")
+
+        results = []
+        message = None
+        guild = ctx.guild
+
+        if event in (WardenEvent.OnMessage, WardenEvent.OnMessageEdit, WardenEvent.OnMessageDelete):
+            message = await ctx.channel.fetch_message(_id)
+            if message is None:
+                return await ctx.send("I could not retrieve the message. Is it in this channel?")
+            user = message.author
+            rank = await self.rank_user(user)
+        elif event in (WardenEvent.OnUserJoin, WardenEvent.OnUserLeave, WardenEvent.Manual, WardenEvent.Periodic):
+            user = ctx.guild.get_member(_id)
+            if user is None:
+                return await ctx.send("I could not retrieve the user.")
+            rank = await self.rank_user(user)
+        else:
+            rank = Rank.Rank4
+            user = None
+
+
+        for rule in rules:
+            result = await rule.satisfies_conditions(cog=self, guild=guild, rank=rank, user=user,
+                                                     message=message, debug=True)
+            results.append(result)
+            if result:
+                await rule.do_actions(cog=self, guild=guild, user=user, message=message, debug=True)
+
+        text = ""
+        for i, result in enumerate(results):
+            i += 1
+            text += f"**{i}. {result.rule_name}**\n"
+            if result.result is True:
+                text += "Passed\n"
+            elif result.result is False and not result.conditions:
+                text += "Failed rank check.\n"
+            else:
+                text += "Failed:\n"
+                rule_results = ""
+                for c in result.conditions:
+                    if isinstance(c[0], ConditionBlock):
+                        rule_results += f"- {c[0].value}:\n"
+                        for inner_c in c[1]:
+                            rule_results += f"  - {inner_c[0]}: {inner_c[1]}\n"
+                    else:
+                        rule_results += f"- {c[0].value}: {c[1]}\n"
+                text += f"{box(rule_results, lang='yaml')}"
+        text += "\nIf you want to empty Warden's sandbox memory, say `free` in the next 10 seconds."
+
+        for p in pagify(text):
+            await ctx.send(p)
+
+        def say_free(m):
+            return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() == "free"
+
+        try:
+            message = await ctx.bot.wait_for("message", check=say_free, timeout=10)
+        except asyncio.TimeoutError:
+            pass
+        else:
+            heat.empty_state(ctx.guild, debug=True)
+            await message.add_reaction("✅")

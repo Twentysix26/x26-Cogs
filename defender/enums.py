@@ -33,8 +33,33 @@ class Action(enum.Enum):
     Ban = "ban"
     Kick = "kick"
     Softban = "softban"
+    Punish = "punish"
+
+class AutoModules(enum.Enum):
+    RaiderDetection = "Raider detection"
+    InviteFilter = "Invite filter"
+    JoinMonitor = "Join monitor"
+    Warden = "Warden"
+
+class ManualModules(enum.Enum):
+    Alert = "Alert"
+    Vaporize = "Vaporize"
+    Silence = "Silence"
+    Voteout = "Voteout"
 
 class EmergencyModules(enum.Enum):
     Voteout = "voteout"
     Vaporize = "vaporize"
     Silence = "silence"
+
+# https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages
+
+class PerspectiveAttributes(enum.Enum):
+    Toxicity = "TOXICITY"
+    SevereToxicity = "SEVERE_TOXICITY"
+    IdentityAttack = "IDENTITY_ATTACK"
+    Insult = "INSULT"
+    Profanity = "PROFANITY"
+    Threat = "THREAT"
+    SexuallyExplicit = "SEXUALLY_EXPLICIT"
+    Flirtation = "FLIRTATION"

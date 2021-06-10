@@ -34,6 +34,7 @@ async def make_status(ctx, cog):
     can_kick = ctx.channel.permissions_for(guild.me).kick_members
     can_read_al = ctx.channel.permissions_for(guild.me).view_audit_log
     can_see_own_invites = True
+    punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
     if not guild.me.guild_permissions.manage_guild:
         if await cog.config.guild(guild).invite_filter_enabled():
             exclude_own = await cog.config.guild(guild).invite_filter_exclude_own_invites()
@@ -42,7 +43,9 @@ async def make_status(ctx, cog):
 
     msg = ("This is an overview of the status and the general settings.\n*Notify role* is the "
             "role that gets pinged in case of urgent matters.\n*Notify channel* is where I send "
-            "notifications about reports and actions I take.\n\n")
+            "notifications about reports and actions I take.\n*Punish role* is the role that I "
+            "will assign to misbehaving users if the \"action\" of a Defender module is "
+            "set to \"punish\".\n\n")
 
     admin_roles = await ctx.bot._config.guild(ctx.guild).admin_role()
     mod_roles = await ctx.bot._config.guild(ctx.guild).mod_role()
@@ -81,9 +84,11 @@ async def make_status(ctx, cog):
     # 1.1 - Warden
     # 1.2 - Message cache
     # 1.2.1 - Warden enhancements
-    em.set_author(name="Defender system v1.2.1")
+    # 1.3 - Punish action type
+    em.set_author(name="Defender system v1.3")
     em.add_field(name="Notify role", value=n_role.mention if n_role else "None set", inline=True)
     em.add_field(name="Notify channel", value=n_channel.mention if n_channel else "None set", inline=True)
+    em.add_field(name="Punish role", value=punish_role.mention if punish_role else "None set", inline=True)
 
     pages.append(em)
 
@@ -164,14 +169,19 @@ async def make_status(ctx, cog):
     rank = await cog.config.guild(guild).raider_detection_rank()
     messages = await cog.config.guild(guild).raider_detection_messages()
     minutes = await cog.config.guild(guild).raider_detection_minutes()
-    action = await cog.config.guild(guild).raider_detection_action()
+    action = Action(await cog.config.guild(guild).raider_detection_action())
     wipe = await cog.config.guild(guild).raider_detection_wipe()
+    if action == Action.NoAction:
+        action = "**notify** the staff about it"
+    else:
+        action = f"**{action.value}** them"
 
-    msg = ("**Raider detection**\nThis auto-module is designed to counter raiders. It can detect large "
+
+    msg = ("**Raider detection   🦹**\nThis auto-module is designed to counter raiders. It can detect large "
             "amounts of messages in a set time window and take action on the user.\n")
     msg += (f"It is set so that if a **Rank {rank}** user (or below) sends **{messages} messages** in "
-            f"**{minutes} minutes** I will **{action}** them.\n")
-    if Action(action) == Action.Ban and wipe:
+            f"**{minutes} minutes** I will {action}.\n")
+    if action == Action.Ban and wipe:
         msg += f"The **ban** will also delete **{wipe} days** worth of messages.\n"
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
@@ -188,7 +198,7 @@ async def make_status(ctx, cog):
     else:
         oi_text = "I will take action on **any invite**, even when they belong to this server."
     action = f"**{action}** any user" if action != "none" else "**delete the message** of any user"
-    msg += ("**Invite filter**\nThis auto-module is designed to take care of advertisers. It can detect "
+    msg += ("**Invite filter   🔥📧**\nThis auto-module is designed to take care of advertisers. It can detect "
             f"a standard Discord invite and take action on the user.\nIt is set so that I will {action} "
             f"who is **Rank {rank}** or below. {oi_text}\n")
     msg += "This module is currently "
@@ -200,7 +210,7 @@ async def make_status(ctx, cog):
     minutes = await cog.config.guild(guild).join_monitor_minutes()
     newhours = await cog.config.guild(guild).join_monitor_susp_hours()
 
-    msg += ("**Join monitor**\nThis auto-module is designed to report suspicious user joins. It is able "
+    msg += ("**Join monitor   🔎🕵️**\nThis auto-module is designed to report suspicious user joins. It is able "
             "to detect an abnormal influx of new users and report any account that has been recently "
             "created.\n")
     msg += (f"It is set so that if **{users} users** join in the span of **{minutes} minutes** I will notify "
@@ -231,7 +241,7 @@ async def make_status(ctx, cog):
     wd_periodic = "allowed" if await cog.config.wd_periodic_allowed() else "not allowed"
     wd_regex = "allowed" if await cog.config.wd_regex_allowed() else "not allowed"
 
-    msg = ("**Warden**\nThis auto-module is extremely versatile. Thanks to a rich set of  "
+    msg = ("**Warden   👮**\nThis auto-module is extremely versatile. Thanks to a rich set of  "
             "*events*, *conditions* and *actions* that you can combine Warden allows you to define "
             "custom rules to counter any common pattern of bad behaviour that you notice in your "
             "community.\nMessage filtering, assignation of roles to misbehaving users, "
@@ -243,8 +253,41 @@ async def make_status(ctx, cog):
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 
+    PERSPECTIVE_URL = "https://www.perspectiveapi.com/"
+    PERSPECTIVE_API_URL = "https://developers.perspectiveapi.com/s/docs-get-started"
+    ca_token = await cog.config.guild(guild).ca_token()
+    if ca_token:
+        ca_token = f"The API key is currently set: **{ca_token[:3]}...{ca_token[len(ca_token)-3:]}**"
+    else:
+        ca_token = f"The API key is **NOT** set. Get one [here]({PERSPECTIVE_API_URL})"
+
+    ca_action = Action(await cog.config.guild(guild).ca_action())
+    ca_wipe = await cog.config.guild(guild).ca_wipe()
+    if ca_action == Action.Ban:
+        ca_action = f"**ban** the author and **delete {ca_wipe} days** worth of messages"
+    elif ca_action == Action.NoAction:
+        ca_action = "**delete** it and **notify** the staff"
+    else:
+        ca_action = f"**{ca_action.value}** the author"
+
+    ca_rank = await cog.config.guild(guild).ca_rank()
+    ca_attributes = len(await cog.config.guild(guild).ca_attributes())
+    ca_threshold = await cog.config.guild(guild).ca_threshold()
+    enabled = await cog.config.guild(guild).ca_enabled()
+
+    msg += ("**Comment analysis    💬**\nThis automodule interfaces with Google's "
+            f"[Perspective API]({PERSPECTIVE_URL}) to analyze the messages in your server and "
+            "detect abusive content.\nIt supports a variety of languages and it is a powerful tool "
+            "for monitoring and prevention. Be mindful of *false positives*: context is not taken "
+            f"in consideration.\n{ca_token}.\nIt is set so that if I detect an abusive message I will "
+            f"{ca_action}. The offending user must be **Rank {ca_rank}** or below.\nI will take action "
+            f"only if the **{ca_threshold}%** threshold is reached for any of the **{ca_attributes}** "
+            f"attribute(s) that have been set.\n")
+    msg += "This module is currently "
+    msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
+
     em = discord.Embed(color=discord.Colour.red(), description=msg)
-    em.set_footer(text=f"`{p}dset warden` `{p}defender warden` to configure.")
+    em.set_footer(text=f"`{p}dset warden` `{p}def warden` `{p}dset commentanalysis` to configure.")
     em.set_author(name="Auto modules (2/2)")
 
     pages.append(em)
@@ -254,7 +297,7 @@ async def make_status(ctx, cog):
     em_modules = await cog.config.guild(guild).emergency_modules()
     minutes = await cog.config.guild(guild).emergency_minutes()
 
-    msg = ("**Alert**\nThis manual module is designed to aid helper roles in reporting bad actors to "
+    msg = ("**Alert   🚨**\nThis manual module is designed to aid helper roles in reporting bad actors to "
             f"the staff. Upon issuing the `{p}alert` command the staff will get pinged in the set notification "
             "channel and will be given context from where the alert was issued.\nFurther, if any manual module is "
             "set to be used in case of staff inactivity (*emergency mode*), they will be rendered available to "
@@ -270,7 +313,7 @@ async def make_status(ctx, cog):
     if d_enabled:
         enabled = await cog.config.guild(guild).vaporize_enabled()
 
-    msg += ("**Vaporize**\nThis manual module is designed to get rid of vast amounts of bad actors in a quick way "
+    msg += ("**Vaporize   ☁️**\nThis manual module is designed to get rid of vast amounts of bad actors in a quick way "
             "without creating a mod-log entry. To prevent misuse only **Rank 3** and below are targetable by this "
             "module. This module can be rendered available to helper roles in *emergency mode*.\n")
     if EmergencyModules.Vaporize.value in em_modules:
@@ -285,7 +328,7 @@ async def make_status(ctx, cog):
 
     rank_silenced = await cog.config.guild(guild).silence_rank()
 
-    msg += ("**Silence**\nThis manual module allows to enable auto-deletion of messages for the selected ranks.\n"
+    msg += ("**Silence   🔇**\nThis manual module allows to enable auto-deletion of messages for the selected ranks.\n"
             "It can be rendered available to helper roles in *emergency mode*.\n")
     if rank_silenced:
         msg += (f"It is set to silence **Rank {rank_silenced}** and below.\n")
@@ -312,7 +355,7 @@ async def make_status(ctx, cog):
     action = await cog.config.guild(guild).voteout_action()
     wipe = await cog.config.guild(guild).voteout_wipe()
 
-    msg = ("**Voteout**\nThis manual module allows to start a voting session to expel a user from the "
+    msg = ("**Voteout   👍 👎**\nThis manual module allows to start a voting session to expel a user from the "
            "server. It is most useful to helper roles, however staff can also use this.\n"
            "It can be rendered available to helper roles in *emergency mode*.\n")
     msg += (f"It is set so that **{votes} votes** (including the issuer) are required to **{action}** "

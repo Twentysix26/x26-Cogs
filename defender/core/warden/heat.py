@@ -38,7 +38,7 @@ log = logging.getLogger("red.x26cogs.defender")
 
 _guild_heat = {"channels" : {}, "users": {}, "custom": {}}
 _heat_store = defaultdict(lambda: deepcopy(_guild_heat))
-
+_sandbox_heat_store = defaultdict(lambda: deepcopy(_guild_heat))
 class HeatLevel:
     __slots__ = ("guild", "id", "type", "_heat_points",)
 
@@ -67,72 +67,78 @@ class HeatLevel:
     def __repr__(self):
         return f"<HeatLevel: {len(self._heat_points)}>"
 
-def get_user_heat(user: discord.Member):
-    heat = _heat_store[user.guild.id]["users"].get(user.id)
+def get_heat_store(guild_id, debug=False):
+    if debug is False:
+        return _heat_store[guild_id]
+    else:
+        return _sandbox_heat_store[guild_id]
+
+def get_user_heat(user: discord.Member, *, debug=False):
+    heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)
     if heat:
         return len(heat)
     else:
         return 0
 
-def get_channel_heat(channel: discord.TextChannel):
-    heat = _heat_store[channel.guild.id]["channels"].get(channel.id)
+def get_channel_heat(channel: discord.TextChannel, *, debug=False):
+    heat = get_heat_store(channel.guild.id, debug)["channels"].get(channel.id)
     if heat:
         return len(heat)
     else:
         return 0
 
-def get_custom_heat(guild: discord.Guild, key: str):
+def get_custom_heat(guild: discord.Guild, key: str, *, debug=False):
     key = key.lower()
-    heat = _heat_store[guild.id]["custom"].get(key)
+    heat = get_heat_store(guild.id, debug)["custom"].get(key)
     if heat:
         return len(heat)
     else:
         return 0
 
-def empty_user_heat(user: discord.Member):
-    heat = _heat_store[user.guild.id]["users"].get(user.id)
+def empty_user_heat(user: discord.Member, *, debug=False):
+    heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)
     if heat:
-        discard_heatlevel(heat)
+        discard_heatlevel(heat, debug=debug)
 
-def empty_channel_heat(channel: discord.TextChannel):
-    heat = _heat_store[channel.guild.id]["channels"].get(channel.id)
+def empty_channel_heat(channel: discord.TextChannel, *, debug=False):
+    heat = get_heat_store(channel.guild.id, debug)["channels"].get(channel.id)
     if heat:
-        discard_heatlevel(heat)
+        discard_heatlevel(heat, debug=debug)
 
-def empty_custom_heat(guild: discord.Guild, key: str):
+def empty_custom_heat(guild: discord.Guild, key: str, *, debug=False):
     key = key.lower()
-    heat = _heat_store[guild.id]["custom"].get(key)
+    heat = get_heat_store(guild.id, debug)["custom"].get(key)
     if heat:
-        discard_heatlevel(heat)
+        discard_heatlevel(heat, debug=debug)
 
-def increase_user_heat(user: discord.Member, td: timedelta):
-    heat = _heat_store[user.guild.id]["users"].get(user.id)
-    if heat:
-        heat.increase_heat(td)
-    else:
-        _heat_store[user.guild.id]["users"][user.id] = HeatLevel(user.guild.id, user.id, "users")
-        _heat_store[user.guild.id]["users"][user.id].increase_heat(td)
-
-def increase_channel_heat(channel: discord.TextChannel, td: timedelta):
-    heat = _heat_store[channel.guild.id]["channels"].get(channel.id)
+def increase_user_heat(user: discord.Member, td: timedelta, *, debug=False):
+    heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)
     if heat:
         heat.increase_heat(td)
     else:
-        _heat_store[channel.guild.id]["channels"][channel.id] = HeatLevel(channel.guild.id, channel.id, "channels")
-        _heat_store[channel.guild.id]["channels"][channel.id].increase_heat(td)
+        get_heat_store(user.guild.id, debug)["users"][user.id] = HeatLevel(user.guild.id, user.id, "users")
+        get_heat_store(user.guild.id, debug)["users"][user.id].increase_heat(td)
 
-def increase_custom_heat(guild: discord.Guild, key: str, td: timedelta):
+def increase_channel_heat(channel: discord.TextChannel, td: timedelta, *, debug=False):
+    heat = get_heat_store(channel.guild.id, debug)["channels"].get(channel.id)
+    if heat:
+        heat.increase_heat(td)
+    else:
+        get_heat_store(channel.guild.id, debug)["channels"][channel.id] = HeatLevel(channel.guild.id, channel.id, "channels")
+        get_heat_store(channel.guild.id, debug)["channels"][channel.id].increase_heat(td)
+
+def increase_custom_heat(guild: discord.Guild, key: str, td: timedelta, *, debug=False):
     key = key.lower()
-    heat = _heat_store[guild.id]["custom"].get(key)
+    heat = get_heat_store(guild.id, debug)["custom"].get(key)
     if heat:
         heat.increase_heat(td)
     else:
-        _heat_store[guild.id]["custom"][key] = HeatLevel(guild.id, key, "custom")
-        _heat_store[guild.id]["custom"][key].increase_heat(td)
+        get_heat_store(guild.id, debug)["custom"][key] = HeatLevel(guild.id, key, "custom")
+        get_heat_store(guild.id, debug)["custom"][key].increase_heat(td)
 
-def discard_heatlevel(heatlevel: HeatLevel):
+def discard_heatlevel(heatlevel: HeatLevel, *, debug=False):
     try:
-        del _heat_store[heatlevel.guild][heatlevel.type][heatlevel.id]
+        del get_heat_store(heatlevel.guild, debug)[heatlevel.type][heatlevel.id]
     except Exception as e:
         pass
 
@@ -141,11 +147,27 @@ async def remove_stale_heat():
     # I'm calling len on each HeatLevel object to trigger
     # its auto removal logic, so they don't linger indefinitely
     # in the cache after the heatpoints are expired and the user is long gone
-    for c in _heat_store.values():
-        for cc in c.values():
-            for heat_level in list(cc.values()):
-                len(heat_level)
-        await asyncio.sleep(0)
+    for store in (_heat_store, _sandbox_heat_store):
+        for c in store.values():
+            for cc in c.values():
+                for heat_level in list(cc.values()):
+                    len(heat_level)
+            await asyncio.sleep(0)
+
+def get_state(guild, debug=False):
+    if not debug:
+        return _heat_store[guild.id].copy()
+    else:
+        return _sandbox_heat_store[guild.id].copy()
+
+def empty_state(guild, debug=False):
+    try:
+        if not debug:
+            del _heat_store[guild.id]
+        else:
+            del _sandbox_heat_store[guild.id]
+    except KeyError:
+        pass
 
 def get_custom_heat_keys(guild: discord.Guild):
     return list(_heat_store[guild.id]["custom"].keys())

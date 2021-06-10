@@ -24,12 +24,12 @@ from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
 from .commands import Commands
 from .core.events import Events
-from .enums import Rank, Action, EmergencyModules
+from .enums import Rank, Action, EmergencyModules, PerspectiveAttributes
 from .exceptions import InvalidRule
 from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
 from .core.warden.heat import remove_stale_heat
-from .core.announcements import get_announcements
+from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
@@ -46,8 +46,10 @@ default_guild_settings = {
     "enabled": False, # Defender system toggle
     "notify_channel": 0, # Staff channel where notifications are sent. Supposed to be private.
     "notify_role": 0, # Staff role to ping.
+    "punish_role": 0, # Role to apply if the "Action" is punish
     "trusted_roles": [], # Roles that can be considered safe
     "helper_roles": [], # Roles that are allowed to use special commands to help the staff
+    "punish_message": "", # Message to send after the punish role is assigned
     "rank3_joined_days": 1, # Users that joined < X days ago are considered new users (rank 3)
     "rank3_min_messages": 50, # Messages threshold that users should reach to be no longer classified as rank 4
     "count_messages": True, # Count users' messages. If disabled, rank4 will be unobtainable
@@ -70,6 +72,14 @@ default_guild_settings = {
     "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
     "warden_enabled": True,
     "wd_rules": {}, # Warden rules | I have to break the naming convention here due to config.py#L798
+    "ca_enabled": False, # Comment analysis
+    "ca_token": None, # CA token
+    "ca_attributes": [PerspectiveAttributes.SevereToxicity.value], # Attributes to query
+    "ca_threshold": 80, # Percentage for CA to trigger
+    "ca_action": Action.NoAction.value,
+    "ca_rank": Rank.Rank3.value,
+    "ca_reason": "Bad comment", # Mod-log reason
+    "ca_wipe": 0, # If action is ban, wipe X days worth of messages
     "alert_enabled": True, # Available to helper roles by default
     "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
     "silence_rank": 0, # ... and as such, this default will be 0
@@ -239,7 +249,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 pass
 
         if disabled:
-            await self.send_notification(guild, "⚠️ Emergency mode disabled. Welcome back.")
+            await self.send_notification(guild, "⚠️ Emergency mode disabled. Welcome back.", force_text_only=True)
 
         self.staff_activity[guild.id] = timestamp
 
@@ -408,7 +418,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         df_cache.MSG_EXPIRATION_TIME = await self.config.cache_expiration()
 
     async def send_announcements(self):
-        new_announcements = get_announcements(only_recent=True)
+        new_announcements = get_announcements_text(only_recent=True)
         if not new_announcements:
             return
 
@@ -430,10 +440,10 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 if "announcements_sent" not in guild_data:
                     guild_data["announcements_sent"] = []
 
-                for ts, em in new_announcements.items():
+                for ts, ann in new_announcements.items():
                     if ts in guild_data["announcements_sent"]:
                         continue
-                    calls.append(self.send_notification(guild, "", embed=em))
+                    calls.append(self.send_notification(guild, **ann))
 
                     guild_data["announcements_sent"].append(ts)
 
@@ -486,30 +496,73 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     async def is_emergency_module(self, guild, module: EmergencyModules):
         return module.value in await self.config.guild(guild).emergency_modules()
 
-    async def send_notification(self, guild: discord.Guild, notification: str, *,
-                                ping=False, link_message: discord.Message=None,
-                                file: discord.File=None, embed: discord.Embed=None,
-                                react: str=None, allow_everyone_ping=False)->Optional[discord.Message]:
-        if ping:
-            id_to_ping = await self.config.guild(guild).notify_role()
-            if id_to_ping:
-                notification = f"<@&{id_to_ping}>! {notification}"
+    async def send_notification(self, destination: discord.abc.Messageable, description: str, *,
+                                title: str=None, fields: list=[], footer: str=None,
+                                thumbnail: str=None,
+                                ping=False, file: discord.File=None, react: str=None,
+                                jump_to: discord.Message=None,
+                                allow_everyone_ping=False, force_text_only=False)->Optional[discord.Message]:
+        """Sends a notification to the staff channel if a guild is passed. Embed preference is respected."""
+        guild = destination
+        is_staff_notification = False
+        if isinstance(destination, discord.Guild):
+            is_staff_notification = True
+            notify_channel_id = await self.config.guild(destination).notify_channel()
+            destination = destination.get_channel(notify_channel_id)
+            if destination is None:
+                return
 
-        if link_message:
-            m = link_message
-            link = f"https://discordapp.com/channels/{m.guild.id}/{m.channel.id}/{m.id}"
-            notification = f"{notification}\n{link}"
+        staff_mention = ""
+        if ping and is_staff_notification:
+            staff_mention = f"<@&{await self.config.guild(guild).notify_role()}> "
 
-        notify_channel_id = await self.config.guild(guild).notify_channel()
-        notify_channel = guild.get_channel(notify_channel_id)
-        if notify_channel:
-            allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
-            msg = await notify_channel.send(notification, file=file, embed=embed,
-                                            allowed_mentions=allowed_mentions)
-            if react:
-                await msg.add_reaction(react)
-            return msg
-        return None
+        embed = None
+        send_embed = await self.bot.embed_requested(destination, None)
+        if send_embed is True and force_text_only is False:
+            if jump_to:
+                description += f"\n[Click to jump]({jump_to.jump_url})"
+            embed = discord.Embed(
+                title=title if title else "",
+                description=description,
+            )
+            if footer: embed.set_footer(text=footer)
+            if thumbnail: embed.set_thumbnail(url=thumbnail)
+            for field in fields:
+                embed.add_field(**field)
+            message_content = staff_mention
+            embed.color = await self.bot.get_embed_color(destination)
+            embed.timestamp = utcnow()
+        else:
+            title = f"**{title}\n**" if title else ""
+            footer = f"\n*{footer}*" if footer else ""
+            fields_txt = ""
+            for field in fields:
+                fields_txt += f"\n**{field['name']}**: {field['value']}"
+            jump_to = f"\n{jump_to.jump_url}" if jump_to else ""
+            message_content = f"{title}{staff_mention}{description}{fields_txt}{jump_to}{footer}"
+
+        allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
+        msg = await destination.send(message_content, file=file, embed=embed,
+                                     allowed_mentions=allowed_mentions)
+        if react:
+            await msg.add_reaction(react)
+        return msg
+
+    def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None):
+        if any((
+            role.permissions.manage_channels, role.permissions.manage_guild,
+            role.permissions.manage_messages, role.permissions.manage_roles,
+            role.permissions.ban_members, role.permissions.kick_members,
+            role.permissions.administrator)):
+            return True
+
+        if role.guild.me.top_role <= role:
+            return True
+
+        if issuers_top_role:
+            return role >= issuers_top_role
+        else:
+            return False
 
     def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
         rules = self.active_warden_rules.get(guild.id, {}).values()
