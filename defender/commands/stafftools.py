@@ -677,8 +677,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await message.add_reaction("✅")
 
 
-    @wardengroup.command(name="debug")
-    async def wardengroupdebug(self, ctx: commands.Context, _id: int, *, event: WardenEvent):
+    @wardengroup.command(name="debug", usage="<id> <event> [rank]")
+    async def wardengroupdebug(self, ctx: commands.Context, _id: int, event: WardenEvent, rank: int=None):
         """Simulate and give a detailed summary of an event
 
         A Warden event must be passed with the proper target ID (user or local message)
@@ -690,13 +690,24 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         The heatpoint actions will be "sandboxed", so the newly added heatpoints won't
         have any effect outside this test.
         Remember that Warden evaluates each condition in order and stops at the first failed
-        root condition: the last condition you'll see in a failed rule is where Warden
+        root condition: the last condition that is listed in a failed rule is where Warden
         stopped evaluating them.
+        If a valid Rank is also passed it will be used in place of the target's real
+        rank during the test.
         See the documentation for a full list of Warden events.
 
         Example:
         [p]def warden debug <valid_user_id> on-user-join
-        [p]def warden debug <valid_message_id> on-message"""
+        [p]def warden debug <valid_message_id> on-message
+        [p]def warden debug <valid_message_id> on-message-edit 3"""
+        if rank is not None:
+            try:
+                rank = Rank(rank)
+            except ValueError:
+                await ctx.send("You must provide a valid rank (1-4) or leave it empty "
+                               "to test against the target's real rank.")
+                return
+
         rules = self.get_warden_rules_by_event(ctx.guild, event)
         if not rules:
             return await ctx.send("There are no rules associated with that event.")
@@ -710,14 +721,14 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             if message is None:
                 return await ctx.send("I could not retrieve the message. Is it in this channel?")
             user = message.author
-            rank = await self.rank_user(user)
+            rank = rank or await self.rank_user(user)
         elif event in (WardenEvent.OnUserJoin, WardenEvent.OnUserLeave, WardenEvent.Manual, WardenEvent.Periodic):
             user = ctx.guild.get_member(_id)
             if user is None:
                 return await ctx.send("I could not retrieve the user.")
-            rank = await self.rank_user(user)
+            rank = rank or await self.rank_user(user)
         else:
-            rank = Rank.Rank4
+            rank = Rank.Rank1 # On a user-less event (for now, only on-emergency) rank is not considered
             user = None
 
 
