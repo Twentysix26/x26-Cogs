@@ -91,6 +91,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         to_copy = conf.copy()
         to_copy.pop("enabled", None)
         enabled = to_copy.pop("notify_channel", None)
+        to_copy.pop("punish_role", None)
         to_copy.pop("notify_role", None)
         to_copy.pop("trusted_roles", None)
         to_copy.pop("helper_roles", None)
