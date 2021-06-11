@@ -181,15 +181,17 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             Rank.Rank3: 0,
             Rank.Rank4: 0,
         }
-        for m in ctx.guild.members:
-            if m.bot:
-                continue
-            rank = await self.rank_user(m)
-            ranks[rank] += 1
+
+        async with ctx.typing():
+            async for m in AsyncIter(ctx.guild.members, steps=2):
+                if m.bot:
+                    continue
+                rank = await self.rank_user(m)
+                ranks[rank] += 1
         await ctx.send(box(f"Rank1: {ranks[Rank.Rank1]}\nRank2: {ranks[Rank.Rank2]}\n"
-                       f"Rank3: {ranks[Rank.Rank3]}\nRank4: {ranks[Rank.Rank4]}\n\n"
-                       f"For details about each rank see {ctx.prefix}defender status",
-                       lang="yaml"))
+                    f"Rank3: {ranks[Rank.Rank3]}\nRank4: {ranks[Rank.Rank4]}\n\n"
+                    f"For details about each rank see {ctx.prefix}defender status",
+                    lang="yaml"))
 
     @defender.command(name="identify")
     @commands.bot_has_permissions(embed_links=True)
