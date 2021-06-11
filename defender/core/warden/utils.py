@@ -92,6 +92,8 @@ async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
         async for m in AsyncIter(guild.members, steps=2):
             if m.bot:
                 continue
+            if m.joined_at is None:
+                continue
             rank = await cog.rank_user(m)
             if await new_rule.satisfies_conditions(rank=rank, user=m, cog=cog):
                 affected += 1

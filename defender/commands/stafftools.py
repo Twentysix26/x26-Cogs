@@ -186,6 +186,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             async for m in AsyncIter(ctx.guild.members, steps=2):
                 if m.bot:
                     continue
+                if m.joined_at is None:
+                    continue
                 rank = await self.rank_user(m)
                 ranks[rank] += 1
         await ctx.send(box(f"Rank1: {ranks[Rank.Rank1]}\nRank2: {ranks[Rank.Rank2]}\n"
@@ -592,6 +594,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         async with ctx.typing():
             async for m in AsyncIter(ctx.guild.members, steps=2):
                 if m.bot:
+                    continue
+                if m.joined_at is None:
                     continue
                 rank = await self.rank_user(m)
                 if await rule.satisfies_conditions(rank=rank, user=m, cog=self):

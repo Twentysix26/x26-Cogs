@@ -374,6 +374,8 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             async for member in AsyncIter(guild.members, steps=2):
                 if member.bot:
                     continue
+                if member.joined_at is None:
+                    continue
                 rank = await self.rank_user(member)
                 if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
                     try:
