@@ -63,6 +63,8 @@ ACTIONS_PARAM_TYPE = {
     Action.BanAndDelete: [int],
     Action.Softban: [None],
     Action.Kick: [None],
+    Action.PunishUser: [None],
+    Action.PunishUserWithMessage: [None],
     Action.Modlog: [str],
     Action.DeleteUserMessage: [None],
     Action.SendInChannel: [str],
@@ -150,6 +152,7 @@ ACTIONS_USER_CONTEXT = [
     Action.BanAndDelete,
     Action.Softban,
     Action.Kick,
+    Action.PunishUser,
     Action.Modlog,
     Action.AddRolesToUser,
     Action.RemoveRolesFromUser,
@@ -166,6 +169,7 @@ ACTIONS_MESSAGE_CONTEXT = [
     Action.AddChannelHeatpoint,
     Action.AddChannelHeatpoints,
     Action.EmptyChannelHeat,
+    Action.PunishUserWithMessage,
 ]
 
 ALLOWED_CONDITIONS = {

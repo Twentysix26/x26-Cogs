@@ -36,6 +36,8 @@ class Action(enum.Enum):
     BanAndDelete = "ban-user-and-delete" # Ban user in context and delete X days
     Kick = "kick-user" # Kick user in context
     Softban = "softban-user" # Softban user in context
+    PunishUser = "punish-user" # Assign the punish role to the user
+    PunishUserWithMessage = "punish-user-with-message" # Assign the punish role to the user and send the set message
     Modlog = "send-mod-log" # Send modlog case of last expel action + reason
     DeleteUserMessage = "delete-user-message" # Delete message in context
     SendInChannel = "send-in-channel" # Send message to channel in context

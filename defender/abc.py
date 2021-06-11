@@ -58,7 +58,7 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None) -> bool:
+    def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None) -> bool:
         raise NotImplementedError()
 
     @abstractmethod

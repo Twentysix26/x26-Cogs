@@ -764,6 +764,23 @@ class WardenRule:
                     await guild.unban(user)
                     last_expel_action = Action.Softban
                     cog.dispatch_event("member_remove", user, ModAction.Softban.value, reason)
+                elif action == Action.PunishUser:
+                    punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
+                    if punish_role and not cog.is_role_privileged(punish_role):
+                        await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
+                    else:
+                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
+                                                    "still present and with *no* privileges?")
+                elif action == Action.PunishUserWithMessage:
+                    punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
+                    punish_message = await cog.config.guild(guild).punish_message()
+                    if punish_role and not cog.is_role_privileged(punish_role):
+                        await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
+                        if punish_message:
+                            await channel.send(f"{user.mention} {punish_message}")
+                    else:
+                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
+                                                    "still present and with *no* privileges?")
                 elif action == Action.Modlog:
                     if last_expel_action is None:
                         continue
