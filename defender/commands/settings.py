@@ -645,7 +645,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await self.config.guild(ctx.guild).ca_action.set(action)
         if Action(action) == Action.NoAction:
             await ctx.send("Action set. Since you've chosen 'none' I will only delete "
-                           "the invite link and notify the staff about it.")
+                           "the message and notify the staff about it.")
         await ctx.tick()
 
     @caset.command(name="reason")

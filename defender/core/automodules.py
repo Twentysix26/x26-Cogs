@@ -28,6 +28,7 @@ from .warden import heat
 from redbot.core import modlog
 from io import BytesIO
 from collections import deque
+import contextlib
 import discord
 import datetime
 import logging
@@ -336,13 +337,6 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 f'The following message scored {round(attribute_score, 2)}% in the **{triggered_attribute}** category:\n'
                 f"{box(sanitized_content)}")
 
-        if action == Action.NoAction:
-            heat_key = f"core-ca-{message.channel.id}-{author.id}"
-            if heat.get_custom_heat(guild, heat_key) == 0:
-                await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
-                heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
-            return
-
         reason = await self.config.guild(guild).ca_reason()
 
         if action == Action.Ban:
@@ -367,6 +361,13 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 self.send_to_monitor(guild, "[CommentAnalysis] Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")
                 return
+        elif action == Action.NoAction:
+            heat_key = f"core-ca-{message.channel.id}-{author.id}"
+            if heat.get_custom_heat(guild, heat_key) > 0:
+                with contextlib.suppress(discord.HTTPException, discord.Forbidden):
+                    await message.delete() # The user is spamming, delete and return
+                return
+            heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
 
         await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
 
