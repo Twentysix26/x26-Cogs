@@ -679,6 +679,7 @@ class WardenRule:
                                                                     force_text_only=True)
                 elif action == Action.NotifyStaffWithEmbed:
                     title, content = (value[0], value[1])
+                    title = Template(title).safe_substitute(templates_vars)
                     content = Template(content).safe_substitute(templates_vars)
                     last_sent_message = await cog.send_notification(guild, content,
                                                                     title=title, footer=f"Warden rule `{self.name}`",
