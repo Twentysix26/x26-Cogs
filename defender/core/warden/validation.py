@@ -17,7 +17,28 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .enums import Action, Condition, Event
 from typing import Union
+from redbot.core.commands.converter import parse_timedelta
 from pydantic import BaseModel, conlist
+
+class TimeDelta(str):
+    """
+    Valid Red timedelta
+    """
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not isinstance(v, str):
+            raise TypeError("Not a valid timedelta")
+        td = parse_timedelta(v)
+        if td is None:
+            raise TypeError("Not a valid timedelta")
+        return cls(td)
+
+    def __repr__(self):
+        return f"TimeDelta({super().__repr__()})"
 
 ######### CONDITION VALIDATORS #########
 
@@ -37,16 +58,16 @@ class NotifyStaffWithEmbed(BaseModel):
 
 class AddCustomHeatpoint(BaseModel):
     label: str
-    delta: str
+    delta: TimeDelta
 
 class AddCustomHeatpoints(BaseModel):
     label: str
     points: int
-    delta: str
+    delta: TimeDelta
 
 class AddHeatpoints(BaseModel):
     points: int
-    delta: str
+    delta: TimeDelta
 
 class IssueCommand(BaseModel):
     _id: int
@@ -134,9 +155,9 @@ ACTIONS_VALIDATORS = {
     Action.NoOp: IsNone,
     Action.SendToMonitor: IsStr,
     Action.SendToChannel: SendMessageToDestination,
-    Action.AddUserHeatpoint: IsStr,
+    Action.AddUserHeatpoint: TimeDelta,
     Action.AddUserHeatpoints: AddHeatpoints,
-    Action.AddChannelHeatpoint: IsStr, # TODO Timedelta check?
+    Action.AddChannelHeatpoint: TimeDelta,
     Action.AddChannelHeatpoints: AddHeatpoints,
     Action.AddCustomHeatpoint: AddCustomHeatpoint,
     Action.AddCustomHeatpoints: AddCustomHeatpoints,

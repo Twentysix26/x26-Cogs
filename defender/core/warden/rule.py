@@ -227,7 +227,7 @@ class WardenRule:
                         validator(**parameter)
                     elif isinstance(parameter, list):
                         # A list with an expected format / order of parameters
-                        # We will map it properly that we can validate
+                        # We will map it properly so that we can validate
                         # it with pydantic
                         args = {}
                         for i, _property in enumerate(properties):
@@ -286,7 +286,6 @@ class WardenRule:
             if len(entry) != 1:
                 raise InvalidRule(f"Invalid format in the actions. Make sure you've got the dashes right!")
 
-            _type = None
             for action, parameter in entry.items():
                 try:
                     action = Action(action)
@@ -303,16 +302,13 @@ class WardenRule:
                 try:
                     # Simple type checking: int, str, a list of strs or a list of ints...
                     if single_param_validator:
-                        print(action)
-                        print(parameter)
                         validator(value=parameter)
-                        print(validator(value=parameter))
                     else:
                         if isinstance(parameter, dict):
                             validator(**parameter)
                         elif isinstance(parameter, list):
                             # A list with an expected format / order of parameters
-                            # We will map it properly that we can validate
+                            # We will map it properly so that we can validate
                             # it with pydantic
                             args = {}
                             for i, _property in enumerate(properties):
