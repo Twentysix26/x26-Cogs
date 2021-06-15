@@ -16,77 +16,135 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .enums import Action, Condition, Event
+from typing import Union
+from pydantic import BaseModel, conlist
+
+######### CONDITION VALIDATORS #########
+
+class CheckCustomHeatpoint(BaseModel):
+    label: str
+    points: int
+
+######### ACTION VALIDATORS #########
+
+class SendMessageToDestination(BaseModel):
+    _id: int
+    content: str
+
+class NotifyStaffWithEmbed(BaseModel):
+    title: str
+    content: str
+
+class AddCustomHeatpoint(BaseModel):
+    label: str
+    delta: str
+
+class AddCustomHeatpoints(BaseModel):
+    label: str
+    points: int
+    delta: str
+
+class AddHeatpoints(BaseModel):
+    points: int
+    delta: str
+
+class IssueCommand(BaseModel):
+    _id: int
+    command: str
+
+######### MIXED VALIDATORS  #########
+
+class NonEmptyList(BaseModel):
+    value: conlist(Union[str, int], min_items=1)
+
+class NonEmptyListInt(BaseModel):
+    value: conlist(int, min_items=1)
+
+class NonEmptyListStr(BaseModel):
+    value: conlist(str, min_items=1)
+
+class IsStr(BaseModel):
+    value: str
+
+class IsInt(BaseModel):
+    value: int
+
+class IsBool(BaseModel):
+    value: bool
+
+class IsNone(BaseModel):
+    value: None
 
 # The accepted types of each condition for basic sanity checking
-CONDITIONS_PARAM_TYPE = {
-    Condition.UserIdMatchesAny: [list],
-    Condition.UsernameMatchesAny: [list],
-    Condition.UsernameMatchesRegex: [str],
-    Condition.NicknameMatchesAny: [list],
-    Condition.NicknameMatchesRegex: [str],
-    Condition.MessageMatchesAny: [list],
-    Condition.MessageMatchesRegex: [str],
-    Condition.UserCreatedLessThan: [int],
-    Condition.UserJoinedLessThan: [int],
-    Condition.UserHasDefaultAvatar: [bool],
-    Condition.ChannelMatchesAny: [list],
-    Condition.CategoryMatchesAny: [list],
-    Condition.ChannelIsPublic: [bool],
-    Condition.InEmergencyMode: [bool],
-    Condition.MessageHasAttachment: [bool],
-    Condition.UserHasAnyRoleIn: [list],
-    Condition.UserHasSentLessThanMessages: [int],
-    Condition.MessageContainsInvite: [bool],
-    Condition.MessageContainsMedia: [bool],
-    Condition.MessageContainsUrl: [bool],
-    Condition.MessageContainsMTMentions: [int],
-    Condition.MessageContainsMTUniqueMentions: [int],
-    Condition.MessageContainsMTRolePings: [int],
-    Condition.MessageContainsMTEmojis: [int],
-    Condition.MessageHasMTCharacters: [int],
-    Condition.IsStaff: [bool],
-    Condition.UserIsRank: [int],
-    Condition.UserHeatIs: [int],
-    Condition.UserHeatMoreThan: [int],
-    Condition.ChannelHeatIs: [int],
-    Condition.ChannelHeatMoreThan: [int],
-    Condition.CustomHeatIs: [list],
-    Condition.CustomHeatMoreThan: [list],
+CONDITIONS_VALIDATORS = {
+    Condition.UserIdMatchesAny: NonEmptyListInt,
+    Condition.UsernameMatchesAny: NonEmptyListStr,
+    Condition.UsernameMatchesRegex: IsStr,
+    Condition.NicknameMatchesAny: NonEmptyListStr,
+    Condition.NicknameMatchesRegex: IsStr,
+    Condition.MessageMatchesAny: NonEmptyListStr,
+    Condition.MessageMatchesRegex: IsStr,
+    Condition.UserCreatedLessThan: IsInt,
+    Condition.UserJoinedLessThan: IsInt,
+    Condition.UserHasDefaultAvatar: IsBool,
+    Condition.ChannelMatchesAny: NonEmptyList,
+    Condition.CategoryMatchesAny: NonEmptyList,
+    Condition.ChannelIsPublic: IsBool,
+    Condition.InEmergencyMode: IsBool,
+    Condition.MessageHasAttachment: IsBool,
+    Condition.UserHasAnyRoleIn: NonEmptyList,
+    Condition.UserHasSentLessThanMessages: IsInt,
+    Condition.MessageContainsInvite: IsBool,
+    Condition.MessageContainsMedia: IsBool,
+    Condition.MessageContainsUrl: IsBool,
+    Condition.MessageContainsMTMentions: IsInt,
+    Condition.MessageContainsMTUniqueMentions: IsInt,
+    Condition.MessageContainsMTRolePings: IsInt,
+    Condition.MessageContainsMTEmojis: IsInt,
+    Condition.MessageHasMTCharacters: IsInt,
+    Condition.IsStaff: IsBool,
+    Condition.UserIsRank: IsInt,
+    Condition.UserHeatIs: IsInt,
+    Condition.UserHeatMoreThan: IsInt,
+    Condition.ChannelHeatIs: IsInt,
+    Condition.ChannelHeatMoreThan: IsInt,
+    Condition.CustomHeatIs: CheckCustomHeatpoint,
+    Condition.CustomHeatMoreThan: CheckCustomHeatpoint,
 }
 
-ACTIONS_PARAM_TYPE = {
-    Action.Dm: [list],
-    Action.DmUser: [str],
-    Action.NotifyStaff: [str],
-    Action.NotifyStaffAndPing: [str],
-    Action.NotifyStaffWithEmbed: [list],
-    Action.BanAndDelete: [int],
-    Action.Softban: [None],
-    Action.Kick: [None],
-    Action.PunishUser: [None],
-    Action.PunishUserWithMessage: [None],
-    Action.Modlog: [str],
-    Action.DeleteUserMessage: [None],
-    Action.SendInChannel: [str],
-    Action.SetChannelSlowmode: [str],
-    Action.AddRolesToUser: [list],
-    Action.RemoveRolesFromUser: [list],
-    Action.EnableEmergencyMode: [bool],
-    Action.SetUserNickname: [str],
-    Action.NoOp: [None],
-    Action.SendToMonitor: [str],
-    Action.SendToChannel: [list],
-    Action.AddUserHeatpoint: [str],
-    Action.AddUserHeatpoints: [list],
-    Action.AddChannelHeatpoint: [str],
-    Action.AddChannelHeatpoints: [list],
-    Action.AddCustomHeatpoint: [list],
-    Action.AddCustomHeatpoints: [list],
-    Action.EmptyUserHeat: [None],
-    Action.EmptyChannelHeat: [None],
-    Action.EmptyCustomHeat: [str],
-    Action.IssueCommand: [list],
-    Action.DeleteLastMessageSentAfter: [str],
+ACTIONS_VALIDATORS = {
+    Action.Dm: SendMessageToDestination,
+    Action.DmUser: IsStr,
+    Action.NotifyStaff: IsStr,
+    Action.NotifyStaffAndPing: IsStr,
+    Action.NotifyStaffWithEmbed: NotifyStaffWithEmbed,
+    Action.BanAndDelete: IsInt,
+    Action.Softban: IsNone,
+    Action.Kick: IsNone,
+    Action.PunishUser: IsNone,
+    Action.PunishUserWithMessage: IsNone,
+    Action.Modlog: IsStr,
+    Action.DeleteUserMessage: IsNone,
+    Action.SendInChannel: IsStr,
+    Action.SetChannelSlowmode: IsStr,
+    Action.AddRolesToUser: NonEmptyList,
+    Action.RemoveRolesFromUser: NonEmptyList,
+    Action.EnableEmergencyMode: IsBool,
+    Action.SetUserNickname: IsStr,
+    Action.NoOp: IsNone,
+    Action.SendToMonitor: IsStr,
+    Action.SendToChannel: SendMessageToDestination,
+    Action.AddUserHeatpoint: IsStr,
+    Action.AddUserHeatpoints: AddHeatpoints,
+    Action.AddChannelHeatpoint: IsStr, # TODO Timedelta check?
+    Action.AddChannelHeatpoints: AddHeatpoints,
+    Action.AddCustomHeatpoint: AddCustomHeatpoint,
+    Action.AddCustomHeatpoints: AddCustomHeatpoints,
+    Action.EmptyUserHeat: IsNone,
+    Action.EmptyChannelHeat: IsNone,
+    Action.EmptyCustomHeat: IsStr,
+    Action.IssueCommand: IssueCommand,
+    Action.DeleteLastMessageSentAfter: IsStr,
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -192,24 +250,6 @@ ALLOWED_ACTIONS = {
     Event.OnEmergency: [*ACTIONS_ANY_CONTEXT],
     Event.Manual: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
     Event.Periodic: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-}
-
-CONDITIONS_ARGS_N = {
-    Condition.CustomHeatIs: 2,
-    Condition.CustomHeatMoreThan: 2,
-}
-
-# These are for special commands such as DM, which require
-# a mandatory # of "arguments"
-ACTIONS_ARGS_N = {
-    Action.Dm: 2,
-    Action.NotifyStaffWithEmbed: 2,
-    Action.SendToChannel: 2,
-    Action.AddUserHeatpoints: 2,
-    Action.AddChannelHeatpoints: 2,
-    Action.AddCustomHeatpoint: 2,
-    Action.AddCustomHeatpoints: 3,
-    Action.IssueCommand: 2,
 }
 
 ALLOWED_DEBUG_ACTIONS = [

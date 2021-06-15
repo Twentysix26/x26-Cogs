@@ -15,8 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from defender.core.warden.constants import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, CONDITIONS_ARGS_N, CONDITIONS_PARAM_TYPE
-from defender.core.warden.constants import ACTIONS_PARAM_TYPE, ACTIONS_ARGS_N, ALLOWED_DEBUG_ACTIONS
+from defender.core.warden.validation import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, CONDITIONS_VALIDATORS
+from defender.core.warden.validation import ACTIONS_VALIDATORS, ALLOWED_DEBUG_ACTIONS
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
@@ -30,6 +30,7 @@ from discord.ext.commands import BadArgument
 from string import Template
 from redbot.core import modlog
 from typing import Optional
+from pydantic import ValidationError
 from . import heat
 import yaml
 import fnmatch
@@ -165,7 +166,7 @@ class WardenRule:
         except KeyError:
             pass
 
-        if "if" in rule: # TODO Conditions probably shouldn't be mandatory.
+        if "if" in rule:
             if not isinstance(rule["if"], list):
                 raise InvalidRule("Invalid 'if' category. Must be a list of conditions.")
         else:
@@ -214,27 +215,31 @@ class WardenRule:
             if not is_condition_allowed_in_events(condition):
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
 
-            _type = None
-            for _type in CONDITIONS_PARAM_TYPE[condition]:
-                if _type is None and parameter is None:
-                    break
-                elif _type is None:
-                    continue
-                if _type == list and isinstance(parameter, list):
-                    mandatory_arg_number = CONDITIONS_ARGS_N.get(condition, None)
-                    if mandatory_arg_number is None:
-                        break
-                    p_number = len(parameter)
-                    if p_number != mandatory_arg_number:
-                        raise InvalidRule(f"Condition `{condition.value}` requires {mandatory_arg_number} "
-                                            f"arguments, got {p_number}.")
+            validator = CONDITIONS_VALIDATORS[condition]
+            properties = validator.schema()['properties']
+            single_param_validator = len(properties) == 1 and "value" in properties.keys()
+            try:
+                # Simple type checking: int, str, a list of strs or a list of ints...
+                if single_param_validator:
+                    validator(value=parameter)
+                else:
+                    if isinstance(parameter, dict):
+                        validator(**parameter)
+                    elif isinstance(parameter, list):
+                        # A list with an expected format / order of parameters
+                        # We will map it properly that we can validate
+                        # it with pydantic
+                        args = {}
+                        for i, _property in enumerate(properties):
+                            try:
+                                args[_property] = parameter[i]
+                            except IndexError:
+                                pass
+                        validator(**args)
                     else:
-                        break
-                elif isinstance(parameter, _type):
-                    break
-            else:
-                human_type = _type.__name__ if _type is not None else "No parameter."
-                raise InvalidRule(f"Invalid parameter type for condition `{condition.value}`. Expected: `{human_type}`")
+                        validator(value=parameter)
+            except ValidationError as e:
+                raise InvalidRule(f"Condition `{condition.value}` invalid:\n{e}")
 
             if author:
                 try:
@@ -292,26 +297,34 @@ class WardenRule:
                 if not is_action_allowed_in_events(action):
                     raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
 
-                for _type in ACTIONS_PARAM_TYPE[action]:
-                    if _type is None and parameter is None:
-                        break
-                    elif _type is None:
-                        continue
-                    if _type == list and isinstance(parameter, list):
-                        mandatory_arg_number = ACTIONS_ARGS_N.get(action, None)
-                        if mandatory_arg_number is None:
-                            break
-                        p_number = len(parameter)
-                        if p_number != mandatory_arg_number:
-                            raise InvalidRule(f"Action `{action.value}` requires {mandatory_arg_number} "
-                                              f"arguments, got {p_number}.")
+                validator = ACTIONS_VALIDATORS[action]
+                properties = validator.schema()['properties']
+                single_param_validator = len(properties) == 1 and "value" in properties.keys()
+                try:
+                    # Simple type checking: int, str, a list of strs or a list of ints...
+                    if single_param_validator:
+                        print(action)
+                        print(parameter)
+                        validator(value=parameter)
+                        print(validator(value=parameter))
+                    else:
+                        if isinstance(parameter, dict):
+                            validator(**parameter)
+                        elif isinstance(parameter, list):
+                            # A list with an expected format / order of parameters
+                            # We will map it properly that we can validate
+                            # it with pydantic
+                            args = {}
+                            for i, _property in enumerate(properties):
+                                try:
+                                    args[_property] = parameter[i]
+                                except IndexError:
+                                    pass
+                            validator(**args)
                         else:
-                            break
-                    elif isinstance(parameter, _type):
-                        break
-                else:
-                    human_type = _type.__name__ if _type is not None else "No parameter."
-                    raise InvalidRule(f"Invalid parameter type for action `{action.value}`. Expected: `{human_type}`")
+                            validator(value=parameter)
+                except ValidationError as e:
+                    raise InvalidRule(f"Action `{action.value}` invalid:\n{e}")
 
                 if author:
                     try:
@@ -870,6 +883,8 @@ class WardenRule:
                         timedelta = parse_timedelta(value)
                         cog.loop.create_task(delete_message_after(last_sent_message, timedelta.seconds))
                         last_sent_message = None
+                elif action == Action.SendMessage:
+                    log.debug(value)
                 elif action == Action.NoOp:
                     pass
                 else:

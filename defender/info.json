@@ -11,7 +11,7 @@
         "moderation",
         "voteban"
     ],
-    "requirements": ["pyyaml~=5.4.1", "emoji~=1.2"],
+    "requirements": ["pyyaml~=5.4.1", "emoji~=1.2", "pydantic~=1.8"],
     "min_bot_version": "3.4.0",
     "type": "COG",
     "end_user_data_statement": "This cog stores user IDs for the purpose of counting the messages a user sends and/or send the DM notifications the user has subscribed to."

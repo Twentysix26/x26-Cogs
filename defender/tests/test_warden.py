@@ -1,9 +1,8 @@
 from ..core.warden.enums import Action, Condition, Event
 from ..enums import Rank
-from ..core.warden.constants import ALLOWED_ACTIONS, ALLOWED_CONDITIONS, CONDITIONS_PARAM_TYPE, ACTIONS_PARAM_TYPE
-from ..core.warden.constants import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
-from ..core.warden.constants import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, ACTIONS_ARGS_N
-from ..core.warden.constants import CONDITIONS_ARGS_N
+from ..core.warden.validation import ALLOWED_ACTIONS, ALLOWED_CONDITIONS, CONDITIONS_VALIDATORS, ACTIONS_VALIDATORS
+from ..core.warden.validation import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
+from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT
 from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
 from .wd_sample_rules import (CHECK_EMPTY_HEATPOINTS, CHECK_HEATPOINTS, DYNAMIC_RULE, DYNAMIC_RULE_PERIODIC, EMPTY_HEATPOINTS,
@@ -52,7 +51,7 @@ class FakeMessage:
 
 FAKE_MESSAGE = FakeMessage()
 
-def test_check_constants_consistency():
+def test_check_validators_consistency():
     def x_contains_only_y(x, y):
         for element in x:
             if not isinstance(element, y):
@@ -60,10 +59,10 @@ def test_check_constants_consistency():
         return True
 
     for condition in Condition:
-        assert condition in CONDITIONS_PARAM_TYPE
+        assert condition in CONDITIONS_VALIDATORS
 
     for action in Action:
-        assert action in ACTIONS_PARAM_TYPE
+        assert action in ACTIONS_VALIDATORS
 
     i = 0
     print("Checking if conditions are in one and only one context...")
@@ -134,60 +133,8 @@ async def test_rule_parsing():
     assert rule.conditions and isinstance(rule.conditions, list)
     assert rule.actions and isinstance(rule.actions, list)
 
-    # Dynamic rule generation to test every possible
-    # combination of event, conditions and actions
-
-    print("Dynamic rule generation...")
-    for event in Event:
-        gen_conditions = []
-        gen_actions = []
-        for condition in ALLOWED_CONDITIONS[event]:
-            if str in CONDITIONS_PARAM_TYPE[condition]:
-                gen_conditions.append(f'    - {condition.value}: test')
-            elif int in CONDITIONS_PARAM_TYPE[condition]:
-                gen_conditions.append(f'    - {condition.value}: 26')
-            elif list in CONDITIONS_PARAM_TYPE[condition]:
-                args_n = CONDITIONS_ARGS_N.get(condition, 1)
-                args = ['"*"' for i in range(args_n)]
-                gen_conditions.append(f'    - {condition.value}: [{", ".join(args)}]')
-            elif bool in CONDITIONS_PARAM_TYPE[condition]:
-                gen_conditions.append(f'    - {condition.value}: true')
-            elif None in CONDITIONS_PARAM_TYPE[condition]:
-                gen_conditions.append(f'    - {condition.value}:')
-            else:
-                raise ValueError("Unhandled data type in allowed conditions param types: "
-                                 f"{CONDITIONS_PARAM_TYPE[condition]}")
-
-        for action in ALLOWED_ACTIONS[event]:
-            if str in ACTIONS_PARAM_TYPE[action]:
-                gen_actions.append(f'    - {action.value}: test')
-            elif int in ACTIONS_PARAM_TYPE[action]:
-                gen_actions.append(f'    - {action.value}: 26')
-            elif list in ACTIONS_PARAM_TYPE[action]:
-                args_n = ACTIONS_ARGS_N.get(action, 1)
-                args = ['"*"' for i in range(args_n)]
-                gen_actions.append(f'    - {action.value}: [{", ".join(args)}]')
-            elif bool in ACTIONS_PARAM_TYPE[action]:
-                gen_actions.append(f'    - {action.value}: true')
-            elif None in ACTIONS_PARAM_TYPE[action]:
-                gen_actions.append(f'    - {action.value}:')
-            else:
-                raise ValueError("Unhandled data type in allowed actions param types: "
-                                 f"{ACTIONS_PARAM_TYPE[action]}")
-
-        if event != Event.Periodic:
-            raw = DYNAMIC_RULE.format(event=event.value,
-                                      conditions="\n".join(gen_conditions),
-                                      actions="\n".join(gen_actions))
-        else:
-            raw = DYNAMIC_RULE_PERIODIC.format(event=event.value,
-                                               conditions="\n".join(gen_conditions),
-                                               actions="\n".join(gen_actions))
-
-        print(f"Testing {event.value} with {len(gen_conditions)} conditions and "
-              f"{len(gen_actions)} actions.")
-
-        await WardenRule().parse(raw, cog=None)
+    # TODO Add rules to check for invalid types, non-empty lists, etc
+    # Restore allowed events tests
 
 @pytest.mark.asyncio
 async def test_rule_cond_eval():

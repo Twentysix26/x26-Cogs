@@ -54,7 +54,6 @@ default_guild_settings = {
     "rank3_min_messages": 50, # Messages threshold that users should reach to be no longer classified as rank 4
     "count_messages": True, # Count users' messages. If disabled, rank4 will be unobtainable
     "announcements_sent": [],
-    "actions_taken": 0, # Stats collection # TODO ?
     "invite_filter_enabled": False,
     "invite_filter_rank": Rank.Rank4.value,
     "invite_filter_action": Action.NoAction.value, # Type of action to take on users that posted filtered invites
