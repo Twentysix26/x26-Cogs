@@ -25,6 +25,7 @@ from ...exceptions import InvalidRule, ExecutionError
 from ...core import cache as df_cache
 from ...core.utils import is_own_invite
 from redbot.core.utils.common_filters import INVITE_URL_RE
+from redbot.core.utils.chat_formatting import box
 from redbot.core.commands.converter import parse_timedelta
 from discord.ext.commands import BadArgument
 from string import Template
@@ -218,7 +219,7 @@ class WardenRule:
             try:
                 model_validator(condition, parameter)
             except ValidationError as e:
-                raise InvalidRule(f"Condition `{condition.value}` invalid:\n{e}")
+                raise InvalidRule(f"Condition `{condition.value}` invalid:\n{box(str(e))}")
 
             if author:
                 try:
@@ -278,7 +279,7 @@ class WardenRule:
                 try:
                     model_validator(action, parameter)
                 except ValidationError as e:
-                    raise InvalidRule(f"Action `{action.value}` invalid:\n{e}")
+                    raise InvalidRule(f"Action `{action.value}` invalid:\n{box(str(e))}")
 
                 if author:
                     try:
@@ -637,9 +638,9 @@ class WardenRule:
         @processor(Action.Dm)
         async def send_dm(params: models.SendMessageToUser):
             nonlocal last_sent_message
-            user_to_dm = guild.get_member(params._id)
+            user_to_dm = guild.get_member(params.id)
             if not user_to_dm:
-                user_to_dm = discord.utils.get(guild.members, name=params._id)
+                user_to_dm = discord.utils.get(guild.members, name=params.id)
             if not user_to_dm:
                 return
             content = Template(params.content).safe_substitute(templates_vars)
@@ -873,9 +874,9 @@ class WardenRule:
 
         @processor(Action.IssueCommand)
         async def issue_command(params: models.IssueCommand):
-            issuer = guild.get_member(params._id)
+            issuer = guild.get_member(params.id)
             if issuer is None:
-                raise ExecutionError(f"User {params._id} is not in the server.")
+                raise ExecutionError(f"User {params.id} is not in the server.")
             msg_obj = df_cache.get_msg_obj()
             if msg_obj is None:
                 raise ExecutionError(f"Failed to issue command. Sorry!")
@@ -901,6 +902,11 @@ class WardenRule:
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):
             pass
+
+        if debug:
+            for action in Action:
+                if action not in processors:
+                    raise ExecutionError(f"{action.value} does not have a processor.")
 
         for entry in self.actions:
             for action, value in entry.items():

@@ -16,9 +16,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .enums import Action, Condition, Event
-from typing import Union, Callable
+from typing import Union
 from redbot.core.commands.converter import parse_timedelta
 from pydantic import BaseModel, conlist
+import logging
+
+log = logging.getLogger("red.x26cogs.defender")
 
 class TimeDelta(str):
     """
@@ -49,7 +52,7 @@ class CheckCustomHeatpoint(BaseModel):
 ######### ACTION VALIDATORS #########
 
 class SendMessageToUser(BaseModel):
-    _id: int
+    id: int
     content: str
 
 class SendMessageToChannel(BaseModel):
@@ -74,7 +77,7 @@ class AddHeatpoints(BaseModel):
     delta: TimeDelta
 
 class IssueCommand(BaseModel):
-    _id: int
+    id: int
     command: str
 
 ######### MIXED VALIDATORS  #########
@@ -172,7 +175,7 @@ ACTIONS_VALIDATORS = {
     Action.EmptyChannelHeat: IsNone,
     Action.EmptyCustomHeat: IsStr,
     Action.IssueCommand: IssueCommand,
-    Action.DeleteLastMessageSentAfter: IsStr,
+    Action.DeleteLastMessageSentAfter: IsTimedelta,
 }
 
 CONDITIONS_ANY_CONTEXT = [
