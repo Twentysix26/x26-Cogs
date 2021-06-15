@@ -15,8 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from defender.core.warden.validation import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, CONDITIONS_VALIDATORS
-from defender.core.warden.validation import ACTIONS_VALIDATORS, ALLOWED_DEBUG_ACTIONS
+from defender.core.warden.validation import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLOWED_DEBUG_ACTIONS, model_validator
+from defender.core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
@@ -215,29 +215,8 @@ class WardenRule:
             if not is_condition_allowed_in_events(condition):
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
 
-            validator = CONDITIONS_VALIDATORS[condition]
-            properties = validator.schema()['properties']
-            single_param_validator = len(properties) == 1 and "value" in properties.keys()
             try:
-                # Simple type checking: int, str, a list of strs or a list of ints...
-                if single_param_validator:
-                    validator(value=parameter)
-                else:
-                    if isinstance(parameter, dict):
-                        validator(**parameter)
-                    elif isinstance(parameter, list):
-                        # A list with an expected format / order of parameters
-                        # We will map it properly so that we can validate
-                        # it with pydantic
-                        args = {}
-                        for i, _property in enumerate(properties):
-                            try:
-                                args[_property] = parameter[i]
-                            except IndexError:
-                                pass
-                        validator(**args)
-                    else:
-                        validator(value=parameter)
+                model_validator(condition, parameter)
             except ValidationError as e:
                 raise InvalidRule(f"Condition `{condition.value}` invalid:\n{e}")
 
@@ -296,29 +275,8 @@ class WardenRule:
                 if not is_action_allowed_in_events(action):
                     raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
 
-                validator = ACTIONS_VALIDATORS[action]
-                properties = validator.schema()['properties']
-                single_param_validator = len(properties) == 1 and "value" in properties.keys()
                 try:
-                    # Simple type checking: int, str, a list of strs or a list of ints...
-                    if single_param_validator:
-                        validator(value=parameter)
-                    else:
-                        if isinstance(parameter, dict):
-                            validator(**parameter)
-                        elif isinstance(parameter, list):
-                            # A list with an expected format / order of parameters
-                            # We will map it properly so that we can validate
-                            # it with pydantic
-                            args = {}
-                            for i, _property in enumerate(properties):
-                                try:
-                                    args[_property] = parameter[i]
-                                except IndexError:
-                                    pass
-                            validator(**args)
-                        else:
-                            validator(value=parameter)
+                    model_validator(action, parameter)
                 except ValidationError as e:
                     raise InvalidRule(f"Action `{action.value}` invalid:\n{e}")
 
@@ -662,229 +620,301 @@ class WardenRule:
         last_sent_message: Optional[discord.Message] = None
         last_expel_action = None
 
+        processors = {}
+
+        def processor(action: Action):
+            def decorator(function):
+                processors[action] = function
+                def wrapper(*args, **kwargs):
+                    return function(*args, **kwargs)
+                return wrapper
+            return decorator
+
+        @processor(Action.DeleteUserMessage)
+        async def delete_user_message(params: models.IsNone):
+            await message.delete()
+
+        @processor(Action.Dm)
+        async def send_dm(params: models.SendMessageToUser):
+            nonlocal last_sent_message
+            user_to_dm = guild.get_member(params._id)
+            if not user_to_dm:
+                user_to_dm = discord.utils.get(guild.members, name=params._id)
+            if not user_to_dm:
+                return
+            content = Template(params.content).safe_substitute(templates_vars)
+            try:
+                last_sent_message = await user_to_dm.send(content)
+            except:
+                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
+                                    f"{user_to_dm} ({user_to_dm.id})")
+                last_sent_message = None
+
+        @processor(Action.DmUser)
+        async def send_user_dm(params: models.IsStr):
+            nonlocal last_sent_message
+            text = Template(params.value).safe_substitute(templates_vars)
+            try:
+                last_sent_message = await user.send(text)
+            except:
+                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
+                                    f"{user} ({user.id})")
+                last_sent_message = None
+
+        @processor(Action.NotifyStaff)
+        async def notify_staff(params: models.IsStr):
+            nonlocal last_sent_message
+            text = Template(params.value).safe_substitute(templates_vars)
+            last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True,
+                                                            force_text_only=True)
+
+        @processor(Action.NotifyStaffAndPing)
+        async def notify_staff_and_ping(params: models.IsStr):
+            nonlocal last_sent_message
+            text = Template(params.value).safe_substitute(templates_vars)
+            last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
+                                                            force_text_only=True)
+
+        @processor(Action.NotifyStaffWithEmbed)
+        async def notify_staff_with_embed(params: models.NotifyStaffWithEmbed):
+            nonlocal last_sent_message
+            title = Template(params.title).safe_substitute(templates_vars)
+            content = Template(params.content).safe_substitute(templates_vars)
+            last_sent_message = await cog.send_notification(guild, content,
+                                                            title=title, footer=f"Warden rule `{self.name}`",
+                                                            allow_everyone_ping=True)
+
+        @processor(Action.SendInChannel)
+        async def send_in_channel(params: models.IsStr):
+            nonlocal last_sent_message
+            text = Template(params.value).safe_substitute(templates_vars)
+            last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
+
+        @processor(Action.SetChannelSlowmode)
+        async def set_channel_slowmode(params: models.IsTimedelta):
+            await channel.edit(slowmode_delay=params.value.seconds)
+
+        @processor(Action.SendToChannel)
+        async def send_to_channel(params: models.SendMessageToChannel):
+            nonlocal last_sent_message
+            channel_dest = guild.get_channel(params.id_or_name)
+            if not channel_dest:
+                channel_dest = discord.utils.get(guild.text_channels, name=params.id_or_name)
+            if not channel_dest:
+                raise ExecutionError(f"Channel '{params._id_or_name}' not found.")
+            content = Template(params.content).safe_substitute(templates_vars)
+            last_sent_message = await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
+
+        @processor(Action.AddRolesToUser)
+        async def add_roles_to_user(params: models.NonEmptyList):
+            to_assign = []
+            for role_id_or_name in params.value:
+                role = guild.get_role(role_id_or_name)
+                if role is None:
+                    role = discord.utils.get(guild.roles, name=role_id_or_name)
+                if role:
+                    to_assign.append(role)
+            to_assign = list(set(to_assign))
+            to_assign = [r for r in to_assign if r not in user.roles]
+            if to_assign:
+                await user.add_roles(*to_assign, reason=f"Assigned by Warden rule '{self.name}'")
+
+        @processor(Action.RemoveRolesFromUser)
+        async def remove_roles_from_user(params: models.NonEmptyList):
+            to_unassign = []
+            for role_id_or_name in params.value:
+                role = guild.get_role(role_id_or_name)
+                if role is None:
+                    role = discord.utils.get(guild.roles, name=role_id_or_name)
+                if role:
+                    to_unassign.append(role)
+            to_unassign = list(set(to_unassign))
+            to_unassign = [r for r in to_unassign if r in user.roles]
+            if to_unassign:
+                await user.remove_roles(*to_unassign, reason=f"Unassigned by Warden rule '{self.name}'")
+
+        @processor(Action.SetUserNickname)
+        async def set_user_nickname(params: models.IsStr):
+            if params.value == "":
+                value = None
+            else:
+                value = Template(params.value).safe_substitute(templates_vars)
+            await user.edit(nick=value, reason=f"Changed nickname by Warden rule '{self.name}'")
+
+        @processor(Action.BanAndDelete)
+        async def ban_and_delete(params: models.IsInt):
+            nonlocal last_expel_action
+            if user not in guild.members:
+                raise ExecutionError(f"User {user} ({user.id}) not in the server.")
+            reason = f"Banned by Warden rule '{self.name}'"
+            await guild.ban(user, delete_message_days=params.value, reason=reason)
+            last_expel_action = ModAction.Ban
+            cog.dispatch_event("member_remove", user, ModAction.Ban.value, reason)
+
+        @processor(Action.Kick)
+        async def kick(params: models.IsNone):
+            nonlocal last_expel_action
+            if user not in guild.members:
+                raise ExecutionError(f"User {user} ({user.id}) not in the server.")
+            reason = f"Kicked by Warden action '{self.name}'"
+            await guild.kick(user, reason=reason)
+            last_expel_action = Action.Kick
+            cog.dispatch_event("member_remove", user, ModAction.Kick.value, reason)
+
+        @processor(Action.Softban)
+        async def softban(params: models.IsNone):
+            nonlocal last_expel_action
+            if user not in guild.members:
+                raise ExecutionError(f"User {user} ({user.id}) not in the server.")
+            reason = f"Softbanned by Warden rule '{self.name}'"
+            await guild.ban(user, delete_message_days=1, reason=reason)
+            await guild.unban(user)
+            last_expel_action = Action.Softban
+            cog.dispatch_event("member_remove", user, ModAction.Softban.value, reason)
+
+        @processor(Action.PunishUser)
+        async def punish_user(params: models.IsNone):
+            punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
+            if punish_role and not cog.is_role_privileged(punish_role):
+                await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
+            else:
+                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
+                                            "still present and with *no* privileges?")
+
+        @processor(Action.PunishUserWithMessage)
+        async def punish_user_with_message(params: models.IsNone):
+            punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
+            punish_message = await cog.config.guild(guild).punish_message()
+            if punish_role and not cog.is_role_privileged(punish_role):
+                await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
+                if punish_message:
+                    await channel.send(f"{user.mention} {punish_message}")
+            else:
+                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
+                                            "still present and with *no* privileges?")
+
+        @processor(Action.Modlog)
+        async def send_mod_log(params: models.IsStr):
+            if last_expel_action is None:
+                return
+            reason = Template(params.value).safe_substitute(templates_vars)
+            await modlog.create_case(
+                cog.bot,
+                guild,
+                utcnow(),
+                last_expel_action.value,
+                user,
+                guild.me,
+                reason,
+                until=None,
+                channel=None,
+            )
+
+        @processor(Action.EnableEmergencyMode)
+        async def enable_emergency_mode(params: models.IsBool):
+            if params.value:
+                cog.emergency_mode[guild.id] = EmergencyMode(manual=True)
+            else:
+                try:
+                    del cog.emergency_mode[guild.id]
+                except KeyError:
+                    pass
+
+        @processor(Action.SendToMonitor)
+        async def send_to_monitor(params: models.IsStr):
+            value = Template(params.value).safe_substitute(templates_vars)
+            cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
+
+        @processor(Action.AddUserHeatpoint)
+        async def add_user_heatpoint(params: models.IsTimedelta):
+            heat.increase_user_heat(user, params.value, debug=debug) # type: ignore
+            templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
+
+        @processor(Action.AddUserHeatpoints)
+        async def add_user_heatpoints(params: models.AddHeatpoints):
+            for _ in range(params.points):
+                heat.increase_user_heat(user, params.delta, debug=debug) # type: ignore
+            templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
+
+        @processor(Action.AddChannelHeatpoint)
+        async def add_channel_heatpoint(params: models.IsTimedelta):
+            heat.increase_channel_heat(channel, params.value, debug=debug) # type: ignore
+            templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
+
+        @processor(Action.AddChannelHeatpoints)
+        async def add_channel_heatpoints(params: models.AddHeatpoints):
+            for _ in range(params.points):
+                heat.increase_channel_heat(channel, params.delta, debug=debug) # type: ignore
+            templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
+
+        @processor(Action.AddCustomHeatpoint)
+        async def add_custom_heatpoint(params: models.AddCustomHeatpoint):
+            heat_key = Template(params.label).safe_substitute(templates_vars)
+            heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug) # type: ignore
+
+        @processor(Action.AddCustomHeatpoints)
+        async def add_custom_heatpoints(params: models.AddCustomHeatpoints):
+            heat_key = Template(params.label).safe_substitute(templates_vars)
+            for _ in range(params.points):
+                heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug) # type: ignore
+
+        @processor(Action.EmptyUserHeat)
+        async def empty_user_heat(params: models.IsNone):
+            heat.empty_user_heat(user, debug=debug)
+
+        @processor(Action.EmptyChannelHeat)
+        async def empty_channel_heat(params: models.IsNone):
+            heat.empty_channel_heat(channel, debug=debug)
+
+        @processor(Action.EmptyCustomHeat)
+        async def empty_custom_heat(params: models.IsStr):
+            heat_key = Template(params.value).safe_substitute(templates_vars)
+            heat.empty_custom_heat(guild, heat_key, debug=debug)
+
+        @processor(Action.IssueCommand)
+        async def issue_command(params: models.IssueCommand):
+            issuer = guild.get_member(params._id)
+            if issuer is None:
+                raise ExecutionError(f"User {params._id} is not in the server.")
+            msg_obj = df_cache.get_msg_obj()
+            if msg_obj is None:
+                raise ExecutionError(f"Failed to issue command. Sorry!")
+            if message is None:
+                notify_channel_id = await cog.config.guild(guild).notify_channel()
+                msg_obj.channel = guild.get_channel(notify_channel_id)
+                if msg_obj.channel is None:
+                    raise ExecutionError(f"Failed to issue command. Sorry!")
+            else:
+                msg_obj.channel = message.channel
+            msg_obj.author = issuer
+            prefix = await cog.bot.get_prefix(msg_obj)
+            msg_obj.content = prefix[0] + Template(params.command).safe_substitute(templates_vars)
+            cog.bot.dispatch("message", msg_obj)
+
+        @processor(Action.DeleteLastMessageSentAfter)
+        async def delete_last_message_sent_after(params: models.IsTimedelta):
+            nonlocal last_sent_message
+            if last_sent_message is not None:
+                cog.loop.create_task(delete_message_after(last_sent_message, params.value.seconds))
+                last_sent_message = None
+
+        @processor(Action.NoOp)
+        async def no_op(params: models.IsNone):
+            pass
+
         for entry in self.actions:
             for action, value in entry.items():
                 action = Action(action)
                 self.last_action = action
                 if debug and action not in ALLOWED_DEBUG_ACTIONS:
                     continue
-                if action == Action.DmUser:
-                    text = Template(value).safe_substitute(templates_vars)
-                    try:
-                        last_sent_message = await user.send(text)
-                    except:
-                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
-                                            f"{user} ({user.id})")
-                        last_sent_message = None
-                elif action == Action.DeleteUserMessage:
-                    await message.delete()
-                elif action == Action.NotifyStaff:
-                    text = Template(value).safe_substitute(templates_vars)
-                    last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True,
-                                                                    force_text_only=True)
-                elif action == Action.NotifyStaffAndPing:
-                    text = Template(value).safe_substitute(templates_vars)
-                    last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
-                                                                    force_text_only=True)
-                elif action == Action.NotifyStaffWithEmbed:
-                    title, content = (value[0], value[1])
-                    title = Template(title).safe_substitute(templates_vars)
-                    content = Template(content).safe_substitute(templates_vars)
-                    last_sent_message = await cog.send_notification(guild, content,
-                                                                    title=title, footer=f"Warden rule `{self.name}`",
-                                                                    allow_everyone_ping=True)
-                elif action == Action.SendInChannel:
-                    text = Template(value).safe_substitute(templates_vars)
-                    last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
-                elif action == Action.SetChannelSlowmode:
-                    timedelta = parse_timedelta(value)
-                    await channel.edit(slowmode_delay=timedelta.seconds)
-                elif action == Action.Dm:
-                    _id_or_name, content = (value[0], value[1])
-                    user_to_dm = guild.get_member(_id_or_name)
-                    if not user_to_dm:
-                        user_to_dm = discord.utils.get(guild.members, name=_id_or_name)
-                    if not user_to_dm:
-                        continue
-                    content = Template(content).safe_substitute(templates_vars)
-                    try:
-                        last_sent_message = await user_to_dm.send(content)
-                    except:
-                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
-                                            f"{user_to_dm} ({user_to_dm.id})")
-                        last_sent_message = None
-                elif action == Action.SendToChannel:
-                    _id_or_name, content = (value[0], value[1])
-                    channel_dest = guild.get_channel(_id_or_name)
-                    if not channel_dest:
-                        channel_dest = discord.utils.get(guild.text_channels, name=_id_or_name)
-                    if not channel_dest:
-                        raise ExecutionError(f"Channel '{_id_or_name}' not found.")
-                    content = Template(content).safe_substitute(templates_vars)
-                    last_sent_message = await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
-                elif action == Action.AddRolesToUser:
-                    to_assign = []
-                    for role_id_or_name in value:
-                        role = guild.get_role(role_id_or_name)
-                        if role is None:
-                            role = discord.utils.get(guild.roles, name=role_id_or_name)
-                        if role:
-                            to_assign.append(role)
-                    to_assign = list(set(to_assign))
-                    to_assign = [r for r in to_assign if r not in user.roles]
-                    if to_assign:
-                        await user.add_roles(*to_assign, reason=f"Assigned by Warden rule '{self.name}'")
-                elif action == Action.RemoveRolesFromUser:
-                    to_unassign = []
-                    for role_id_or_name in value:
-                        role = guild.get_role(role_id_or_name)
-                        if role is None:
-                            role = discord.utils.get(guild.roles, name=role_id_or_name)
-                        if role:
-                            to_unassign.append(role)
-                    to_unassign = list(set(to_unassign))
-                    to_unassign = [r for r in to_unassign if r in user.roles]
-                    if to_unassign:
-                        await user.remove_roles(*to_unassign, reason=f"Unassigned by Warden rule '{self.name}'")
-                elif action == Action.SetUserNickname:
-                    if value == "":
-                        value = None
-                    else:
-                        value = Template(value).safe_substitute(templates_vars)
-                    await user.edit(nick=value, reason=f"Changed nickname by Warden rule '{self.name}'")
-                elif action == Action.BanAndDelete:
-                    if user not in guild.members:
-                        raise ExecutionError(f"User {user} ({user.id}) not in the server.")
-                    reason = f"Banned by Warden rule '{self.name}'"
-                    await guild.ban(user, delete_message_days=value, reason=reason)
-                    last_expel_action = ModAction.Ban
-                    cog.dispatch_event("member_remove", user, ModAction.Ban.value, reason)
-                elif action == Action.Kick:
-                    if user not in guild.members:
-                        raise ExecutionError(f"User {user} ({user.id}) not in the server.")
-                    reason = f"Kicked by Warden action '{self.name}'"
-                    await guild.kick(user, reason=reason)
-                    last_expel_action = Action.Kick
-                    cog.dispatch_event("member_remove", user, ModAction.Kick.value, reason)
-                elif action == Action.Softban:
-                    if user not in guild.members:
-                        raise ExecutionError(f"User {user} ({user.id}) not in the server.")
-                    reason = f"Softbanned by Warden rule '{self.name}'"
-                    await guild.ban(user, delete_message_days=1, reason=reason)
-                    await guild.unban(user)
-                    last_expel_action = Action.Softban
-                    cog.dispatch_event("member_remove", user, ModAction.Softban.value, reason)
-                elif action == Action.PunishUser:
-                    punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
-                    if punish_role and not cog.is_role_privileged(punish_role):
-                        await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
-                    else:
-                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
-                                                    "still present and with *no* privileges?")
-                elif action == Action.PunishUserWithMessage:
-                    punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
-                    punish_message = await cog.config.guild(guild).punish_message()
-                    if punish_role and not cog.is_role_privileged(punish_role):
-                        await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
-                        if punish_message:
-                            await channel.send(f"{user.mention} {punish_message}")
-                    else:
-                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
-                                                    "still present and with *no* privileges?")
-                elif action == Action.Modlog:
-                    if last_expel_action is None:
-                        continue
-                    reason = Template(value).safe_substitute(templates_vars)
-                    await modlog.create_case(
-                        cog.bot,
-                        guild,
-                        utcnow(),
-                        last_expel_action.value,
-                        user,
-                        guild.me,
-                        reason,
-                        until=None,
-                        channel=None,
-                    )
-                elif action == Action.EnableEmergencyMode:
-                    if value:
-                        cog.emergency_mode[guild.id] = EmergencyMode(manual=True)
-                    else:
-                        try:
-                            del cog.emergency_mode[guild.id]
-                        except KeyError:
-                            pass
-                elif action == Action.SendToMonitor:
-                    value = Template(value).safe_substitute(templates_vars)
-                    cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
-                elif action == Action.AddUserHeatpoint:
-                    timedelta = parse_timedelta(value)
-                    heat.increase_user_heat(user, timedelta, debug=debug) # type: ignore
-                    templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
-                elif action == Action.AddUserHeatpoints:
-                    points_n = value[0]
-                    timedelta = parse_timedelta(value[1])
-                    for _ in range(points_n):
-                        heat.increase_user_heat(user, timedelta, debug=debug) # type: ignore
-                    templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
-                elif action == Action.AddChannelHeatpoint:
-                    timedelta = parse_timedelta(value)
-                    heat.increase_channel_heat(channel, timedelta, debug=debug) # type: ignore
-                    templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
-                elif action == Action.AddChannelHeatpoints:
-                    points_n = value[0]
-                    timedelta = parse_timedelta(value[1])
-                    for _ in range(points_n):
-                        heat.increase_channel_heat(channel, timedelta, debug=debug) # type: ignore
-                    templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
-                elif action == Action.AddCustomHeatpoint:
-                    heat_key = Template(value[0]).safe_substitute(templates_vars)
-                    timedelta = parse_timedelta(value[1])
-                    heat.increase_custom_heat(guild, heat_key, timedelta, debug=debug) # type: ignore
-                    #templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
-                elif action == Action.AddCustomHeatpoints:
-                    heat_key = Template(value[0]).safe_substitute(templates_vars)
-                    points_n = value[1]
-                    timedelta = parse_timedelta(value[2])
-                    for _ in range(points_n):
-                        heat.increase_custom_heat(guild, heat_key, timedelta, debug=debug) # type: ignore
-                    #templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
-                elif action == Action.EmptyUserHeat:
-                    heat.empty_user_heat(user, debug=debug)
-                elif action == Action.EmptyChannelHeat:
-                    heat.empty_channel_heat(channel, debug=debug)
-                elif action == Action.EmptyCustomHeat:
-                    heat_key = Template(value).safe_substitute(templates_vars)
-                    heat.empty_custom_heat(guild, heat_key, debug=debug)
-                elif action == Action.IssueCommand:
-                    issuer = guild.get_member(value[0])
-                    if issuer is None:
-                        raise ExecutionError(f"User {value[0]} is not in the server.")
-                    msg_obj = df_cache.get_msg_obj()
-                    if msg_obj is None:
-                        raise ExecutionError(f"Failed to issue command. Sorry!")
-                    if message is None:
-                        notify_channel_id = await cog.config.guild(guild).notify_channel()
-                        msg_obj.channel = guild.get_channel(notify_channel_id)
-                        if msg_obj.channel is None:
-                            raise ExecutionError(f"Failed to issue command. Sorry!")
-                    else:
-                        msg_obj.channel = message.channel
-                    msg_obj.author = issuer
-                    prefix = await cog.bot.get_prefix(msg_obj)
-                    msg_obj.content = prefix[0] + Template(str(value[1])).safe_substitute(templates_vars)
-                    cog.bot.dispatch("message", msg_obj)
-                elif action == Action.DeleteLastMessageSentAfter:
-                    if last_sent_message is not None:
-                        timedelta = parse_timedelta(value)
-                        cog.loop.create_task(delete_message_after(last_sent_message, timedelta.seconds))
-                        last_sent_message = None
-                elif action == Action.SendMessage:
-                    log.debug(value)
-                elif action == Action.NoOp:
-                    pass
-                else:
-                    raise ExecutionError(f"Unhandled action '{self.name}'.")
+                params = model_validator(action, value)
+                try:
+                    processor_func = processors[action]
+                except KeyError:
+                    raise ExecutionError(f"Unhandled action '{action.value}'.")
+
+                await processor_func(params)
 
         return bool(last_expel_action)
 

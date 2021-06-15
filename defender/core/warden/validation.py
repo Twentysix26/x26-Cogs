@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .enums import Action, Condition, Event
-from typing import Union
+from typing import Union, Callable
 from redbot.core.commands.converter import parse_timedelta
 from pydantic import BaseModel, conlist
 
@@ -35,7 +35,7 @@ class TimeDelta(str):
         td = parse_timedelta(v)
         if td is None:
             raise TypeError("Not a valid timedelta")
-        return cls(td)
+        return td
 
     def __repr__(self):
         return f"TimeDelta({super().__repr__()})"
@@ -48,8 +48,12 @@ class CheckCustomHeatpoint(BaseModel):
 
 ######### ACTION VALIDATORS #########
 
-class SendMessageToDestination(BaseModel):
+class SendMessageToUser(BaseModel):
     _id: int
+    content: str
+
+class SendMessageToChannel(BaseModel):
+    id_or_name: str
     content: str
 
 class NotifyStaffWithEmbed(BaseModel):
@@ -96,6 +100,9 @@ class IsBool(BaseModel):
 class IsNone(BaseModel):
     value: None
 
+class IsTimedelta(BaseModel):
+    value: TimeDelta
+
 # The accepted types of each condition for basic sanity checking
 CONDITIONS_VALIDATORS = {
     Condition.UserIdMatchesAny: NonEmptyListInt,
@@ -134,7 +141,7 @@ CONDITIONS_VALIDATORS = {
 }
 
 ACTIONS_VALIDATORS = {
-    Action.Dm: SendMessageToDestination,
+    Action.Dm: SendMessageToUser,
     Action.DmUser: IsStr,
     Action.NotifyStaff: IsStr,
     Action.NotifyStaffAndPing: IsStr,
@@ -147,17 +154,17 @@ ACTIONS_VALIDATORS = {
     Action.Modlog: IsStr,
     Action.DeleteUserMessage: IsNone,
     Action.SendInChannel: IsStr,
-    Action.SetChannelSlowmode: IsStr,
+    Action.SetChannelSlowmode: IsTimedelta,
     Action.AddRolesToUser: NonEmptyList,
     Action.RemoveRolesFromUser: NonEmptyList,
     Action.EnableEmergencyMode: IsBool,
     Action.SetUserNickname: IsStr,
     Action.NoOp: IsNone,
     Action.SendToMonitor: IsStr,
-    Action.SendToChannel: SendMessageToDestination,
-    Action.AddUserHeatpoint: TimeDelta,
+    Action.SendToChannel: SendMessageToChannel,
+    Action.AddUserHeatpoint: IsTimedelta,
     Action.AddUserHeatpoints: AddHeatpoints,
-    Action.AddChannelHeatpoint: TimeDelta,
+    Action.AddChannelHeatpoint: IsTimedelta,
     Action.AddChannelHeatpoints: AddHeatpoints,
     Action.AddCustomHeatpoint: AddCustomHeatpoint,
     Action.AddCustomHeatpoints: AddCustomHeatpoints,
@@ -284,3 +291,33 @@ ALLOWED_DEBUG_ACTIONS = [
     Action.EmptyChannelHeat,
     Action.EmptyCustomHeat,
 ]
+
+def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[list, dict, str, int, bool])->BaseModel:
+    try:
+        validator = ACTIONS_VALIDATORS[action_or_cond] # type: ignore
+    except KeyError:
+        validator = CONDITIONS_VALIDATORS[action_or_cond] # type: ignore
+
+    properties = validator.schema()['properties']
+    single_param_validator = len(properties) == 1 and "value" in properties.keys()
+    # Simple type checking: int, str, a list of strs or a list of ints...
+    if single_param_validator:
+        model = validator(value=parameter)
+    else:
+        if isinstance(parameter, dict):
+            model = validator(**parameter)
+        elif isinstance(parameter, list):
+            # A list with an expected format / order of parameters
+            # We will map it properly so that we can validate
+            # it with pydantic
+            args = {}
+            for i, _property in enumerate(properties):
+                try:
+                    args[_property] = parameter[i]
+                except IndexError:
+                    pass
+            model = validator(**args)
+        else:
+            model = validator(value=parameter)
+
+    return model
