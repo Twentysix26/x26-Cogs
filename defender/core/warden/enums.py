@@ -60,6 +60,7 @@ class Action(enum.Enum):
     EmptyCustomHeat = "empty-custom-heat"
     IssueCommand = "issue-command"
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
+    Send = "send"
 
 class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"

@@ -16,9 +16,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .enums import Action, Condition, Event
-from typing import Union
+from typing import List, Union, Optional
 from redbot.core.commands.converter import parse_timedelta
-from pydantic import BaseModel, conlist
+from pydantic import BaseModel as PydanticBaseModel, conlist, validator
 import logging
 
 log = logging.getLogger("red.x26cogs.defender")
@@ -42,6 +42,10 @@ class TimeDelta(str):
 
     def __repr__(self):
         return f"TimeDelta({super().__repr__()})"
+
+class BaseModel(PydanticBaseModel):
+    class Config:
+        extra = "forbid"
 
 ######### CONDITION VALIDATORS #########
 
@@ -79,6 +83,29 @@ class AddHeatpoints(BaseModel):
 class IssueCommand(BaseModel):
     id: int
     command: str
+
+class EmbedField(BaseModel):
+    name: str
+    value: str
+    inline: Optional[bool]=True
+
+class Send(BaseModel):
+    id: str # or context variable
+    content: Optional[str]=""
+    description: Optional[str]=None
+    title: Optional[str]=None
+    fields: Optional[List[EmbedField]]=[]
+    footer_text: Optional[str]=None
+    footer_icon_url: Optional[str]=None
+    thumbnail: Optional[str]=None
+    author_name: Optional[str]=None
+    author_url: Optional[str]=None
+    author_icon_url: Optional[str]=None
+    image: Optional[str]=None
+    url: Optional[str]=None
+    color: Optional[Union[bool, int]]=True
+    add_timestamp: Optional[bool]=False
+    allow_mass_mentions: Optional[bool]=False
 
 ######### MIXED VALIDATORS  #########
 
@@ -143,7 +170,7 @@ CONDITIONS_VALIDATORS = {
     Condition.CustomHeatMoreThan: CheckCustomHeatpoint,
 }
 
-ACTIONS_VALIDATORS = {
+ACTIONS_VALIDATORS = { # TODO Add a test for this
     Action.Dm: SendMessageToUser,
     Action.DmUser: IsStr,
     Action.NotifyStaff: IsStr,
@@ -176,6 +203,7 @@ ACTIONS_VALIDATORS = {
     Action.EmptyCustomHeat: IsStr,
     Action.IssueCommand: IssueCommand,
     Action.DeleteLastMessageSentAfter: IsTimedelta,
+    Action.Send: Send
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -234,6 +262,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.AddCustomHeatpoints,
     Action.EmptyCustomHeat,
     Action.DeleteLastMessageSentAfter,
+    Action.Send,
 ]
 
 ACTIONS_USER_CONTEXT = [

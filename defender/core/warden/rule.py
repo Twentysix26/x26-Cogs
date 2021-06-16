@@ -593,6 +593,7 @@ class WardenRule:
             "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
             "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
             "user_heat": heat.get_user_heat(user, debug=debug),
+            "user_avatar_url": user.avatar_url
             })
 
         if message:
@@ -614,6 +615,11 @@ class WardenRule:
             templates_vars["channel_category"] = channel.category.name if channel.category else "None"
             templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
             templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
+
+        def safe_sub(string):
+            if string == discord.Embed.Empty:
+                return string
+            return Template(string).safe_substitute(templates_vars)
 
         #for heat_key in heat.get_custom_heat_keys(guild):
         #    templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
@@ -898,6 +904,78 @@ class WardenRule:
             if last_sent_message is not None:
                 cog.loop.create_task(delete_message_after(last_sent_message, params.value.seconds))
                 last_sent_message = None
+
+        @processor(Action.Send)
+        async def send(params: models.Send):
+            nonlocal last_sent_message
+            default_values = 0
+
+            for key in params.dict():
+                attr = getattr(params, key)
+                if attr is None:
+                    default_values += 1
+                    setattr(params, key, discord.Embed.Empty)
+                elif isinstance(attr, str):
+                    setattr(params, key, safe_sub(attr))
+
+            try:
+                params.id = int(params.id)
+            except ValueError:
+                raise ExecutionError(f"[Warden] ({self.name}): Failed to send message, "
+                                     "no valid id.")
+
+            is_user = False
+            destination = guild.get_channel(params.id)
+            if destination is None:
+                destination = guild.get_member(params.id)
+                if destination is None:
+                    cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to send message, "
+                                                f"I could not find the recipient.")
+                    return
+                else:
+                    is_user = True
+
+            em = None
+            no_embed = default_values >= 10 # Yuck, maybe I'll think of something better
+
+            if no_embed and not params.content:
+                raise ExecutionError(f"[Warden] ({self.name}): I have no content and "
+                                      "no embed to send.")
+
+            if no_embed is False:
+                em = discord.Embed(title=params.title,
+                                description=params.description,
+                                url=params.url)
+
+                if params.author_name:
+                    em.set_author(name=params.author_name, url=params.author_url,
+                                icon_url=params.author_icon_url)
+                em.set_image(url=params.image)
+                em.set_thumbnail(url=params.thumbnail)
+                em.set_footer(text=params.footer_text, icon_url=params.footer_icon_url)
+                for field in params.fields:
+                    em.add_field(name=field.name,
+                                value=field.value,
+                                inline=field.inline)
+                if params.add_timestamp:
+                    em.timestamp = utcnow()
+
+                if params.color is True:
+                    em.color = await cog.bot.get_embed_color(destination)
+                elif not params.color:
+                    pass
+                else:
+                    em.color = discord.Colour(params.color)
+
+            mentions = discord.AllowedMentions(everyone=params.allow_mass_mentions, roles=True, users=True)
+
+            try:
+                last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions)
+            except (discord.HTTPException, discord.Forbidden) as e:
+                # A user could just have DMs disabled
+                if is_user is False:
+                    raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
+                                         f"to channel #{destination}")
 
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):
