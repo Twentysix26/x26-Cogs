@@ -363,7 +363,6 @@ class WardenRule:
 
     async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None,
                                    guild: discord.Guild=None, debug):
-        bools = []
 
         if message and not user:
             user = message.author
@@ -386,6 +385,255 @@ class WardenRule:
             templates_vars["channel_id"] = channel.id
             templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
 
+        checkers = {}
+
+        def checker(condition: Condition, suggest: Condition=None):
+            def decorator(function):
+                def wrapper(*args, **kwargs):
+                    if suggest is not None:
+                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Condition "
+                                                   f"'{condition.value}' is deprecated, use "
+                                                   f"'{suggest.value}' instead.")
+                    return function(*args, **kwargs)
+                checkers[condition] = wrapper
+                return wrapper
+            return decorator
+
+        @checker(Condition.MessageMatchesAny)
+        async def message_matches_any(params: models.NonEmptyListStr):
+            # One match = Passed
+            content = message.content.lower()
+            for pattern in params.value:
+                if fnmatch.fnmatch(content, pattern.lower()):
+                    return True
+            return False
+
+        @checker(Condition.MessageMatchesRegex)
+        async def message_matches_regex(params: models.IsStr):
+            return await run_user_regex(
+                rule_obj=self,
+                cog=cog,
+                guild=guild,
+                regex=params.value,
+                text=message.content
+            )
+
+        @checker(Condition.UserIdMatchesAny)
+        async def user_id_matches_any(params: models.NonEmptyListInt):
+            for _id in params.value:
+                if _id == user.id:
+                    return True
+            return False
+
+        @checker(Condition.UsernameMatchesAny)
+        async def username_matches_any(params: models.NonEmptyListStr):
+            # One match = Passed
+            name = user.name.lower()
+            for pattern in params.value:
+                if fnmatch.fnmatch(name, pattern.lower()):
+                    return True
+            return False
+
+        @checker(Condition.UsernameMatchesRegex)
+        async def username_matches_regex(params: models.IsStr):
+            return await run_user_regex(
+                rule_obj=self,
+                cog=cog,
+                guild=guild,
+                regex=params.value,
+                text=user.name
+            )
+
+        @checker(Condition.NicknameMatchesAny)
+        async def nickname_matches_any(params: models.NonEmptyListStr):
+            # One match = Passed
+            if not user.nick:
+                return False
+            nick = user.nick.lower()
+            for pattern in params.value:
+                if fnmatch.fnmatch(nick, pattern.lower()):
+                    return True
+            return False
+
+        @checker(Condition.NicknameMatchesRegex)
+        async def nickname_matches_regex(params: models.IsStr):
+            if not user.nick:
+                return False
+            return await run_user_regex(
+                rule_obj=self,
+                cog=cog,
+                guild=guild,
+                regex=params.value,
+                text=user.nick
+            )
+
+        @checker(Condition.ChannelMatchesAny)
+        async def channel_matches_any(params: models.NonEmptyListStr):
+            if channel.id in params.value:
+                return True
+            for channel_str in params.value:
+                channel_str = str(channel_str)
+                channel_obj = discord.utils.get(guild.text_channels, name=channel_str)
+                if channel_obj is not None and channel_obj == channel:
+                    return True
+            return False
+
+        @checker(Condition.CategoryMatchesAny)
+        async def category_matches_any(params: models.NonEmptyListStr):
+            if channel.category is None:
+                return False
+            if channel.category.id in params.value:
+                return True
+            for category_str in params.value:
+                category_str = str(category_str)
+                category_obj = discord.utils.get(guild.categories, name=category_str)
+                if category_obj is not None and category_obj == channel.category:
+                    return True
+            return False
+
+        @checker(Condition.ChannelIsPublic)
+        async def channel_is_public(params: models.IsBool):
+            everyone = guild.default_role
+            public = everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None)
+            return params.value is public
+
+        @checker(Condition.UserCreatedLessThan)
+        async def user_created_less_than(params: models.IsInt):
+            if params.value == 0:
+                return True
+            x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
+            return user.created_at > x_hours_ago
+
+        @checker(Condition.UserIsRank)
+        async def user_is_rank(params: models.IsInt):
+            return await cog.rank_user(user) == Rank(params.value)
+
+        @checker(Condition.UserJoinedLessThan)
+        async def user_joined_less_than(params: models.IsInt):
+            if params.value == 0:
+                return True
+            x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
+            return user.joined_at > x_hours_ago
+
+        @checker(Condition.UserHasDefaultAvatar)
+        async def user_has_default_avatar(params: models.IsBool):
+            default_avatar_url_pattern = "*/embed/avatars/*.png"
+            match = fnmatch.fnmatch(str(user.avatar_url), default_avatar_url_pattern)
+            return params.value is match
+
+        @checker(Condition.InEmergencyMode)
+        async def in_emergency_mode(params: models.IsBool):
+            in_emergency = cog.is_in_emergency_mode(guild)
+            return in_emergency is params.value
+
+        @checker(Condition.MessageHasAttachment)
+        async def message_has_attachment(params: models.IsBool):
+            return bool(message.attachments) is params.value
+
+        @checker(Condition.UserHasAnyRoleIn)
+        async def user_has_any_role_in(params: models.NonEmptyListStr):
+            for role_id_or_name in params.value:
+                role = guild.get_role(role_id_or_name)
+                if role is None:
+                    role = discord.utils.get(guild.roles, name=role_id_or_name)
+                if role:
+                    if role in user.roles:
+                        return True
+            return False
+
+        @checker(Condition.UserHasSentLessThanMessages)
+        async def user_has_sent_less_than_messages(params: models.IsInt):
+            msg_n = await cog.get_total_recorded_messages(user)
+            return msg_n < params.value
+
+        @checker(Condition.MessageContainsInvite)
+        async def message_contains_invite(params: models.IsBool):
+            invite_match = INVITE_URL_RE.search(message.content)
+            if invite_match:
+                has_invite = True
+                try:
+                    if await is_own_invite(guild, invite_match):
+                        has_invite = False
+                except Exception as e:
+                    log.error("Unexpected error in warden's own invite check", exc_info=e)
+                    has_invite = False
+            else:
+                has_invite = False
+            return has_invite is params.value
+
+        @checker(Condition.MessageContainsMedia)
+        async def message_contains_media(params: models.IsBool):
+            has_media = MEDIA_URL_RE.search(message.content)
+            return bool(has_media) is params.value
+
+        @checker(Condition.MessageContainsUrl)
+        async def message_contains_url(params: models.IsBool):
+            has_url = URL_RE.search(message.content)
+            return bool(has_url) is params.value
+
+        @checker(Condition.MessageContainsMTMentions)
+        async def message_contains_mt_mentions(params: models.IsInt):
+            return len(message.raw_mentions) > params.value
+
+        @checker(Condition.MessageContainsMTUniqueMentions)
+        async def message_contains_mt_unique_mentions(params: models.IsInt):
+            return len(set(message.mentions)) > params.value
+
+        @checker(Condition.MessageContainsMTRolePings)
+        async def message_contains_mt_role_pings(params: models.IsInt):
+            return len(message.role_mentions) > params.value
+
+        @checker(Condition.MessageContainsMTEmojis)
+        async def message_contains_mt_emojis(params: models.IsInt):
+            over_limit = has_x_or_more_emojis(cog.bot, guild, message.content, params.value + 1)
+            return over_limit
+
+        @checker(Condition.MessageHasMTCharacters)
+        async def message_has_mt_characters(params: models.IsInt):
+            # We're turning one custom emoji code into a single character to avoid
+            # unexpected (from a user's POV) behaviour
+            clean_content = REMOVE_C_EMOJIS_RE.sub("x", message.clean_content)
+            return len(clean_content) > params.value
+
+        @checker(Condition.IsStaff)
+        async def is_staff(params: models.IsBool):
+            is_staff = await cog.bot.is_mod(user)
+            return is_staff is params.value
+
+        @checker(Condition.UserHeatIs)
+        async def user_heat_is(params: models.IsInt):
+            return heat.get_user_heat(user, debug=debug) == params.value
+
+        @checker(Condition.ChannelHeatIs)
+        async def channel_heat_is(params: models.IsInt):
+            return heat.get_channel_heat(channel, debug=debug) == params.value
+
+
+        @checker(Condition.CustomHeatIs)
+        async def custom_heat_is(params: models.CheckCustomHeatpoint):
+            heat_key = Template(params.label).safe_substitute(templates_vars)
+            return heat.get_custom_heat(guild, heat_key, debug=debug) == params.points
+
+        @checker(Condition.UserHeatMoreThan)
+        async def user_heat_more_than(params: models.IsInt):
+            return heat.get_user_heat(user, debug=debug) > params.value
+
+        @checker(Condition.ChannelHeatMoreThan)
+        async def channel_heat_more_than(params: models.IsInt):
+            return heat.get_channel_heat(channel, debug=debug) > params.value
+
+        @checker(Condition.CustomHeatMoreThan)
+        async def custom_heat_more_than(params: models.CheckCustomHeatpoint):
+            heat_key = Template(params.label).safe_substitute(templates_vars)
+            return heat.get_custom_heat(guild, heat_key, debug=debug) > params.points
+
+        if debug:
+            for condition in Condition:
+                if condition not in checkers:
+                    raise ExecutionError(f"{condition.value} does not have a checker.")
+
+        bools = []
+
         for raw_condition in conditions:
 
             condition = value = None
@@ -393,194 +641,18 @@ class WardenRule:
                 condition, value = c, v
 
             condition = Condition(condition)
-            if condition == Condition.MessageMatchesAny:
-                # One match = Passed
-                content = message.content.lower()
-                for pattern in value:
-                    if fnmatch.fnmatch(content, pattern.lower()):
-                        bools.append(True)
-                        break
-                else:
-                    bools.append(False)
-            elif condition == Condition.MessageMatchesRegex:
-                bools.append(
-                    await run_user_regex(
-                        rule_obj=self,
-                        cog=cog,
-                        guild=guild,
-                        regex=value, # type:ignore
-                        text=message.content
-                    )
-                )
-            elif condition == Condition.UserIdMatchesAny:
-                for _id in value:
-                    if _id == user.id:
-                        bools.append(True)
-                        break
-                else:
-                    bools.append(False)
-            elif condition == Condition.UsernameMatchesAny:
-                # One match = Passed
-                name = user.name.lower()
-                for pattern in value:
-                    if fnmatch.fnmatch(name, pattern.lower()):
-                        bools.append(True)
-                        break
-                else:
-                    bools.append(False)
-            elif condition == Condition.UsernameMatchesRegex:
-                bools.append(
-                    await run_user_regex(
-                        rule_obj=self,
-                        cog=cog,
-                        guild=guild,
-                        regex=value, # type:ignore
-                        text=user.name
-                    )
-                )
-            elif condition == Condition.NicknameMatchesAny:
-                # One match = Passed
-                if not user.nick:
-                    bools.append(False)
-                    continue
-                nick = user.nick.lower()
-                for pattern in value:
-                    if fnmatch.fnmatch(nick, pattern.lower()):
-                        bools.append(True)
-                        break
-                else:
-                    bools.append(False)
-            elif condition == Condition.NicknameMatchesRegex:
-                if not user.nick:
-                    bools.append(False)
-                    continue
-                bools.append(
-                    await run_user_regex(
-                        rule_obj=self,
-                        cog=cog,
-                        guild=guild,
-                        regex=value, # type:ignore
-                        text=user.nick
-                    )
-                )
-            elif condition == Condition.ChannelMatchesAny: # We accept IDs and channel names
-                if channel.id in value:
-                    bools.append(True)
-                    continue
-                for channel_str in value:
-                    channel_str = str(channel_str)
-                    channel_obj = discord.utils.get(guild.text_channels, name=channel_str)
-                    if channel_obj is not None and channel_obj == channel:
-                        bools.append(True)
-                        break
-                else:
-                    bools.append(False)
-            elif condition == Condition.CategoryMatchesAny: # We accept IDs and category names
-                if channel.category is None:
-                    bools.append(False)
-                    continue
-                if channel.category.id in value:
-                    bools.append(True)
-                    continue
-                for category_str in value:
-                    category_str = str(category_str)
-                    category_obj = discord.utils.get(guild.categories, name=category_str)
-                    if category_obj is not None and category_obj == channel.category:
-                        bools.append(True)
-                        break
-                else:
-                    bools.append(False)
-            elif condition == Condition.ChannelIsPublic:
-                everyone = guild.default_role
-                public = everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None)
-                bools.append(value is public)
-            elif condition == Condition.UserCreatedLessThan:
-                if value == 0:
-                    bools.append(True)
-                    continue
-                x_hours_ago = utcnow() - datetime.timedelta(hours=value) # type: ignore
-                bools.append(user.created_at > x_hours_ago)
-            elif condition == Condition.UserIsRank:
-                bools.append(await cog.rank_user(user) == Rank(value)) # type: ignore
-            elif condition == Condition.UserJoinedLessThan:
-                if value == 0:
-                    bools.append(True)
-                    continue
-                x_hours_ago = utcnow() - datetime.timedelta(hours=value) # type: ignore
-                bools.append(user.joined_at > x_hours_ago)
-            elif condition == Condition.UserHasDefaultAvatar:
-                default_avatar_url_pattern = "*/embed/avatars/*.png"
-                match = fnmatch.fnmatch(str(user.avatar_url), default_avatar_url_pattern)
-                bools.append(value is match)
-            elif condition == Condition.InEmergencyMode:
-                in_emergency = cog.is_in_emergency_mode(guild)
-                bools.append(in_emergency is value)
-            elif condition == Condition.MessageHasAttachment:
-                bools.append(bool(message.attachments) is value)
-            elif condition == Condition.UserHasAnyRoleIn:
-                for role_id_or_name in value:
-                    role = guild.get_role(role_id_or_name)
-                    if role is None:
-                        role = discord.utils.get(guild.roles, name=role_id_or_name)
-                    if role:
-                        if role in user.roles:
-                            bools.append(True)
-                            break
-                else:
-                    bools.append(False)
-            elif condition == Condition.UserHasSentLessThanMessages:
-                msg_n = await cog.get_total_recorded_messages(user)
-                bools.append(msg_n < value)
-            elif condition == Condition.MessageContainsInvite:
-                invite_match = INVITE_URL_RE.search(message.content)
-                if invite_match:
-                    has_invite = True
-                    try:
-                        if await is_own_invite(guild, invite_match):
-                            has_invite = False
-                    except Exception as e:
-                        log.error("Unexpected error in warden's own invite check", exc_info=e)
-                        has_invite = False
-                else:
-                    has_invite = False
-                bools.append(has_invite is value)
-            elif condition == Condition.MessageContainsMedia:
-                has_media = MEDIA_URL_RE.search(message.content)
-                bools.append(bool(has_media) is value)
-            elif condition == Condition.MessageContainsUrl:
-                has_url = URL_RE.search(message.content)
-                bools.append(bool(has_url) is value)
-            elif condition == Condition.MessageContainsMTMentions:
-                bools.append(len(message.raw_mentions) > value) # type: ignore
-            elif condition == Condition.MessageContainsMTUniqueMentions:
-                bools.append(len(set(message.mentions)) > value) # type: ignore
-            elif condition == Condition.MessageContainsMTRolePings:
-                bools.append(len(message.role_mentions) > value) # type: ignore
-            elif condition == Condition.MessageContainsMTEmojis:
-                over_limit = has_x_or_more_emojis(cog.bot, guild, message.content, value + 1) # type: ignore
-                bools.append(over_limit)
-            elif condition == Condition.MessageHasMTCharacters:
-                # We're turning one custom emoji code into a single character to avoid
-                # unexpected (from a user's POV) behaviour
-                clean_content = REMOVE_C_EMOJIS_RE.sub("x", message.clean_content)
-                bools.append(len(clean_content) > value) # type: ignore
-            elif condition == Condition.IsStaff:
-                is_staff = await cog.bot.is_mod(user)
-                bools.append(is_staff is value)
-            elif condition == Condition.UserHeatIs:
-                bools.append(heat.get_user_heat(user, debug=debug) == value)
-            elif condition == Condition.ChannelHeatIs:
-                bools.append(heat.get_channel_heat(channel, debug=debug) == value)
-            elif condition == Condition.CustomHeatIs:
-                heat_key = Template(value[0]).safe_substitute(templates_vars)
-                bools.append(heat.get_custom_heat(guild, heat_key, debug=debug) == value[1])
-            elif condition == Condition.UserHeatMoreThan:
-                bools.append(heat.get_user_heat(user, debug=debug) > value) # type: ignore
-            elif condition == Condition.ChannelHeatMoreThan:
-                bools.append(heat.get_channel_heat(channel, debug=debug) > value) # type: ignore
-            elif condition == Condition.CustomHeatMoreThan:
-                heat_key = Template(value[0]).safe_substitute(templates_vars)
-                bools.append(heat.get_custom_heat(guild, heat_key, debug=debug) > value[1])
+
+            params = model_validator(condition, value)
+            try:
+                processor_func = checkers[condition]
+            except KeyError:
+                raise ExecutionError(f"Unhandled condition '{condition.value}'.")
+
+            result = await processor_func(params)
+            if result in (True, False):
+                bools.append(result)
+            else:
+                raise ExecutionError(f"Unexpected condition evaluation result for '{condition.value}'.")
 
         return bools
 
@@ -595,7 +667,7 @@ class WardenRule:
             "rule_name": self.name,
             "guild": str(guild),
             "guild_id": guild.id,
-            "notification_channel_id": await cog.config.guild(guild).notify_channel_id(),
+            "notification_channel_id": await cog.config.guild(guild).notify_channel_id() if cog else 0,
         }
 
         if user:
