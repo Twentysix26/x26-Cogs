@@ -15,7 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from defender.core.warden.validation import ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLOWED_DEBUG_ACTIONS, model_validator
+from defender.core.warden.validation import (ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLOWED_DEBUG_ACTIONS, model_validator,
+                                             DEPRECATED)
 from defender.core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
@@ -210,8 +211,14 @@ class WardenRule:
                     condition = ConditionBlock(condition)
                     raise InvalidRule(f"Invalid: `{condition.value}` can only be at root level.")
                 except ValueError:
-                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition])
+                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition
+                                                                   if c not in DEPRECATED])
                     raise InvalidRule(f"Invalid condition: `{condition}`.{suggestion}")
+
+            # Checking author prevents old rules from raising at load
+            if author and condition in DEPRECATED:
+                raise InvalidRule(f"Condition `{condition.value}` is deprecated: check the documentation "
+                                  "for a supported alternative.")
 
             if not is_condition_allowed_in_events(condition):
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
@@ -245,7 +252,8 @@ class WardenRule:
                 try:
                     condition = ConditionBlock(condition)
                 except ValueError:
-                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition])
+                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition
+                                                                   if c not in DEPRECATED])
                     raise InvalidRule(f"Invalid condition: `{condition}`.{suggestion}")
 
             if isinstance(condition, ConditionBlock):
@@ -270,8 +278,14 @@ class WardenRule:
                 try:
                     action = Action(action)
                 except ValueError:
-                    suggestion = make_fuzzy_suggestion(action, [a.value for a in Action])
+                    suggestion = make_fuzzy_suggestion(action, [a.value for a in Action
+                                                                if a not in DEPRECATED])
                     raise InvalidRule(f"Invalid action: `{action}`.{suggestion}")
+
+                # Checking author prevents old rules from raising at load
+                if author and action in DEPRECATED:
+                    raise InvalidRule(f"Action `{action.value}` is deprecated: check the documentation "
+                                      "for a supported alternative.")
 
                 if not is_action_allowed_in_events(action):
                     raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
@@ -580,7 +594,8 @@ class WardenRule:
         templates_vars = {
             "rule_name": self.name,
             "guild": str(guild),
-            "guild_id": guild.id
+            "guild_id": guild.id,
+            "notification_channel_id": await cog.config.guild(guild).notify_channel_id(),
         }
 
         if user:
@@ -629,11 +644,15 @@ class WardenRule:
 
         processors = {}
 
-        def processor(action: Action):
+        def processor(action: Action, suggest: Action=None):
             def decorator(function):
-                processors[action] = function
                 def wrapper(*args, **kwargs):
+                    if suggest is not None:
+                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Action "
+                                                   f"'{action.value}' is deprecated, use "
+                                                   f"'{suggest.value}' instead.")
                     return function(*args, **kwargs)
+                processors[action] = wrapper
                 return wrapper
             return decorator
 
@@ -641,7 +660,7 @@ class WardenRule:
         async def delete_user_message(params: models.IsNone):
             await message.delete()
 
-        @processor(Action.Dm)
+        @processor(Action.Dm, suggest=Action.Send)
         async def send_dm(params: models.SendMessageToUser):
             nonlocal last_sent_message
             user_to_dm = guild.get_member(params.id)
@@ -657,7 +676,7 @@ class WardenRule:
                                     f"{user_to_dm} ({user_to_dm.id})")
                 last_sent_message = None
 
-        @processor(Action.DmUser)
+        @processor(Action.DmUser, suggest=Action.Send)
         async def send_user_dm(params: models.IsStr):
             nonlocal last_sent_message
             text = Template(params.value).safe_substitute(templates_vars)
@@ -691,7 +710,7 @@ class WardenRule:
                                                             title=title, footer=f"Warden rule `{self.name}`",
                                                             allow_everyone_ping=True)
 
-        @processor(Action.SendInChannel)
+        @processor(Action.SendInChannel, suggest=Action.Send)
         async def send_in_channel(params: models.IsStr):
             nonlocal last_sent_message
             text = Template(params.value).safe_substitute(templates_vars)
@@ -701,7 +720,7 @@ class WardenRule:
         async def set_channel_slowmode(params: models.IsTimedelta):
             await channel.edit(slowmode_delay=params.value.seconds)
 
-        @processor(Action.SendToChannel)
+        @processor(Action.SendToChannel, suggest=Action.Send)
         async def send_to_channel(params: models.SendMessageToChannel):
             nonlocal last_sent_message
             channel_dest = guild.get_channel(params.id_or_name)
@@ -922,7 +941,7 @@ class WardenRule:
                 params.id = int(params.id)
             except ValueError:
                 raise ExecutionError(f"[Warden] ({self.name}): Failed to send message, "
-                                     "no valid id.")
+                                     f"'{params.id}' is not a valid id.")
 
             is_user = False
             destination = guild.get_channel(params.id)

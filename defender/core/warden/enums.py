@@ -28,8 +28,6 @@ class Event(enum.Enum):
     Periodic = "periodic"
 
 class Action(enum.Enum):
-    Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content
-    DmUser = "dm-user" # DMs user in context
     NotifyStaff = "notify-staff"
     NotifyStaffAndPing = "notify-staff-and-ping"
     NotifyStaffWithEmbed = "notify-staff-with-embed"
@@ -40,7 +38,6 @@ class Action(enum.Enum):
     PunishUserWithMessage = "punish-user-with-message" # Assign the punish role to the user and send the set message
     Modlog = "send-mod-log" # Send modlog case of last expel action + reason
     DeleteUserMessage = "delete-user-message" # Delete message in context
-    SendInChannel = "send-in-channel" # Send message to channel in context
     SetChannelSlowmode = "set-channel-slowmode" # 0 - 6h
     AddRolesToUser = "add-roles-to-user" # Adds roles to user in context
     RemoveRolesFromUser = "remove-roles-from-user" # Remove roles from user in context
@@ -48,7 +45,6 @@ class Action(enum.Enum):
     SetUserNickname = "set-user-nickname" # Changes nickname of user in context
     NoOp = "no-op" # Does nothing. For testing purpose.
     SendToMonitor = "send-to-monitor" # Posts a message to [p]defender monitor
-    SendToChannel = "send-to-channel" # Sends a message to an arbitrary channel
     AddUserHeatpoint = "add-user-heatpoint"
     AddUserHeatpoints = "add-user-heatpoints"
     AddChannelHeatpoint = "add-channel-heatpoint"
@@ -60,7 +56,12 @@ class Action(enum.Enum):
     EmptyCustomHeat = "empty-custom-heat"
     IssueCommand = "issue-command"
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
-    Send = "send"
+    Send = "send" # Send a message to an arbitrary destination with an optional embed
+    ## Deprecated actions ##
+    Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content
+    DmUser = "dm-user" # DMs user in context
+    SendInChannel = "send-in-channel" # Send message to channel in context
+    SendToChannel = "send-to-channel" # Sends a message to an arbitrary channel
 
 class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"

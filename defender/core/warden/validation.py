@@ -170,7 +170,7 @@ CONDITIONS_VALIDATORS = {
     Condition.CustomHeatMoreThan: CheckCustomHeatpoint,
 }
 
-ACTIONS_VALIDATORS = { # TODO Add a test for this
+ACTIONS_VALIDATORS = {
     Action.Dm: SendMessageToUser,
     Action.DmUser: IsStr,
     Action.NotifyStaff: IsStr,
@@ -322,6 +322,13 @@ ALLOWED_DEBUG_ACTIONS = [
     Action.EmptyUserHeat,
     Action.EmptyChannelHeat,
     Action.EmptyCustomHeat,
+]
+
+DEPRECATED = [
+    Action.Dm,
+    Action.DmUser,
+    Action.SendInChannel,
+    Action.SendToChannel,
 ]
 
 def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[list, dict, str, int, bool])->BaseModel:

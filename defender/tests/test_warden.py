@@ -36,6 +36,7 @@ class FakeUser:
     mention = "<@852499907842801726>"
     created_at = datetime.utcnow()
     joined_at = datetime.utcnow()
+    avatar_url = "test.com"
 
 FAKE_USER = FakeUser()
 
