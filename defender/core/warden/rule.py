@@ -468,7 +468,7 @@ class WardenRule:
             )
 
         @checker(Condition.ChannelMatchesAny)
-        async def channel_matches_any(params: models.NonEmptyListStr):
+        async def channel_matches_any(params: models.NonEmptyList):
             if channel.id in params.value:
                 return True
             for channel_str in params.value:
@@ -479,7 +479,7 @@ class WardenRule:
             return False
 
         @checker(Condition.CategoryMatchesAny)
-        async def category_matches_any(params: models.NonEmptyListStr):
+        async def category_matches_any(params: models.NonEmptyList):
             if channel.category is None:
                 return False
             if channel.category.id in params.value:
@@ -531,7 +531,7 @@ class WardenRule:
             return bool(message.attachments) is params.value
 
         @checker(Condition.UserHasAnyRoleIn)
-        async def user_has_any_role_in(params: models.NonEmptyListStr):
+        async def user_has_any_role_in(params: models.NonEmptyList):
             for role_id_or_name in params.value:
                 role = guild.get_role(role_id_or_name)
                 if role is None:
@@ -608,7 +608,6 @@ class WardenRule:
         async def channel_heat_is(params: models.IsInt):
             return heat.get_channel_heat(channel, debug=debug) == params.value
 
-
         @checker(Condition.CustomHeatIs)
         async def custom_heat_is(params: models.CheckCustomHeatpoint):
             heat_key = Template(params.label).safe_substitute(templates_vars)
@@ -667,7 +666,7 @@ class WardenRule:
             "rule_name": self.name,
             "guild": str(guild),
             "guild_id": guild.id,
-            "notification_channel_id": await cog.config.guild(guild).notify_channel_id() if cog else 0,
+            "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
         }
 
         if user:

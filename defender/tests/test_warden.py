@@ -10,12 +10,31 @@ from .wd_sample_rules import (CHECK_EMPTY_HEATPOINTS, CHECK_HEATPOINTS, DYNAMIC_
                               INVALID_RANK, INVALID_EVENT, TUTORIAL_PRIORITY_RULE, INVALID_PRIORITY,
                               INVALID_PERIODIC_MISSING_EVENT, INVALID_PERIODIC_MISSING_RUN_EVERY, VALID_MIXED_RULE,
                               INVALID_MIXED_RULE_CONDITION, INVALID_MIXED_RULE_ACTION, CONDITION_TEST_POSITIVE,
-                              CONDITION_TEST_NEGATIVE)
-from datetime import datetime
+                              CONDITION_TEST_NEGATIVE, CONDITION_TEST)
+from datetime import datetime, timedelta
 import pytest
+
+class FakeGuildPerms:
+    manage_guild = False
+
+class FakeMe:
+    guild_permissions = FakeGuildPerms
+
+class FakeRole:
+    def __init__(self, _id, name):
+        self.id = _id
+        self.name = name
 
 class FakeGuild:
     id = 852499907842801727
+    me = FakeMe
+    text_channels = {}
+    roles = {}
+
+    def get_role(self, _id):
+        for role in self.roles:
+            if _id == role.id:
+                return role
 
 FAKE_GUILD = FakeGuild()
 
@@ -37,6 +56,7 @@ class FakeUser:
     created_at = datetime.utcnow()
     joined_at = datetime.utcnow()
     avatar_url = "test.com"
+    roles = {}
 
 FAKE_USER = FakeUser()
 
@@ -49,6 +69,9 @@ class FakeMessage:
     created_at = datetime.utcnow()
     jump_url = ""
     attachments = []
+    raw_mentions = []
+    mentions = []
+    role_mentions = []
 
 FAKE_MESSAGE = FakeMessage()
 
@@ -266,3 +289,122 @@ async def test_rule_cond_eval():
         rank=Rank.Rank1,
         guild=FAKE_GUILD,
         message=FAKE_MESSAGE)) is True
+
+@pytest.mark.asyncio
+async def test_conditions():
+    async def eval_cond(condition: Condition, params, expected_result: bool):
+        rule = WardenRule()
+        await rule.parse(
+            CONDITION_TEST.format(
+                condition.value,
+                params,
+            ),
+            cog=None
+        )
+
+        assert bool(await rule.satisfies_conditions(
+            cog=None,
+            rank=Rank.Rank1,
+            guild=FAKE_GUILD,
+            message=FAKE_MESSAGE)) is expected_result
+
+    FAKE_MESSAGE.content = "aaa 2626 aaa"
+    await eval_cond(Condition.MessageMatchesAny, ["abcd", "*hello*"], False)
+    await eval_cond(Condition.MessageMatchesAny, ["*2626*", "hi", 12345], True)
+
+    FAKE_MESSAGE.attachments = []
+    await eval_cond(Condition.MessageHasAttachment, "true", False)
+    await eval_cond(Condition.MessageHasAttachment, "false", True)
+    FAKE_MESSAGE.attachments = ["aaa"]
+    await eval_cond(Condition.MessageHasAttachment, "true", True)
+    await eval_cond(Condition.MessageHasAttachment, "false", False)
+
+    FAKE_MESSAGE.content = "aaa 2626 aaa"
+    await eval_cond(Condition.MessageContainsUrl, "true", False)
+    await eval_cond(Condition.MessageContainsUrl, "false", True)
+    FAKE_MESSAGE.content = "aaa https://discord.red aaa"
+    await eval_cond(Condition.MessageContainsUrl, "true", True)
+    await eval_cond(Condition.MessageContainsUrl, "false", False)
+
+    FAKE_MESSAGE.content = "aaa 2626 aaa"
+    await eval_cond(Condition.MessageContainsInvite, "true", False)
+    await eval_cond(Condition.MessageContainsInvite, "false", True)
+    FAKE_MESSAGE.content = "aaa https://discord.gg/red aaa"
+    await eval_cond(Condition.MessageContainsInvite, "true", True)
+    await eval_cond(Condition.MessageContainsInvite, "false", False)
+
+    FAKE_MESSAGE.content = "aaa 2626 https://discord.gg/file.txt aaa"
+    await eval_cond(Condition.MessageContainsMedia, "true", False)
+    await eval_cond(Condition.MessageContainsMedia, "false", True)
+    FAKE_MESSAGE.content = "aaa https://discord.gg/file.jpg aaa"
+    await eval_cond(Condition.MessageContainsMedia, "true", True)
+    await eval_cond(Condition.MessageContainsMedia, "false", False)
+
+    FAKE_MESSAGE.raw_mentions = ["<@26262626262626>"]
+    await eval_cond(Condition.MessageContainsMTMentions, 1, False)
+    FAKE_MESSAGE.raw_mentions = ["<@26262626262626>", "<@26262626262626>"]
+    await eval_cond(Condition.MessageContainsMTMentions, 1, True)
+
+    FAKE_MESSAGE.mentions = ["<@26262626262626>", "<@26262626262626>"]
+    await eval_cond(Condition.MessageContainsMTUniqueMentions, 1, False)
+    FAKE_MESSAGE.mentions = ["<@26262626262626>", "<@123456789033221>"]
+    await eval_cond(Condition.MessageContainsMTUniqueMentions, 1, True)
+
+    FAKE_MESSAGE.role_mentions = ["<@26262626262626>"]
+    await eval_cond(Condition.MessageContainsMTRolePings, 1, False)
+    FAKE_MESSAGE.role_mentions = ["<@26262626262626>", "<@26262626262626>"]
+    await eval_cond(Condition.MessageContainsMTRolePings, 1, True)
+
+    FAKE_MESSAGE.clean_content = "2626"
+    await eval_cond(Condition.MessageHasMTCharacters, 3, True)
+    await eval_cond(Condition.MessageHasMTCharacters, 4, False)
+
+    FAKE_USER.id = 262626
+    await eval_cond(Condition.UserIdMatchesAny, [123456, "123424234"], False)
+    await eval_cond(Condition.UserIdMatchesAny, [12, "262626"], True)
+
+    FAKE_USER.name = "Twentysix"
+    await eval_cond(Condition.UsernameMatchesAny, ["dsaasdasd", "Twentysix"], True)
+    await eval_cond(Condition.UsernameMatchesAny, ["dsaasd", "dsadss"], False)
+
+    FAKE_USER.nick = None
+    await eval_cond(Condition.NicknameMatchesAny, ["dsaasdasd", "Twentysix"], False)
+    FAKE_USER.nick = "Twentysix"
+    await eval_cond(Condition.NicknameMatchesAny, ["dsaasdasd", "Twentysix"], True)
+    await eval_cond(Condition.NicknameMatchesAny, ["dsaasd", "dsadss"], False)
+
+    FAKE_USER.joined_at = datetime.utcnow()
+    await eval_cond(Condition.UserJoinedLessThan, 1, True)
+    FAKE_USER.joined_at = datetime.utcnow() - timedelta(hours=2)
+    await eval_cond(Condition.UserJoinedLessThan, 1, False)
+
+    FAKE_USER.created_at = datetime.utcnow()
+    await eval_cond(Condition.UserCreatedLessThan, 1, True)
+    FAKE_USER.created_at = datetime.utcnow() - timedelta(hours=2)
+    await eval_cond(Condition.UserCreatedLessThan, 1, False)
+
+    FAKE_USER.avatar_url = "discord.gg/ad/sda/s/ads.png"
+    await eval_cond(Condition.UserHasDefaultAvatar, "true", False)
+    await eval_cond(Condition.UserHasDefaultAvatar, "false", True)
+    FAKE_USER.avatar_url = "discord.gg/asddasad/embed/avatars/2.png"
+    await eval_cond(Condition.UserHasDefaultAvatar, "true", True)
+    await eval_cond(Condition.UserHasDefaultAvatar, "false", False)
+
+    FAKE_CHANNEL.id = 262626
+    FAKE_CHANNEL.name = "my-ch"
+    FAKE_GUILD.text_channels[FAKE_CHANNEL] = FAKE_CHANNEL
+    await eval_cond(Condition.ChannelMatchesAny, [12345, "asdas"], False)
+    await eval_cond(Condition.ChannelMatchesAny, [12345, "262626"], True)
+    await eval_cond(Condition.ChannelMatchesAny, ["my-ch", "1111111"], True)
+
+    role1 = FakeRole(12345, "my_role")
+    role2 = FakeRole(67890, "my_role2")
+    FAKE_GUILD.roles[role1] = role1
+    FAKE_GUILD.roles[role2] = role2
+    await eval_cond(Condition.UserHasAnyRoleIn, [12345, "1111111"], False)
+    await eval_cond(Condition.UserHasAnyRoleIn, ["dassdads", "my_role"], False)
+    FAKE_USER.roles[role1] = role1
+    await eval_cond(Condition.UserHasAnyRoleIn, [12345, "1111111"], True)
+    await eval_cond(Condition.UserHasAnyRoleIn, ["dassdads", "my_role"], True)
+
+    # Missing tests for category, public channels, regex related and emojis

@@ -220,3 +220,13 @@ CHECK_EMPTY_HEATPOINTS = """
     do:
         - no-op:
 """
+
+CONDITION_TEST = """
+    name: condition-test
+    rank: 1
+    event: on-message
+    if:
+        - {}: {}
+    do:
+        - no-op:
+"""

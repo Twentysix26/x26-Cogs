@@ -110,7 +110,7 @@ class Send(BaseModel):
 ######### MIXED VALIDATORS  #########
 
 class NonEmptyList(BaseModel):
-    value: conlist(Union[str, int], min_items=1)
+    value: conlist(Union[int, str], min_items=1)
 
 class NonEmptyListInt(BaseModel):
     value: conlist(int, min_items=1)
