@@ -773,3 +773,27 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         else:
             heat.empty_state(ctx.guild, debug=True)
             await message.add_reaction("✅")
+
+    @wardengroup.command(name="find", aliases=["search"])
+    async def wardengroupfind(self, ctx: commands.Context, *, text: str):
+        """Search for text in existing rules"""
+        text = text.lower()
+        all_rules = self.active_warden_rules[ctx.guild.id].copy()
+        all_rules.update(self.invalid_warden_rules[ctx.guild.id].copy())
+        results = []
+        if not all_rules:
+            return await ctx.send("No Warden rules have been added yet.")
+
+        for name, rule in all_rules.items():
+            if text in rule.raw_rule.lower():
+                results.append(name)
+
+        if not results:
+            return await ctx.send("Your search yielded no results.")
+
+        results.sort()
+        results = [inline(r) for r in results]
+        text = "Your search term was found in the following rules:\n" + ", ".join(results)
+
+        for p in pagify(text, delims=[",", " "]):
+            await ctx.send(p)
