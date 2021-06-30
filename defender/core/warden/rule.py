@@ -1015,7 +1015,7 @@ class WardenRule:
                                      f"'{params.id}' is not a valid id.")
 
             is_user = False
-            destination = guild.get_channel(params.id)
+            destination = discord.utils.get(guild.text_channels, id=params.id)
             if destination is None:
                 destination = guild.get_member(params.id)
                 if destination is None:
