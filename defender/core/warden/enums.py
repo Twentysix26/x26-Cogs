@@ -56,7 +56,7 @@ class Action(enum.Enum):
     EmptyCustomHeat = "empty-custom-heat"
     IssueCommand = "issue-command"
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
-    Send = "send" # Send a message to an arbitrary destination with an optional embed
+    SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
     ## Deprecated actions ##
     Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content
     DmUser = "dm-user" # DMs user in context

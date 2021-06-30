@@ -731,7 +731,7 @@ class WardenRule:
         async def delete_user_message(params: models.IsNone):
             await message.delete()
 
-        @processor(Action.Dm, suggest=Action.Send)
+        @processor(Action.Dm, suggest=Action.SendMessage)
         async def send_dm(params: models.SendMessageToUser):
             nonlocal last_sent_message
             user_to_dm = guild.get_member(params.id)
@@ -747,7 +747,7 @@ class WardenRule:
                                     f"{user_to_dm} ({user_to_dm.id})")
                 last_sent_message = None
 
-        @processor(Action.DmUser, suggest=Action.Send)
+        @processor(Action.DmUser, suggest=Action.SendMessage)
         async def send_user_dm(params: models.IsStr):
             nonlocal last_sent_message
             text = Template(params.value).safe_substitute(templates_vars)
@@ -781,7 +781,7 @@ class WardenRule:
                                                             title=title, footer=f"Warden rule `{self.name}`",
                                                             allow_everyone_ping=True)
 
-        @processor(Action.SendInChannel, suggest=Action.Send)
+        @processor(Action.SendInChannel, suggest=Action.SendMessage)
         async def send_in_channel(params: models.IsStr):
             nonlocal last_sent_message
             text = Template(params.value).safe_substitute(templates_vars)
@@ -791,7 +791,7 @@ class WardenRule:
         async def set_channel_slowmode(params: models.IsTimedelta):
             await channel.edit(slowmode_delay=params.value.seconds)
 
-        @processor(Action.SendToChannel, suggest=Action.Send)
+        @processor(Action.SendToChannel, suggest=Action.SendMessage)
         async def send_to_channel(params: models.SendMessageToChannel):
             nonlocal last_sent_message
             channel_dest = guild.get_channel(params.id_or_name)
@@ -995,8 +995,8 @@ class WardenRule:
                 cog.loop.create_task(delete_message_after(last_sent_message, params.value.seconds))
                 last_sent_message = None
 
-        @processor(Action.Send)
-        async def send(params: models.Send):
+        @processor(Action.SendMessage)
+        async def send_message(params: models.SendMessage):
             nonlocal last_sent_message
             default_values = 0
 

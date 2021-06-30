@@ -89,7 +89,7 @@ class EmbedField(BaseModel):
     value: str
     inline: Optional[bool]=True
 
-class Send(BaseModel):
+class SendMessage(BaseModel):
     id: str # or context variable
     content: Optional[str]=""
     description: Optional[str]=None
@@ -203,7 +203,7 @@ ACTIONS_VALIDATORS = {
     Action.EmptyCustomHeat: IsStr,
     Action.IssueCommand: IssueCommand,
     Action.DeleteLastMessageSentAfter: IsTimedelta,
-    Action.Send: Send
+    Action.SendMessage: SendMessage
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -262,7 +262,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.AddCustomHeatpoints,
     Action.EmptyCustomHeat,
     Action.DeleteLastMessageSentAfter,
-    Action.Send,
+    Action.SendMessage,
 ]
 
 ACTIONS_USER_CONTEXT = [
