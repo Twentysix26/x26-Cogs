@@ -101,7 +101,7 @@ class WardenRule:
         if not isinstance(rule, dict):
             raise InvalidRule(f"This rule doesn't seem to follow the expected format.")
 
-        if rule["name"] is None:
+        if rule.get("name") is None:
             raise InvalidRule("Rule has no 'name' parameter.")
 
         self.name = rule["name"].lower().replace(" ", "-")
