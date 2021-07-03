@@ -1008,22 +1008,23 @@ class WardenRule:
                 elif isinstance(attr, str):
                     setattr(params, key, safe_sub(attr))
 
-            try:
-                params.id = int(params.id)
-            except ValueError:
-                raise ExecutionError(f"[Warden] ({self.name}): Failed to send message, "
-                                     f"'{params.id}' is not a valid id.")
-
             is_user = False
-            destination = discord.utils.get(guild.text_channels, id=params.id)
-            if destination is None:
-                destination = guild.get_member(params.id)
+            if params.id.isdigit():
+                params.id = int(params.id)
+                destination = discord.utils.get(guild.text_channels, id=params.id)
                 if destination is None:
-                    cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to send message, "
-                                                f"I could not find the recipient.")
-                    return
-                else:
-                    is_user = True
+                    destination = guild.get_member(params.id)
+                    if destination is None:
+                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to send message, "
+                                                    f"I could not find the recipient.")
+                        return
+                    else:
+                        is_user = True
+            else:
+                destination = discord.utils.get(guild.text_channels, name=params.id)
+                if destination is None:
+                    raise ExecutionError(f"[Warden] ({self.name}): Failed to send message, "
+                                        f"'{params.id}' is not a valid channel name.")
 
             em = None
             no_embed = default_values >= 10 # Yuck, maybe I'll think of something better
