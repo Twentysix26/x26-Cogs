@@ -855,7 +855,7 @@ class WardenRule:
                 raise ExecutionError(f"User {user} ({user.id}) not in the server.")
             reason = f"Kicked by Warden action '{self.name}'"
             await guild.kick(user, reason=reason)
-            last_expel_action = Action.Kick
+            last_expel_action = ModAction.Kick
             cog.dispatch_event("member_remove", user, ModAction.Kick.value, reason)
 
         @processor(Action.Softban)
