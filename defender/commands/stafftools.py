@@ -717,9 +717,12 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         guild = ctx.guild
 
         if event in (WardenEvent.OnMessage, WardenEvent.OnMessageEdit, WardenEvent.OnMessageDelete):
-            message = await ctx.channel.fetch_message(_id)
-            if message is None:
+            try:
+                message = await ctx.channel.fetch_message(_id)
+            except discord.NotFound:
                 return await ctx.send("I could not retrieve the message. Is it in this channel?")
+            except:
+                return await ctx.send("I failed to retrieve the message.")
             user = message.author
             rank = rank or await self.rank_user(user)
         elif event in (WardenEvent.OnUserJoin, WardenEvent.OnUserLeave, WardenEvent.Manual, WardenEvent.Periodic):
