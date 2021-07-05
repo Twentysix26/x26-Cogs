@@ -41,7 +41,9 @@ class Sbansync(commands.Cog):
         self.config = Config.get_conf(
             self, identifier=262626, force_registration=True
         )
-        self.config.register_guild(allow_pull_from=[], allow_push_to=[])
+        self.config.register_guild(allow_pull_from=[],
+                                   allow_push_to=[],
+                                   silently=False)
 
     @commands.group()
     @commands.guild_only()
@@ -76,7 +78,12 @@ class Sbansync(commands.Cog):
         else:
             text = "No bans to pull."
 
-        await ctx.send(text)
+        silently = await self.config.guild(ctx.guild).silently()
+
+        if silently:
+            await ctx.tick()
+        else:
+            await ctx.send(text)
 
     @sbansync.command(name="push")
     @commands.bot_has_permissions(ban_members=True)
@@ -103,7 +110,12 @@ class Sbansync(commands.Cog):
         else:
             text = "No bans to push."
 
-        await ctx.send(text)
+        silently = await self.config.guild(ctx.guild).silently()
+
+        if silently:
+            await ctx.tick()
+        else:
+            await ctx.send(text)
 
     @sbansync.command(name="sync")
     @commands.bot_has_permissions(ban_members=True)
@@ -130,7 +142,12 @@ class Sbansync(commands.Cog):
         else:
             text = "No bans to sync."
 
-        await ctx.send(text)
+        silently = await self.config.guild(ctx.guild).silently()
+
+        if silently:
+            await ctx.tick()
+        else:
+            await ctx.send(text)
 
     @commands.group()
     @commands.guild_only()
@@ -199,6 +216,19 @@ class Sbansync(commands.Cog):
         push = [inline(b.get_guild(s).name) for s in push if b.get_guild(s)] or ["None"]
 
         await ctx.send(f"Pull: {', '.join(pull)}\nPush: {', '.join(push)}")
+
+    @sbansyncset.command(name="silently")
+    async def sbansyncssilently(self, ctx: commands.Context, on_or_off: bool):
+        """Toggle whether to perform operations silently
+
+        This is is useful in case pull, push and syncs are done by tasks
+        instead of manually"""
+        await self.config.guild(ctx.guild).silently.set(on_or_off)
+
+        if on_or_off:
+            await ctx.send("I will perform pull, push and syncs silently.")
+        else:
+            await ctx.send("I will report the number of users affected for each operation.")
 
     async def is_member_allowed(self, operation: Operation, member: discord.Member, target: discord.Guild):
         """A member is allowed to pull, push or sync to a guild if:
