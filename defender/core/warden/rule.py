@@ -1145,6 +1145,22 @@ class WardenRule:
 
             templates_vars[params.var_name] = var
 
+        @processor(Action.VarSlice)
+        async def var_slice(params: models.VarSlice):
+            var = templates_vars.get(params.var_name, None)
+            if var is None:
+                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+
+            if params.step is None:
+                var = var[params.index:params.end_index]
+            else:
+                var = var[params.index:params.end_index:params.step]
+
+            if params.splice_into:
+                templates_vars[params.splice_into] = var
+            else:
+                templates_vars[params.var_name] = var
+
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):
             pass

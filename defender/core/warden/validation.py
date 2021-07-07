@@ -141,6 +141,19 @@ class VarSplit(BaseModel):
             raise ValueError("You must insert at least one variable")
         return v
 
+class VarSlice(BaseModel):
+    var_name: str
+    index: int
+    end_index: int
+    splice_into: Optional[str]
+    step: Optional[int]
+
+    @validator("splice_into", allow_reuse=True)
+    def check_empty_slice(cls, v):
+        if len(v) == 0:
+            raise ValueError("You must insert at least one variable")
+        return v
+
 class VarTransform(BaseModel):
     var_name: str
     operation: str
@@ -253,6 +266,7 @@ ACTIONS_VALIDATORS = {
     Action.Assign: Assign,
     Action.AssignRandom: AssignRandom,
     Action.VarReplace: VarReplace,
+    Action.VarSlice: VarSlice,
     Action.VarSplit: VarSplit,
     Action.VarTransform: VarTransform,
 }
@@ -317,6 +331,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.Assign,
     Action.AssignRandom,
     Action.VarReplace,
+    Action.VarSlice,
     Action.VarSplit,
     Action.VarTransform,
 ]

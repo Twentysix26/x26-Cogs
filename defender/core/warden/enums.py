@@ -60,6 +60,7 @@ class Action(enum.Enum):
     Assign = "assign" # Assigns a string to a variable
     AssignRandom = "assign-random" # Assigns a random string to a variable
     VarReplace = "var-replace" # Replace var's str with substr
+    VarSlice = "var-slice" # Slice a var
     VarSplit = "var-split" # Splits a string into substrings
     VarTransform = "var-transform" # Perform a variety of operations on the var
     ## Deprecated actions ##
