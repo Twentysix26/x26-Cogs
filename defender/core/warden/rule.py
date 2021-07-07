@@ -1069,15 +1069,15 @@ class WardenRule:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
                                          f"to channel #{destination}")
 
-        @processor(Action.Assign)
-        async def assign(params: models.Assign):
+        @processor(Action.VarAssign)
+        async def assign(params: models.VarAssign):
             if params.evaluate:
                 params.value = safe_sub(params.value)
 
             templates_vars[params.var_name] = params.value
 
-        @processor(Action.AssignRandom)
-        async def assign_random(params: models.AssignRandom):
+        @processor(Action.VarAssignRandom)
+        async def assign_random(params: models.VarAssignRandom):
             choices = []
             weights = []
 
@@ -1156,8 +1156,8 @@ class WardenRule:
             else:
                 var = var[params.index:params.end_index:params.step]
 
-            if params.splice_into:
-                templates_vars[params.splice_into] = var
+            if params.slice_into:
+                templates_vars[params.slice_into] = var
             else:
                 templates_vars[params.var_name] = var
 

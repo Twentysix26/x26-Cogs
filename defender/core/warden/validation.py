@@ -108,12 +108,12 @@ class SendMessage(BaseModel):
     add_timestamp: Optional[bool]=False
     allow_mass_mentions: Optional[bool]=False
 
-class Assign(BaseModel):
+class VarAssign(BaseModel):
     var_name: str
     value: str
     evaluate: bool=False
 
-class AssignRandom(BaseModel):
+class VarAssignRandom(BaseModel):
     var_name: str
     choices: Union[List[str], Dict[str, int]]
     evaluate: bool=False
@@ -145,10 +145,10 @@ class VarSlice(BaseModel):
     var_name: str
     index: int
     end_index: int
-    splice_into: Optional[str]
+    slice_into: Optional[str]
     step: Optional[int]
 
-    @validator("splice_into", allow_reuse=True)
+    @validator("slice_into", allow_reuse=True)
     def check_empty_slice(cls, v):
         if len(v) == 0:
             raise ValueError("You must insert at least one variable")
@@ -263,8 +263,8 @@ ACTIONS_VALIDATORS = {
     Action.IssueCommand: IssueCommand,
     Action.DeleteLastMessageSentAfter: IsTimedelta,
     Action.SendMessage: SendMessage,
-    Action.Assign: Assign,
-    Action.AssignRandom: AssignRandom,
+    Action.VarAssign: VarAssign,
+    Action.VarAssignRandom: VarAssignRandom,
     Action.VarReplace: VarReplace,
     Action.VarSlice: VarSlice,
     Action.VarSplit: VarSplit,
@@ -328,8 +328,8 @@ ACTIONS_ANY_CONTEXT = [
     Action.EmptyCustomHeat,
     Action.DeleteLastMessageSentAfter,
     Action.SendMessage,
-    Action.Assign,
-    Action.AssignRandom,
+    Action.VarAssign,
+    Action.VarAssignRandom,
     Action.VarReplace,
     Action.VarSlice,
     Action.VarSplit,

@@ -57,8 +57,8 @@ class Action(enum.Enum):
     IssueCommand = "issue-command"
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
     SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
-    Assign = "assign" # Assigns a string to a variable
-    AssignRandom = "assign-random" # Assigns a random string to a variable
+    VarAssign = "var-assign" # Assigns a string to a variable
+    VarAssignRandom = "var-assign-random" # Assigns a random string to a variable
     VarReplace = "var-replace" # Replace var's str with substr
     VarSlice = "var-slice" # Slice a var
     VarSplit = "var-split" # Splits a string into substrings
