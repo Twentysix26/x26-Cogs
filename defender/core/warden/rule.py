@@ -1074,7 +1074,7 @@ class WardenRule:
             if params.evaluate:
                 params.value = safe_sub(params.value)
 
-            templates_vars[params.variable_name] = params.value
+            templates_vars[params.var_name] = params.value
 
         @processor(Action.AssignRandom)
         async def assign_random(params: models.AssignRandom):
@@ -1092,7 +1092,58 @@ class WardenRule:
             if params.evaluate:
                 choice = safe_sub(choice)
 
-            templates_vars[params.variable_name] = choice
+            templates_vars[params.var_name] = choice
+
+        @processor(Action.VarReplace)
+        async def var_replace(params: models.VarReplace):
+            var = templates_vars.get(params.var_name, None)
+            if var is None:
+                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+
+            to_sub = []
+
+            if isinstance(params.strings, str):
+                to_sub.append(params.strings)
+            else:
+                to_sub = params.strings
+
+            for sub in to_sub:
+                var = var.replace(sub, params.substring)
+
+            templates_vars[params.var_name] = var
+
+        @processor(Action.VarSplit)
+        async def var_split(params: models.VarSplit):
+            var = templates_vars.get(params.var_name, None)
+            if var is None:
+                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+
+            sequences = var.split(params.separator, maxsplit=params.max_split)
+
+            for i, var in enumerate(params.split_into):
+                try:
+                    templates_vars[var] = sequences[i]
+                except IndexError:
+                    templates_vars[var] = ""
+
+        @processor(Action.VarTransform)
+        async def var_transform(params: models.VarTransform):
+            var = templates_vars.get(params.var_name, None)
+            if var is None:
+                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+
+            operation = params.operation.lower()
+
+            if operation == "capitalize":
+                var = var.capitalize()
+            elif operation == "lowercase":
+                var = var.lower()
+            elif operation == "uppercase":
+                var = var.upper()
+            elif operation == "title":
+                var = var.title()
+
+            templates_vars[params.var_name] = var
 
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):

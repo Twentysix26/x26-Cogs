@@ -46,6 +46,7 @@ class TimeDelta(str):
 class BaseModel(PydanticBaseModel):
     class Config:
         extra = "forbid"
+        allow_reuse = True
 
 ######### CONDITION VALIDATORS #########
 
@@ -108,19 +109,48 @@ class SendMessage(BaseModel):
     allow_mass_mentions: Optional[bool]=False
 
 class Assign(BaseModel):
-    variable_name: str
+    var_name: str
     value: str
     evaluate: bool=False
 
 class AssignRandom(BaseModel):
-    variable_name: str
+    var_name: str
     choices: Union[List[str], Dict[str, int]]
     evaluate: bool=False
 
-    @validator("choices")
+    @validator("choices", allow_reuse=True)
     def check_empty(cls, v):
         if len(v) == 0:
             raise ValueError("Choices cannot be empty")
+        return v
+
+class VarReplace(BaseModel):
+    var_name: str
+    strings: Union[List[str], str]
+    substring: str
+
+class VarSplit(BaseModel):
+    var_name: str
+    separator: str
+    split_into: List[str]
+    max_split: Optional[int]=-1
+
+    @validator("split_into", allow_reuse=True)
+    def check_empty_split(cls, v):
+        if len(v) == 0:
+            raise ValueError("You must insert at least one variable")
+        return v
+
+class VarTransform(BaseModel):
+    var_name: str
+    operation: str
+
+    @validator("operation", allow_reuse=True)
+    def check_operation_allowed(cls, v):
+        allowed = ("capitalize", "lowercase", "uppercase", "title")
+        if isinstance(v, str):
+            if v.lower() not in allowed:
+                raise ValueError("Unknown operation")
         return v
 
 ######### MIXED VALIDATORS  #########
@@ -222,6 +252,9 @@ ACTIONS_VALIDATORS = {
     Action.SendMessage: SendMessage,
     Action.Assign: Assign,
     Action.AssignRandom: AssignRandom,
+    Action.VarReplace: VarReplace,
+    Action.VarSplit: VarSplit,
+    Action.VarTransform: VarTransform,
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -283,6 +316,9 @@ ACTIONS_ANY_CONTEXT = [
     Action.SendMessage,
     Action.Assign,
     Action.AssignRandom,
+    Action.VarReplace,
+    Action.VarSplit,
+    Action.VarTransform,
 ]
 
 ACTIONS_USER_CONTEXT = [

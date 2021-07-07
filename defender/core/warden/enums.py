@@ -59,6 +59,9 @@ class Action(enum.Enum):
     SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
     Assign = "assign" # Assigns a string to a variable
     AssignRandom = "assign-random" # Assigns a random string to a variable
+    VarReplace = "var-replace" # Replace var's str with substr
+    VarSplit = "var-split" # Splits a string into substrings
+    VarTransform = "var-transform" # Perform a variety of operations on the var
     ## Deprecated actions ##
     Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content
     DmUser = "dm-user" # DMs user in context
