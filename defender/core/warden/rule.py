@@ -34,6 +34,7 @@ from redbot.core import modlog
 from typing import Optional
 from pydantic import ValidationError
 from . import heat
+import random
 import yaml
 import fnmatch
 import discord
@@ -1067,6 +1068,31 @@ class WardenRule:
                 if is_user is False:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
                                          f"to channel #{destination}")
+
+        @processor(Action.Assign)
+        async def assign(params: models.Assign):
+            if params.evaluate:
+                params.value = safe_sub(params.value)
+
+            templates_vars[params.variable_name] = params.value
+
+        @processor(Action.AssignRandom)
+        async def assign_random(params: models.AssignRandom):
+            choices = []
+            weights = []
+
+            if isinstance(params.choices, list):
+                choices = params.choices
+            else:
+                for k, v in params.choices.items():
+                    choices.append(k)
+                    weights.append(v)
+
+            choice = random.choices(choices, weights=weights or None, k=1)[0]
+            if params.evaluate:
+                choice = safe_sub(choice)
+
+            templates_vars[params.variable_name] = choice
 
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):

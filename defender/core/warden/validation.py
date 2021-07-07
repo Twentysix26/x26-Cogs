@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .enums import Action, Condition, Event
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Dict
 from redbot.core.commands.converter import parse_timedelta
 from pydantic import BaseModel as PydanticBaseModel, conlist, validator
 import logging
@@ -106,6 +106,22 @@ class SendMessage(BaseModel):
     color: Optional[Union[bool, int]]=True
     add_timestamp: Optional[bool]=False
     allow_mass_mentions: Optional[bool]=False
+
+class Assign(BaseModel):
+    variable_name: str
+    value: str
+    evaluate: bool=False
+
+class AssignRandom(BaseModel):
+    variable_name: str
+    choices: Union[List[str], Dict[str, int]]
+    evaluate: bool=False
+
+    @validator("choices")
+    def check_empty(cls, v):
+        if len(v) == 0:
+            raise ValueError("Choices cannot be empty")
+        return v
 
 ######### MIXED VALIDATORS  #########
 
@@ -203,7 +219,9 @@ ACTIONS_VALIDATORS = {
     Action.EmptyCustomHeat: IsStr,
     Action.IssueCommand: IssueCommand,
     Action.DeleteLastMessageSentAfter: IsTimedelta,
-    Action.SendMessage: SendMessage
+    Action.SendMessage: SendMessage,
+    Action.Assign: Assign,
+    Action.AssignRandom: AssignRandom,
 }
 
 CONDITIONS_ANY_CONTEXT = [
@@ -263,6 +281,8 @@ ACTIONS_ANY_CONTEXT = [
     Action.EmptyCustomHeat,
     Action.DeleteLastMessageSentAfter,
     Action.SendMessage,
+    Action.Assign,
+    Action.AssignRandom,
 ]
 
 ACTIONS_USER_CONTEXT = [

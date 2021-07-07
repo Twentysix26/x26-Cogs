@@ -57,6 +57,8 @@ class Action(enum.Enum):
     IssueCommand = "issue-command"
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
     SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
+    Assign = "assign" # Assigns a string to a variable
+    AssignRandom = "assign-random" # Assigns a random string to a variable
     ## Deprecated actions ##
     Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content
     DmUser = "dm-user" # DMs user in context
