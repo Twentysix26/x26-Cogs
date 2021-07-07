@@ -54,6 +54,19 @@ class CheckCustomHeatpoint(BaseModel):
     label: str
     points: int
 
+class Compare(BaseModel):
+    value1: str
+    operator: str
+    value2: str
+
+    @validator("operator", allow_reuse=True)
+    def check_empty_split(cls, v):
+        allowed = ("==", "contains", "contains-pattern")
+        if isinstance(v, str):
+            if v.lower() not in allowed:
+                raise ValueError("Unknown operator")
+        return v
+
 ######### ACTION VALIDATORS #########
 
 class SendMessageToUser(BaseModel):
@@ -160,7 +173,7 @@ class VarTransform(BaseModel):
 
     @validator("operation", allow_reuse=True)
     def check_operation_allowed(cls, v):
-        allowed = ("capitalize", "lowercase", "uppercase", "title")
+        allowed = ("capitalize", "lowercase", "reverse", "uppercase", "title")
         if isinstance(v, str):
             if v.lower() not in allowed:
                 raise ValueError("Unknown operation")
@@ -227,6 +240,7 @@ CONDITIONS_VALIDATORS = {
     Condition.ChannelHeatMoreThan: IsInt,
     Condition.CustomHeatIs: CheckCustomHeatpoint,
     Condition.CustomHeatMoreThan: CheckCustomHeatpoint,
+    Condition.Compare: Compare,
 }
 
 ACTIONS_VALIDATORS = {
@@ -273,6 +287,7 @@ ACTIONS_VALIDATORS = {
 
 CONDITIONS_ANY_CONTEXT = [
     Condition.InEmergencyMode,
+    Condition.Compare,
 ]
 
 CONDITIONS_USER_CONTEXT = [

@@ -103,6 +103,7 @@ class Condition(enum.Enum):
     ChannelHeatMoreThan = "channel-heat-more-than"
     CustomHeatIs = "custom-heat-is"
     CustomHeatMoreThan = "custom-heat-more-than"
+    Compare = "compare"
 
 class ConditionBlock(enum.Enum):
     IfAll = "if-all"

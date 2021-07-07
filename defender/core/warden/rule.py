@@ -374,7 +374,7 @@ class WardenRule:
         return cr
 
     async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None, debug):
+                                   guild: discord.Guild=None, templates_vars={}, debug):
 
         if message and not user:
             user = message.author
@@ -382,20 +382,21 @@ class WardenRule:
         channel: discord.Channel = message.channel if message else None
 
         # We are only supporting a few template variables here for custom heatpoints
-        templates_vars = {
-            "rule_name": self.name,
-            "guild_id": guild.id
-        }
+        if not templates_vars:
+            templates_vars = {
+                "rule_name": self.name,
+                "guild_id": guild.id
+            }
 
-        if user:
-            templates_vars["user_id"] = user.id
+            if user:
+                templates_vars["user_id"] = user.id
 
-        if message:
-            templates_vars["message_id"] = message.id
+            if message:
+                templates_vars["message_id"] = message.id
 
-        if channel:
-            templates_vars["channel_id"] = channel.id
-            templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
+            if channel:
+                templates_vars["channel_id"] = channel.id
+                templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
 
         checkers = {}
 
@@ -410,6 +411,11 @@ class WardenRule:
                 checkers[condition] = wrapper
                 return wrapper
             return decorator
+
+        def safe_sub(string):
+            if string == discord.Embed.Empty:
+                return string
+            return Template(string).safe_substitute(templates_vars)
 
         @checker(Condition.MessageMatchesAny)
         async def message_matches_any(params: models.NonEmptyListStr):
@@ -637,6 +643,18 @@ class WardenRule:
         async def custom_heat_more_than(params: models.CheckCustomHeatpoint):
             heat_key = Template(params.label).safe_substitute(templates_vars)
             return heat.get_custom_heat(guild, heat_key, debug=debug) > params.points
+
+        @checker(Condition.Compare)
+        async def compare(params: models.Compare):
+            value1 = safe_sub(params.value1)
+            value2 = safe_sub(params.value2)
+
+            if params.operator == "==":
+                return value1 == value2
+            elif params.operator == "contains":
+                return value2 in value1
+            elif params.operator == "contains-pattern":
+                return fnmatch.fnmatch(value1, value2)
 
         if debug:
             for condition in Condition:
@@ -1085,7 +1103,7 @@ class WardenRule:
             if params.evaluate:
                 params.value = safe_sub(params.value)
 
-            templates_vars[params.var_name] = params.value
+            templates_vars[safe_sub(params.var_name)] = params.value
 
         @processor(Action.VarAssignRandom)
         async def assign_random(params: models.VarAssignRandom):
@@ -1103,13 +1121,14 @@ class WardenRule:
             if params.evaluate:
                 choice = safe_sub(choice)
 
-            templates_vars[params.var_name] = choice
+            templates_vars[safe_sub(params.var_name)] = choice
 
         @processor(Action.VarReplace)
         async def var_replace(params: models.VarReplace):
-            var = templates_vars.get(params.var_name, None)
+            var_name = safe_sub(params.var_name)
+            var = templates_vars.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
             to_sub = []
 
@@ -1121,13 +1140,14 @@ class WardenRule:
             for sub in to_sub:
                 var = var.replace(sub, params.substring)
 
-            templates_vars[params.var_name] = var
+            templates_vars[var_name] = var
 
         @processor(Action.VarSplit)
         async def var_split(params: models.VarSplit):
-            var = templates_vars.get(params.var_name, None)
+            var_name = safe_sub(params.var_name)
+            var = templates_vars.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
             sequences = var.split(params.separator, maxsplit=params.max_split)
 
@@ -1139,9 +1159,10 @@ class WardenRule:
 
         @processor(Action.VarTransform)
         async def var_transform(params: models.VarTransform):
-            var = templates_vars.get(params.var_name, None)
+            var_name = safe_sub(params.var_name)
+            var = templates_vars.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
             operation = params.operation.lower()
 
@@ -1149,18 +1170,21 @@ class WardenRule:
                 var = var.capitalize()
             elif operation == "lowercase":
                 var = var.lower()
+            elif operation == "reverse":
+                var = var[::-1]
             elif operation == "uppercase":
                 var = var.upper()
             elif operation == "title":
                 var = var.title()
 
-            templates_vars[params.var_name] = var
+            templates_vars[var_name] = var
 
         @processor(Action.VarSlice)
         async def var_slice(params: models.VarSlice):
-            var = templates_vars.get(params.var_name, None)
+            var_name = safe_sub(params.var_name)
+            var = templates_vars.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{params.var_name}\" does not exist.")
+                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
             if params.step is None:
                 var = var[params.index:params.end_index]
@@ -1168,9 +1192,9 @@ class WardenRule:
                 var = var[params.index:params.end_index:params.step]
 
             if params.slice_into:
-                templates_vars[params.slice_into] = var
+                templates_vars[safe_sub(params.slice_into)] = var
             else:
-                templates_vars[params.var_name] = var
+                templates_vars[var_name] = var
 
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):
@@ -1205,9 +1229,9 @@ class WardenRule:
                     await process_action(enum, value)
                 elif isinstance(enum, Condition):
                     _eval = await self._evaluate_conditions([{enum.value: value}],
-                                                            cog=cog, user=user,
-                                                            message=message,
-                                                            guild=guild, debug=debug)
+                                                            cog=cog, user=user, message=message,
+                                                            guild=guild, templates_vars=templates_vars,
+                                                            debug=debug)
                     last_cond_action_result = _eval[0]
                 elif isinstance(enum, ConditionalActionBlock):
                     is_true = enum == ConditionalActionBlock.IfTrue and last_cond_action_result is True
