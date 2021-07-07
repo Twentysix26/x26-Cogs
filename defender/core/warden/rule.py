@@ -19,7 +19,7 @@ from ...core.warden.validation import (ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLO
                                        DEPRECATED)
 from ...core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
-from .enums import Action, Condition, Event, ConditionBlock
+from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
 from ...exceptions import InvalidRule, ExecutionError
@@ -265,6 +265,26 @@ class WardenRule:
             else:
                 await validate_condition(raw_condition)
 
+        async def validate_action(action, parameter):
+            # Checking author prevents old rules from raising at load
+            if author and action in DEPRECATED:
+                raise InvalidRule(f"Action `{action.value}` is deprecated: check the documentation "
+                                "for a supported alternative.")
+
+            if not is_action_allowed_in_events(action):
+                raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
+
+            try:
+                model_validator(action, parameter)
+            except ValidationError as e:
+                raise InvalidRule(f"Action `{action.value}` invalid:\n{box(str(e))}")
+
+            if author:
+                try:
+                    await ACTIONS_SANITY_CHECK[action](cog=cog, author=author, action=action, parameter=parameter)
+                except KeyError:
+                    pass
+
         # Basically a list of one-key dicts
         # We need to preserve order of actions
         for entry in self.actions:
@@ -275,32 +295,23 @@ class WardenRule:
             if len(entry) != 1:
                 raise InvalidRule(f"Invalid format in the actions. Make sure you've got the dashes right!")
 
-            for action, parameter in entry.items():
+            for enum, parameter in entry.items():
                 try:
-                    action = Action(action)
+                    enum = self._get_actions_enum(enum)
                 except ValueError:
-                    suggestion = make_fuzzy_suggestion(action, [a.value for a in Action
+                    suggestion = make_fuzzy_suggestion(enum, [a.value for a in Action
                                                                 if a not in DEPRECATED])
-                    raise InvalidRule(f"Invalid action: `{action}`.{suggestion}")
+                    raise InvalidRule(f"Invalid action: `{enum}`.{suggestion}")
 
-                # Checking author prevents old rules from raising at load
-                if author and action in DEPRECATED:
-                    raise InvalidRule(f"Action `{action.value}` is deprecated: check the documentation "
-                                      "for a supported alternative.")
-
-                if not is_action_allowed_in_events(action):
-                    raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
-
-                try:
-                    model_validator(action, parameter)
-                except ValidationError as e:
-                    raise InvalidRule(f"Action `{action.value}` invalid:\n{box(str(e))}")
-
-                if author:
-                    try:
-                        await ACTIONS_SANITY_CHECK[action](cog=cog, author=author, action=action, parameter=parameter)
-                    except KeyError:
-                        pass
+                if isinstance(enum, Action):
+                    await validate_action(enum, parameter)
+                elif isinstance(enum, Condition):
+                    await validate_condition({enum.value: parameter})
+                elif isinstance(enum, ConditionalActionBlock):
+                    for raw_action in parameter:
+                        for action, subparameter in raw_action.items():
+                            action = self._get_actions_enum(action)
+                            await validate_action(action, subparameter)
 
 
     async def satisfies_conditions(self, *, rank: Optional[Rank], cog, user: discord.Member=None, message: discord.Message=None,
@@ -1170,21 +1181,55 @@ class WardenRule:
                 if action not in processors:
                     raise ExecutionError(f"{action.value} does not have a processor.")
 
-        for entry in self.actions:
-            for action, value in entry.items():
-                action = Action(action)
-                self.last_action = action
-                if debug and action not in ALLOWED_DEBUG_ACTIONS:
-                    continue
-                params = model_validator(action, value)
-                try:
-                    processor_func = processors[action]
-                except KeyError:
-                    raise ExecutionError(f"Unhandled action '{action.value}'.")
+        async def process_action(action, value):
+            self.last_action = action
+            if debug and action not in ALLOWED_DEBUG_ACTIONS:
+                return
 
-                await processor_func(params)
+            params = model_validator(action, value)
+
+            try:
+                processor_func = processors[action]
+            except KeyError:
+                raise ExecutionError(f"Unhandled action '{action.value}'.")
+
+            await processor_func(params)
+
+
+        last_cond_action_result = None
+
+        for entry in self.actions:
+            for enum, value in entry.items():
+                enum = self._get_actions_enum(enum)
+                if isinstance(enum, Action):
+                    await process_action(enum, value)
+                elif isinstance(enum, Condition):
+                    _eval = await self._evaluate_conditions([{enum.value: value}],
+                                                            cog=cog, user=user,
+                                                            message=message,
+                                                            guild=guild, debug=debug)
+                    last_cond_action_result = _eval[0]
+                elif isinstance(enum, ConditionalActionBlock):
+                    is_true = enum == ConditionalActionBlock.IfTrue and last_cond_action_result is True
+                    is_false = enum == ConditionalActionBlock.IfFalse and last_cond_action_result is False
+                    if is_true or is_false:
+                        for raw_action in value:
+                            for action, subvalue in raw_action.items():
+                                action = self._get_actions_enum(action)
+                                await process_action(action, subvalue)
 
         return bool(last_expel_action)
+
+    def _get_actions_enum(self, enum):
+        try:
+            enum = Action(enum)
+        except ValueError:
+            try:
+                enum = Condition(enum)
+            except ValueError:
+                enum = ConditionalActionBlock(enum)
+
+        return enum
 
     def __repr__(self):
         return f"<WardenRule '{self.name}'>"

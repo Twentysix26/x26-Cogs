@@ -108,3 +108,7 @@ class ConditionBlock(enum.Enum):
     IfAll = "if-all"
     IfAny = "if-any"
     IfNot = "if-not"
+
+class ConditionalActionBlock(enum.Enum):
+    IfTrue = "if-true"
+    IfFalse = "if-false"
