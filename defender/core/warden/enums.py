@@ -98,6 +98,7 @@ class Condition(enum.Enum):
     MessageHasMTCharacters = "message-has-more-than-characters"
     UserIsRank = "user-is-rank"
     IsStaff = "is-staff"
+    IsHelper = "is-helper"
     UserHeatIs = "user-heat-is"
     ChannelHeatIs = "channel-heat-is"
     UserHeatMoreThan = "user-heat-more-than"

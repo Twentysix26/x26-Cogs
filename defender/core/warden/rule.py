@@ -618,6 +618,11 @@ class WardenRule:
             is_staff = await cog.bot.is_mod(user)
             return is_staff is params.value
 
+        @checker(Condition.IsHelper)
+        async def is_helper(params: models.IsBool):
+            is_helper = await cog.is_helper(user)
+            return is_helper is params.value
+
         @checker(Condition.UserHeatIs)
         async def user_heat_is(params: models.IsInt):
             return heat.get_user_heat(user, debug=debug) == params.value
