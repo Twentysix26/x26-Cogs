@@ -1098,6 +1098,41 @@ class WardenRule:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
                                          f"to channel #{destination}")
 
+        @processor(Action.GetInfo)
+        async def get_info(params: models.GetInfo):
+            params.id = safe_sub(params.id)
+            if not params.id.isdigit():
+                raise ExecutionError(f"{params.id} is not a valid ID.")
+
+            member = guild.get_member(int(params.id))
+            if not member:
+                raise ExecutionError(f"Member {params.id} not found.")
+
+            for attr, target in params.mapping.items():
+                if attr.startswith("_") or "." in attr:
+                    raise ExecutionError(f"You cannot access internal attributes.")
+
+                attr = attr.lower()
+
+                if attr == "rank":
+                    value = await cog.rank_user(member)
+                    value = value.value
+                else:
+                    value = getattr(member, attr, None)
+                    if value is None:
+                        raise ExecutionError(f"Attribute \"{attr}\" does not exist.")
+
+                if isinstance(value, bool):
+                    value = str(value).lower()
+                elif isinstance(value, datetime.datetime):
+                    value = value.strftime("%Y/%m/%d %H:%M:%S")
+                elif isinstance(value, (str, int)):
+                    value = str(value)
+                else:
+                    raise ExecutionError(f"Attribute \"{attr}\" not supported.")
+
+                templates_vars[safe_sub(target)] = value
+
         @processor(Action.VarAssign)
         async def assign(params: models.VarAssign):
             if params.evaluate:

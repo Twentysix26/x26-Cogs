@@ -121,6 +121,10 @@ class SendMessage(BaseModel):
     add_timestamp: Optional[bool]=False
     allow_mass_mentions: Optional[bool]=False
 
+class GetInfo(BaseModel):
+    id: str # or context variable
+    mapping: Dict[str, str]
+
 class VarAssign(BaseModel):
     var_name: str
     value: str
@@ -277,6 +281,7 @@ ACTIONS_VALIDATORS = {
     Action.IssueCommand: IssueCommand,
     Action.DeleteLastMessageSentAfter: IsTimedelta,
     Action.SendMessage: SendMessage,
+    Action.GetInfo: GetInfo,
     Action.VarAssign: VarAssign,
     Action.VarAssignRandom: VarAssignRandom,
     Action.VarReplace: VarReplace,
@@ -343,6 +348,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.EmptyCustomHeat,
     Action.DeleteLastMessageSentAfter,
     Action.SendMessage,
+    Action.GetInfo,
     Action.VarAssign,
     Action.VarAssignRandom,
     Action.VarReplace,
