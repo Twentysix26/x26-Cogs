@@ -676,6 +676,23 @@ class WardenRule:
                 return value2 in value1
             elif params.operator == "contains-pattern":
                 return fnmatch.fnmatch(value1, value2)
+            elif params.operator == "!=":
+                return value1 != value2
+
+            # Numeric operators
+            try:
+                value1, value2 = int(value1), int(value2)
+            except ValueError:
+                raise ExecutionError(f"Could not compare {value1} with {value2}: they both need to be numbers!")
+
+            if params.operator == ">":
+                return value1 > value2
+            elif params.operator == "<":
+                return value1 < value2
+            elif params.operator == "<=":
+                return value1 <= value2
+            elif params.operator == ">=":
+                return value1 >= value2
 
         if debug:
             for condition in Condition:

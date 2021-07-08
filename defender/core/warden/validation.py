@@ -61,7 +61,8 @@ class Compare(BaseModel):
 
     @validator("operator", allow_reuse=True)
     def check_empty_split(cls, v):
-        allowed = ("==", "contains", "contains-pattern")
+        allowed = ("==", "contains", "contains-pattern", ">=", "<=", "<", ">",
+                   "!=")
         if isinstance(v, str):
             if v.lower() not in allowed:
                 raise ValueError("Unknown operator")
