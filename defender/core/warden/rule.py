@@ -307,6 +307,11 @@ class WardenRule:
                     await validate_action(enum, parameter)
                 elif isinstance(enum, Condition):
                     await validate_condition({enum.value: parameter})
+                elif isinstance(enum, ConditionBlock):
+                    if parameter is None:
+                        raise InvalidRule("Condition blocks cannot be empty.")
+                    for p in parameter:
+                        await validate_condition(p)
                 elif isinstance(enum, ConditionalActionBlock):
                     for raw_action in parameter:
                         for action, subparameter in raw_action.items():
@@ -314,10 +319,9 @@ class WardenRule:
                             await validate_action(action, subparameter)
 
 
-    async def satisfies_conditions(self, *, rank: Optional[Rank], cog, user: discord.Member=None, message: discord.Message=None,
+    async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None,
                                    guild: discord.Guild=None, debug=False)->ConditionResult:
         cr = ConditionResult(rule_name=self.name, debug=debug)
-
         if rank < self.rank:
             return cr
 
@@ -330,7 +334,15 @@ class WardenRule:
 
         # For the rule's conditions to pass, every "root level" condition (or block of conditions)
         # must equal to True
-        for raw_condition in self.conditions:
+        return await self._evaluate_conditions_block(block=self.conditions, cog=cog, user=user, message=message, guild=guild,
+                                                    debug=debug)
+
+    async def _evaluate_conditions_block(self, *, block, cog, user: discord.Member=None, message: discord.Message=None,
+                                   guild: discord.Guild=None, templates_vars={}, debug)->ConditionResult:
+        # This is used during condition processing AND action processing for conditional actions
+        cr = ConditionResult(rule_name=self.name, debug=debug)
+
+        for raw_condition in block:
             condition = None
             value = []
 
@@ -342,26 +354,30 @@ class WardenRule:
                 condition = Condition(condition)
 
             if condition == ConditionBlock.IfAll:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild, debug=debug)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message,
+                                                          guild=guild, templates_vars=templates_vars, debug=debug)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 cr.add_condition_block(condition, value, results) # type: ignore
                 cond_result = all(results)
             elif condition == ConditionBlock.IfAny:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild, debug=debug)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message,
+                                                          guild=guild, templates_vars=templates_vars, debug=debug)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 cr.add_condition_block(condition, value, results) # type: ignore
                 cond_result = any(results)
             elif condition == ConditionBlock.IfNot:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message, guild=guild, debug=debug)
+                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message,
+                                                          guild=guild, templates_vars=templates_vars, debug=debug)
                 if len(results) != len(value):
                     raise RuntimeError("Mismatching number of conditions and evaluations")
                 cr.add_condition_block(condition, value, results) # type: ignore
                 results = [not r for r in results] # Bools are flipped
                 cond_result = all(results)
             else:
-                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message, guild=guild, debug=debug)
+                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message,
+                                                          guild=guild, templates_vars=templates_vars, debug=debug)
                 if len(results) != 1:
                     raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
                 cr.add_condition(condition, results[0]) # type: ignore
@@ -1273,6 +1289,12 @@ class WardenRule:
                                                             guild=guild, templates_vars=templates_vars,
                                                             debug=debug)
                     last_cond_action_result = _eval[0]
+                elif isinstance(enum, ConditionBlock):
+                    _eval = await self._evaluate_conditions_block(block=[{enum.value: value}],
+                                                                  cog=cog, user=user, message=message,
+                                                                  guild=guild, templates_vars=templates_vars,
+                                                                  debug=debug)
+                    last_cond_action_result = bool(_eval)
                 elif isinstance(enum, ConditionalActionBlock):
                     is_true = enum == ConditionalActionBlock.IfTrue and last_cond_action_result is True
                     is_false = enum == ConditionalActionBlock.IfFalse and last_cond_action_result is False
@@ -1291,7 +1313,10 @@ class WardenRule:
             try:
                 enum = Condition(enum)
             except ValueError:
-                enum = ConditionalActionBlock(enum)
+                try:
+                    enum = ConditionBlock(enum)
+                except ValueError:
+                    enum = ConditionalActionBlock(enum)
 
         return enum
 
