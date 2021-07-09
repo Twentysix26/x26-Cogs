@@ -239,7 +239,7 @@ class WardenRule:
             condition = parameter = None
 
             if not isinstance(raw_condition, dict):
-                raise InvalidRule(f"Invalid condition: `{raw_condition}`. Expected map.")
+                raise InvalidRule(f"Invalid condition: `{raw_condition}`. Expected map. Did you forget the colon?")
 
             for r, p in raw_condition.items():
                 condition, parameter = r, p
@@ -314,6 +314,8 @@ class WardenRule:
                         await validate_condition(p)
                 elif isinstance(enum, ConditionalActionBlock):
                     for raw_action in parameter:
+                        if not isinstance(raw_action, dict):
+                            raise InvalidRule(f"`{enum.value}` contains a non-map. Did you forget the colon?")
                         for action, subparameter in raw_action.items():
                             action = self._get_actions_enum(action)
                             await validate_action(action, subparameter)
