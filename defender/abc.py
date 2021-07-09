@@ -107,6 +107,11 @@ class MixinMeta(ABC):
         raise NotImplementedError()
 
     @abstractmethod
+    async def create_modlog_case(self, bot, guild, created_at, action_type, user, moderator=None, reason=None,
+                                 until=None, channel=None, last_known_username=None):
+        raise NotImplementedError()
+
+    @abstractmethod
     async def send_notification(self, destination: discord.abc.Messageable, description: str, *,
                                 title: str=None, fields: list=[], footer: str=None,
                                 thumbnail: str=None,

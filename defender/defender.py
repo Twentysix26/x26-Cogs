@@ -20,6 +20,7 @@ from redbot.core import commands, Config
 from collections import Counter, defaultdict
 from redbot.core.utils.chat_formatting import pagify
 from redbot.core.utils import AsyncIter
+from redbot.core import modlog
 from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
 from .commands import Commands
@@ -28,7 +29,7 @@ from .enums import Rank, Action, EmergencyModules, PerspectiveAttributes
 from .exceptions import InvalidRule
 from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
-from .core.warden.heat import remove_stale_heat
+from .core.warden import heat
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
 from .core import cache as df_cache
@@ -296,7 +297,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             while True:
                 await asyncio.sleep(60 * 60)
                 await df_cache.discard_stale()
-                await remove_stale_heat()
+                await heat.remove_stale_heat()
         except asyncio.CancelledError:
             pass
 
@@ -573,6 +574,28 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     def dispatch_event(self, event_name, *args):
         event_name = "x26_defender_" + event_name
         self.bot.dispatch(event_name, *args)
+
+    async def create_modlog_case(self, bot, guild, created_at, action_type, user, moderator=None, reason=None, until=None,
+                                 channel=None, last_known_username=None):
+        mod_id = moderator.id if moderator else "none"
+
+        heat_key = f"core-modlog-{user.id}-{action_type}-{mod_id}"
+        if not heat.get_custom_heat(guild, heat_key) == 0:
+            return
+        heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=1))
+
+        await modlog.create_case(
+            bot,
+            guild,
+            created_at,
+            action_type,
+            user,
+            moderator,
+            reason,
+            until,
+            channel,
+            last_known_username
+        )
 
     async def red_delete_data_for_user(self, requester, user_id):
         # We store only IDs

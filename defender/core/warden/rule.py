@@ -895,7 +895,7 @@ class WardenRule:
             if last_expel_action is None:
                 return
             reason = Template(params.value).safe_substitute(templates_vars)
-            await modlog.create_case(
+            await cog.create_modlog_case(
                 cog.bot,
                 guild,
                 utcnow(),

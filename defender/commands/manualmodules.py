@@ -361,7 +361,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                                      fields=EMBED_FIELDS,
                                      jump_to=msg)
 
-        await modlog.create_case(
+        await self.create_modlog_case(
             self.bot,
             guild,
             ctx.message.created_at,

@@ -109,7 +109,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         await self.send_notification(guild, f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}",
                                      title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
 
-        await modlog.create_case(
+        await self.create_modlog_case(
             self.bot,
             guild,
             message.created_at,
@@ -190,7 +190,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         else:
             raise ValueError("Invalid action for raider detection")
 
-        await modlog.create_case(
+        await self.create_modlog_case(
             self.bot,
             guild,
             message.created_at,
@@ -376,7 +376,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except:
             pass
 
-        await modlog.create_case(
+        await self.create_modlog_case(
             self.bot,
             guild,
             message.created_at,
