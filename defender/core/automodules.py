@@ -24,13 +24,11 @@ from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
 from ..core.utils import is_own_invite, ACTIONS_VERBS
-from .warden import heat
-from redbot.core import modlog
 from io import BytesIO
 from collections import deque
+from datetime import timedelta
 import contextlib
 import discord
-import datetime
 import logging
 import aiohttp
 
@@ -74,6 +72,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except Exception as e:
             log.error("Unexpected error in invite filter's message deletion", exc_info=e)
 
+        heat_key = f"core-if-{author.id}-{message.channel.id}"
         action = Action(await self.config.guild(guild).invite_filter_action())
 
         if action == Action.Ban:
@@ -102,12 +101,14 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 return
         elif action == Action.NoAction:
             return await self.send_notification(guild, f"I have deleted a message with this content:\n{content}",
-                                                title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
+                                                title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
+                                                no_repeat_for=timedelta(minutes=1), heat_key=heat_key)
         else:
             raise ValueError("Invalid action for invite filter")
 
         await self.send_notification(guild, f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}",
-                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
+                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
+                                     no_repeat_for=timedelta(minutes=1), heat_key=heat_key)
 
         await self.create_modlog_case(
             self.bot,
@@ -135,7 +136,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         max_messages = await self.config.guild(guild).raider_detection_messages()
         minutes = await self.config.guild(guild).raider_detection_minutes()
-        x_minutes_ago = message.created_at - datetime.timedelta(minutes=minutes)
+        x_minutes_ago = message.created_at - timedelta(minutes=minutes)
         recent = 0
 
         for i, m in enumerate(cache):
@@ -165,16 +166,14 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await guild.unban(author)
             self.dispatch_event("member_remove", author, Action.Softban.value, reason)
         elif action == Action.NoAction:
-            heat_key = f"core-rd-{author.id}"
-            if not heat.get_custom_heat(guild, heat_key) == 0:
-                return
             await self.send_notification(guild,
-                                        f"User {author} ({author.id}) is spamming messages ({recent} "
+                                        f"User is spamming messages ({recent} "
                                         f"messages in {minutes} minutes).",
                                         title=EMBED_TITLE,
+                                        fields=EMBED_FIELDS,
                                         jump_to=message,
+                                        no_repeat_for=timedelta(minutes=15),
                                         ping=True)
-            heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
             return
         elif action == Action.Punish:
             punish_role = guild.get_role(await self.config.guild(guild).punish_role())
@@ -206,7 +205,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         f = discord.File(BytesIO(log.encode("utf-8")), f"{author.id}-log.txt")
         await self.send_notification(guild, f"I have {ACTIONS_VERBS[action]} a user for posting {recent} "
                                      f"messages in {minutes} minutes. Attached their last stored messages.", file=f,
-                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
+                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, no_repeat_for=timedelta(minutes=1))
         return True
 
     async def join_monitor_flood(self, member):
@@ -221,7 +220,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         users = await self.config.guild(guild).join_monitor_n_users()
         minutes = await self.config.guild(guild).join_monitor_minutes()
-        x_minutes_ago = member.joined_at - datetime.timedelta(minutes=minutes)
+        x_minutes_ago = member.joined_at - timedelta(minutes=minutes)
 
         recent_users = 0
 
@@ -230,15 +229,11 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 recent_users += 1
 
         if recent_users >= users:
-            heat_key = "core-jm"
-            if not heat.get_custom_heat(guild, heat_key) == 0:
-                return
-
             await self.send_notification(guild,
                                          f"Abnormal influx of new users ({recent_users} in the past "
                                          f"{minutes} minutes). Possible raid ongoing or about to start.",
-                                         title=EMBED_TITLE, ping=True)
-            heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
+                                         title=EMBED_TITLE, ping=True, heat_key="core-jm-flood",
+                                         no_repeat_for=timedelta(minutes=15))
             return True
 
     async def join_monitor_suspicious(self, member):
@@ -253,14 +248,16 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         delta = member.joined_at - member.created_at
         description = f"A {humanize_timedelta(timedelta=delta)} old user just joined the server."
         avatar = member.avatar_url_as(static_format="png")
+        heat_key = f"core-jm-{member.id}"
 
         if hours:
-            x_hours_ago = member.joined_at - datetime.timedelta(hours=hours)
+            x_hours_ago = member.joined_at - timedelta(hours=hours)
             if member.created_at > x_hours_ago:
                 footer = "To turn off these notifications do `[p]dset joinmonitor notifynew 0` (admin only)"
                 try:
                     await self.send_notification(guild, description, title=EMBED_TITLE, fields=EMBED_FIELDS,
-                                                 thumbnail=avatar, footer=footer)
+                                                 thumbnail=avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
+                                                 heat_key=heat_key)
                 except (discord.Forbidden, discord.HTTPException):
                     pass
 
@@ -276,12 +273,13 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             if not hours:
                 continue
 
-            x_hours_ago = member.joined_at - datetime.timedelta(hours=hours)
+            x_hours_ago = member.joined_at - timedelta(hours=hours)
             if member.created_at > x_hours_ago:
                 footer = "To turn off these notifications do `[p]def notifynew 0` in the server."
                 try:
                     await self.send_notification(user, description, title=EMBED_TITLE, fields=EMBED_FIELDS,
-                                                 thumbnail=avatar, footer=footer)
+                                                 thumbnail=avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
+                                                 heat_key=f"{heat_key}-{user.id}")
                 except (discord.Forbidden, discord.HTTPException):
                     pass
 
@@ -338,6 +336,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 f"{box(sanitized_content)}")
 
         reason = await self.config.guild(guild).ca_reason()
+        heat_key = f"core-ca-{author.id}-{message.channel.id}"
 
         if action == Action.Ban:
             delete_days = await self.config.guild(guild).ca_wipe()
@@ -362,19 +361,13 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                             "still present and with *no* privileges?")
                 return
         elif action == Action.NoAction:
-            heat_key = f"core-ca-{message.channel.id}-{author.id}"
-            if heat.get_custom_heat(guild, heat_key) > 0:
-                with contextlib.suppress(discord.HTTPException, discord.Forbidden):
-                    await message.delete() # The user is spamming, delete and return
-                return
-            heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=15))
+            heat_key = f"core-ca-{author.id}-{message.channel.id}-{len(message.content)}"
 
-        await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message)
+        await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, heat_key=heat_key,
+                                     no_repeat_for=timedelta(minutes=1))
 
-        try:
+        with contextlib.suppress(discord.HTTPException, discord.Forbidden):
             await message.delete()
-        except:
-            pass
 
         await self.create_modlog_case(
             self.bot,

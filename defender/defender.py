@@ -34,6 +34,7 @@ from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
+from zlib import crc32
 import datetime
 import discord
 import asyncio
@@ -503,8 +504,23 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                                 thumbnail: str=None,
                                 ping=False, file: discord.File=None, react: str=None,
                                 jump_to: discord.Message=None,
-                                allow_everyone_ping=False, force_text_only=False)->Optional[discord.Message]:
+                                allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
+                                no_repeat_for: datetime.timedelta=None)->Optional[discord.Message]:
         """Sends a notification to the staff channel if a guild is passed. Embed preference is respected."""
+        if no_repeat_for:
+            if isinstance(destination, discord.Guild):
+                guild = destination
+            else:
+                guild = destination.guild
+
+            if not heat_key: # A custom heat_key can be passed to block dynamic content
+                heat_key = f"{destination.id}-{description}-{fields}"
+                heat_key =  f"core-notif-{crc32(heat_key.encode('utf-8', 'ignore'))}"
+
+            if not heat.get_custom_heat(guild, heat_key) == 0:
+                return
+            heat.increase_custom_heat(guild, heat_key, no_repeat_for)
+
         guild = destination
         is_staff_notification = False
         if isinstance(destination, discord.Guild):
@@ -582,7 +598,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         heat_key = f"core-modlog-{user.id}-{action_type}-{mod_id}"
         if not heat.get_custom_heat(guild, heat_key) == 0:
             return
-        heat.increase_custom_heat(guild, heat_key, datetime.timedelta(minutes=1))
+        heat.increase_custom_heat(guild, heat_key, datetime.timedelta(seconds=15))
 
         await modlog.create_case(
             bot,

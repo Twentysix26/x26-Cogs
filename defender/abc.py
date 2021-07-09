@@ -23,6 +23,7 @@ from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
 from .core.warden.rule import WardenRule
 from typing import List
+import datetime
 import discord
 import asyncio
 
@@ -117,7 +118,8 @@ class MixinMeta(ABC):
                                 thumbnail: str=None,
                                 ping=False, file: discord.File=None, react: str=None,
                                 jump_to: discord.Message=None,
-                                allow_everyone_ping=False, force_text_only=False)->Optional[discord.Message]:
+                                allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
+                                no_repeat_for: datetime.timedelta=None)->Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod
