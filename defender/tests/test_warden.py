@@ -5,14 +5,10 @@ from ..core.warden.validation import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CON
 from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT
 from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
-from .wd_sample_rules import (CHECK_EMPTY_HEATPOINTS, CHECK_HEATPOINTS, DYNAMIC_RULE, DYNAMIC_RULE_PERIODIC, EMPTY_HEATPOINTS,
-                              INCREASE_HEATPOINTS, TUTORIAL_SIMPLE_RULE, TUTORIAL_COMPLEX_RULE,
-                              INVALID_RANK, INVALID_EVENT, TUTORIAL_PRIORITY_RULE, INVALID_PRIORITY,
-                              INVALID_PERIODIC_MISSING_EVENT, INVALID_PERIODIC_MISSING_RUN_EVERY, VALID_MIXED_RULE,
-                              INVALID_MIXED_RULE_CONDITION, INVALID_MIXED_RULE_ACTION, CONDITION_TEST_POSITIVE,
-                              CONDITION_TEST_NEGATIVE, CONDITION_TEST)
+from . import wd_sample_rules as rl
 from datetime import datetime, timedelta
 import pytest
+
 
 class FakeGuildPerms:
     manage_guild = False
@@ -130,26 +126,26 @@ def test_check_validators_consistency():
 @pytest.mark.asyncio
 async def test_rule_parsing():
     with pytest.raises(InvalidRule, match=r".*rank.*"):
-        await WardenRule().parse(INVALID_RANK, cog=None)
+        await WardenRule().parse(rl.INVALID_RANK, cog=None)
     with pytest.raises(InvalidRule, match=r".*event.*"):
-        await WardenRule().parse(INVALID_EVENT, cog=None)
+        await WardenRule().parse(rl.INVALID_EVENT, cog=None)
     with pytest.raises(InvalidRule, match=r".*number.*"):
-        await WardenRule().parse(INVALID_PRIORITY, cog=None)
+        await WardenRule().parse(rl.INVALID_PRIORITY, cog=None)
     with pytest.raises(InvalidRule, match=r".*'run-every' parameter is mandatory.*"):
-        await WardenRule().parse(INVALID_PERIODIC_MISSING_RUN_EVERY, cog=None)
+        await WardenRule().parse(rl.INVALID_PERIODIC_MISSING_RUN_EVERY, cog=None)
     with pytest.raises(InvalidRule, match=r".*'periodic' event must be specified.*"):
-        await WardenRule().parse(INVALID_PERIODIC_MISSING_EVENT, cog=None)
+        await WardenRule().parse(rl.INVALID_PERIODIC_MISSING_EVENT, cog=None)
     with pytest.raises(InvalidRule, match=r".*Condition `message-matches-any` not allowed*"):
-        await WardenRule().parse(INVALID_MIXED_RULE_CONDITION, cog=None)
+        await WardenRule().parse(rl.INVALID_MIXED_RULE_CONDITION, cog=None)
     with pytest.raises(InvalidRule, match=r".*Action `delete-user-message` not allowed*"):
-        await WardenRule().parse(INVALID_MIXED_RULE_ACTION, cog=None)
+        await WardenRule().parse(rl.INVALID_MIXED_RULE_ACTION, cog=None)
 
-    await WardenRule().parse(TUTORIAL_SIMPLE_RULE, cog=None)
-    await WardenRule().parse(TUTORIAL_PRIORITY_RULE, cog=None)
-    await WardenRule().parse(VALID_MIXED_RULE, cog=None)
+    await WardenRule().parse(rl.TUTORIAL_SIMPLE_RULE, cog=None)
+    await WardenRule().parse(rl.TUTORIAL_PRIORITY_RULE, cog=None)
+    await WardenRule().parse(rl.VALID_MIXED_RULE, cog=None)
 
     rule = WardenRule()
-    await rule.parse(TUTORIAL_COMPLEX_RULE, cog=None)
+    await rule.parse(rl.TUTORIAL_COMPLEX_RULE, cog=None)
     assert isinstance(rule.rank, Rank)
     assert rule.name and isinstance(rule.name, str)
     assert rule.raw_rule and isinstance(rule.raw_rule, str)
@@ -163,7 +159,7 @@ async def test_rule_parsing():
 @pytest.mark.asyncio
 async def test_rule_cond_eval():
     rule = WardenRule()
-    await rule.parse(CONDITION_TEST_POSITIVE, cog=None)
+    await rule.parse(rl.CONDITION_TEST_POSITIVE, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -171,16 +167,57 @@ async def test_rule_cond_eval():
         user=FAKE_USER)) is True
 
     rule = WardenRule()
-    await rule.parse(CONDITION_TEST_NEGATIVE, cog=None)
+    await rule.parse(rl.CONDITION_TEST_NEGATIVE, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
         guild=FAKE_GUILD,
         user=FAKE_USER)) is False
 
+    positive_comparisons = (
+        '[1, "==", 1]',
+        '[1, "!=", 2]',
+        '[2, ">", 1]',
+        '[1, "<", 2]',
+        '[3, ">=", 3]',
+        '[4, ">=", 3]',
+        '[3, "<=", 3]',
+        '[3, "<=", 5]',
+        '[hello, contains, ll]',
+        '[hello, contains-pattern, "h?ll*"]',
+    )
+
+    negative_comparisons = (
+        '[2, "==", 1]',
+        '[1, "!=", 1]',
+        '[2, ">", 4]',
+        '[4, "<", 2]',
+        '[3, ">=", 5]',
+        '[5, "<=", 3]',
+        '[hello, contains, xx]',
+        '[hello, contains-pattern, "h?xx*"]',
+    )
+
+    expected_result = (True, False)
+    for i, comparison_list in enumerate((positive_comparisons, negative_comparisons)):
+        for comp in comparison_list:
+            print(comp)
+            rule = WardenRule()
+            await rule.parse(rl.DYNAMIC_RULE.format(
+                rank="1",
+                event="on-user-join",
+                conditions=f"    - compare: {comp}",
+                actions="    - no-op:"
+                ), cog=None)
+            assert bool(await rule.satisfies_conditions(
+                cog=None,
+                rank=Rank.Rank1,
+                guild=FAKE_GUILD,
+                user=FAKE_USER)) is expected_result[i]
+
     ##### Sandbox store
     rule = WardenRule()
-    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -188,7 +225,7 @@ async def test_rule_cond_eval():
         message=FAKE_MESSAGE)) is False
 
     rule = WardenRule()
-    await rule.parse(INCREASE_HEATPOINTS, cog=None)
+    await rule.parse(rl.INCREASE_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -199,7 +236,7 @@ async def test_rule_cond_eval():
         message=FAKE_MESSAGE)
 
     rule = WardenRule()
-    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -209,7 +246,7 @@ async def test_rule_cond_eval():
 
     ##### Prod store
     rule = WardenRule()
-    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -218,7 +255,7 @@ async def test_rule_cond_eval():
         debug=True)) is False
 
     rule = WardenRule()
-    await rule.parse(INCREASE_HEATPOINTS, cog=None)
+    await rule.parse(rl.INCREASE_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -231,7 +268,7 @@ async def test_rule_cond_eval():
         debug=True)
 
     rule = WardenRule()
-    await rule.parse(CHECK_HEATPOINTS, cog=None)
+    await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -241,7 +278,7 @@ async def test_rule_cond_eval():
     ##############
 
     rule = WardenRule()
-    await rule.parse(EMPTY_HEATPOINTS, cog=None)
+    await rule.parse(rl.EMPTY_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -254,7 +291,7 @@ async def test_rule_cond_eval():
         debug=True)
 
     rule = WardenRule()
-    await rule.parse(CHECK_EMPTY_HEATPOINTS, cog=None)
+    await rule.parse(rl.CHECK_EMPTY_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -264,7 +301,7 @@ async def test_rule_cond_eval():
 
 
     rule = WardenRule()
-    await rule.parse(CHECK_EMPTY_HEATPOINTS, cog=None)
+    await rule.parse(rl.CHECK_EMPTY_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -272,7 +309,7 @@ async def test_rule_cond_eval():
         message=FAKE_MESSAGE)) is False
 
     rule = WardenRule()
-    await rule.parse(EMPTY_HEATPOINTS, cog=None)
+    await rule.parse(rl.EMPTY_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -283,7 +320,7 @@ async def test_rule_cond_eval():
         message=FAKE_MESSAGE)
 
     rule = WardenRule()
-    await rule.parse(CHECK_EMPTY_HEATPOINTS, cog=None)
+    await rule.parse(rl.CHECK_EMPTY_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
         rank=Rank.Rank1,
@@ -295,7 +332,7 @@ async def test_conditions():
     async def eval_cond(condition: Condition, params, expected_result: bool):
         rule = WardenRule()
         await rule.parse(
-            CONDITION_TEST.format(
+            rl.CONDITION_TEST.format(
                 condition.value,
                 params,
             ),

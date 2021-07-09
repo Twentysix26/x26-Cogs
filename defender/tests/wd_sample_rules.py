@@ -120,7 +120,7 @@ INVALID_MIXED_RULE_ACTION = """
 
 DYNAMIC_RULE = """
     name: test
-    rank: 3
+    rank: {rank}
     event: {event}
     if:
 {conditions}
