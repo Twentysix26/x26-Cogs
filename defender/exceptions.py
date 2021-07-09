@@ -23,3 +23,6 @@ class InvalidRule(WardenException):
 
 class ExecutionError(WardenException):
     pass
+
+class StopExecution(WardenException):
+    pass

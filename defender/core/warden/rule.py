@@ -22,7 +22,7 @@ from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
-from ...exceptions import InvalidRule, ExecutionError
+from ...exceptions import InvalidRule, ExecutionError, StopExecution
 from ...core import cache as df_cache
 from ...core.utils import is_own_invite
 from redbot.core.utils.common_filters import INVITE_URL_RE
@@ -1171,6 +1171,10 @@ class WardenRule:
 
                 templates_vars[safe_sub(target)] = value
 
+        @processor(Action.Exit)
+        async def exit(params: models.IsNone):
+            raise StopExecution("Exiting.")
+
         @processor(Action.VarAssign)
         async def assign(params: models.VarAssign):
             if params.evaluate:
@@ -1299,7 +1303,10 @@ class WardenRule:
             for enum, value in entry.items():
                 enum = self._get_actions_enum(enum)
                 if isinstance(enum, Action):
-                    await process_action(enum, value)
+                    try:
+                        await process_action(enum, value)
+                    except StopExecution:
+                        return bool(last_expel_action)
                 elif isinstance(enum, Condition):
                     _eval = await self._evaluate_conditions([{enum.value: value}],
                                                             cog=cog, user=user, message=message,
@@ -1319,7 +1326,10 @@ class WardenRule:
                         for raw_action in value:
                             for action, subvalue in raw_action.items():
                                 action = self._get_actions_enum(action)
-                                await process_action(action, subvalue)
+                                try:
+                                    await process_action(action, subvalue)
+                                except StopExecution:
+                                    return bool(last_expel_action)
 
         return bool(last_expel_action)
 

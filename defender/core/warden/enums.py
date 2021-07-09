@@ -58,6 +58,7 @@ class Action(enum.Enum):
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
     SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
     GetInfo = "get-info" # Get info of an arbitrary user
+    Exit = "exit" # Stops processing the rule
     VarAssign = "var-assign" # Assigns a string to a variable
     VarAssignRandom = "var-assign-random" # Assigns a random string to a variable
     VarReplace = "var-replace" # Replace var's str with substr
