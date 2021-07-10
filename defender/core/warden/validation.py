@@ -60,7 +60,7 @@ class SendMessageToUser(BaseModel):
     content: str
 
 class SendMessageToChannel(BaseModel):
-    id_or_name: str
+    id_or_name: Union[int, str]
     content: str
 
 class NotifyStaffWithEmbed(BaseModel):

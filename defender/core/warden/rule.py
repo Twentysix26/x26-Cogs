@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from defender.core.warden.validation import (ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLOWED_DEBUG_ACTIONS, model_validator,
-                                             DEPRECATED)
-from defender.core.warden import validation as models
+from ...core.warden.validation import (ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLOWED_DEBUG_ACTIONS, model_validator,
+                                       DEPRECATED)
+from ...core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
@@ -798,7 +798,7 @@ class WardenRule:
             if not channel_dest:
                 channel_dest = discord.utils.get(guild.text_channels, name=params.id_or_name)
             if not channel_dest:
-                raise ExecutionError(f"Channel '{params._id_or_name}' not found.")
+                raise ExecutionError(f"Channel '{params.id_or_name}' not found.")
             content = Template(params.content).safe_substitute(templates_vars)
             last_sent_message = await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
 
