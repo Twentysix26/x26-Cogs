@@ -1157,6 +1157,10 @@ class WardenRule:
                 if attr == "rank":
                     value = await cog.rank_user(member)
                     value = value.value
+                elif attr == "is_staff":
+                    value = await cog.bot.is_mod(member)
+                elif attr == "is_helper":
+                    value = await cog.is_helper(member)
                 else:
                     value = getattr(member, attr, None)
                     if value is None:
@@ -1166,7 +1170,7 @@ class WardenRule:
                     value = str(value).lower()
                 elif isinstance(value, datetime.datetime):
                     value = value.strftime("%Y/%m/%d %H:%M:%S")
-                elif isinstance(value, (str, int)):
+                elif isinstance(value, (str, int, discord.Asset, discord.Status)):
                     value = str(value)
                 else:
                     raise ExecutionError(f"Attribute \"{attr}\" not supported.")
