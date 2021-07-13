@@ -1132,7 +1132,10 @@ class WardenRule:
 
             mentions = discord.AllowedMentions(everyone=params.allow_mass_mentions, roles=True, users=True)
 
-            if params.edit_message_id is None:
+            if params.edit_message_id:
+                params.edit_message_id = safe_sub(params.edit_message_id)
+
+            if not params.edit_message_id:
                 try:
                     last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions)
                 except (discord.HTTPException, discord.Forbidden) as e:
@@ -1141,13 +1144,18 @@ class WardenRule:
                         raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
                                             f"to channel #{destination}")
             else:
+                if isinstance(destination, discord.Member):
+                    destination = destination.dm_channel if destination.dm_channel else await destination.create_dm()
                 try:
-                    partial_msg = destination.get_partial_message(params.edit_message_id)
+                    partial_msg = destination.get_partial_message(int(params.edit_message_id))
                     await partial_msg.edit(content=params.content if params.content else None,
                                            embed=em, allowed_mentions=mentions)
                 except (discord.HTTPException, discord.Forbidden) as e:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message "
                                         f"in channel #{destination}")
+                except ValueError:
+                    raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message. "
+                                        f"{params.edit_message_id} is not a valid ID")
 
         @processor(Action.GetInfo)
         async def get_info(params: models.GetInfo):

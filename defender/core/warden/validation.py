@@ -121,7 +121,7 @@ class SendMessage(BaseModel):
     color: Optional[Union[bool, int]]=True
     add_timestamp: Optional[bool]=False
     allow_mass_mentions: Optional[bool]=False
-    edit_message_id: Optional[int]=None
+    edit_message_id: Optional[str]=None
 
 class GetInfo(BaseModel):
     id: str # or context variable
