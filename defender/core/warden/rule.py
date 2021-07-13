@@ -1071,6 +1071,8 @@ class WardenRule:
             default_values = 0
 
             for key in params.dict():
+                if key == "edit_message_id":
+                    continue
                 attr = getattr(params, key)
                 if attr is None:
                     default_values += 1
@@ -1130,13 +1132,22 @@ class WardenRule:
 
             mentions = discord.AllowedMentions(everyone=params.allow_mass_mentions, roles=True, users=True)
 
-            try:
-                last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions)
-            except (discord.HTTPException, discord.Forbidden) as e:
-                # A user could just have DMs disabled
-                if is_user is False:
-                    raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
-                                         f"to channel #{destination}")
+            if params.edit_message_id is None:
+                try:
+                    last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions)
+                except (discord.HTTPException, discord.Forbidden) as e:
+                    # A user could just have DMs disabled
+                    if is_user is False:
+                        raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
+                                            f"to channel #{destination}")
+            else:
+                try:
+                    partial_msg = destination.get_partial_message(params.edit_message_id)
+                    await partial_msg.edit(content=params.content if params.content else None,
+                                           embed=em, allowed_mentions=mentions)
+                except (discord.HTTPException, discord.Forbidden) as e:
+                    raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message "
+                                        f"in channel #{destination}")
 
         @processor(Action.GetInfo)
         async def get_info(params: models.GetInfo):
