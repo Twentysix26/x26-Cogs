@@ -161,16 +161,10 @@ class VarSplit(BaseModel):
 
 class VarSlice(BaseModel):
     var_name: str
-    index: int
-    end_index: int
+    index: Optional[int]
+    end_index: Optional[int]
     slice_into: Optional[str]
     step: Optional[int]
-
-    @validator("slice_into", allow_reuse=True)
-    def check_empty_slice(cls, v):
-        if len(v) == 0:
-            raise ValueError("You must insert at least one variable")
-        return v
 
 class VarTransform(BaseModel):
     var_name: str

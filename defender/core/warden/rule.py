@@ -1148,7 +1148,7 @@ class WardenRule:
             if not member:
                 raise ExecutionError(f"Member {params.id} not found.")
 
-            for attr, target in params.mapping.items():
+            for target, attr in params.mapping.items():
                 if attr.startswith("_") or "." in attr:
                     raise ExecutionError(f"You cannot access internal attributes.")
 
@@ -1269,10 +1269,7 @@ class WardenRule:
             if var is None:
                 raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
-            if params.step is None:
-                var = var[params.index:params.end_index]
-            else:
-                var = var[params.index:params.end_index:params.step]
+            var = var[params.index:params.end_index:params.step]
 
             if params.slice_into:
                 templates_vars[safe_sub(params.slice_into)] = var
