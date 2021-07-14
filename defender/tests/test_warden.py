@@ -184,7 +184,7 @@ async def test_rule_cond_eval():
         '[3, "<=", 3]',
         '[3, "<=", 5]',
         '[hello, contains, ll]',
-        '[hello, contains-pattern, "h?ll*"]',
+        '[hello, contains-pattern, "H?ll*"]', # should NOT be case sensitive
     )
 
     negative_comparisons = (

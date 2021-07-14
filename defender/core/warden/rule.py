@@ -677,7 +677,7 @@ class WardenRule:
             elif params.operator == "contains":
                 return value2 in value1
             elif params.operator == "contains-pattern":
-                return fnmatch.fnmatch(value1, value2)
+                return fnmatch.fnmatch(value1.lower(), value2.lower())
             elif params.operator == "!=":
                 return value1 != value2
 
