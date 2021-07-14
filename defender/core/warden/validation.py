@@ -123,7 +123,7 @@ class SendMessage(BaseModel):
     allow_mass_mentions: Optional[bool]=False
     edit_message_id: Optional[str]=None
 
-class GetInfo(BaseModel):
+class GetUserInfo(BaseModel):
     id: str # or context variable
     mapping: Dict[str, str]
 
@@ -278,7 +278,7 @@ ACTIONS_VALIDATORS = {
     Action.IssueCommand: IssueCommand,
     Action.DeleteLastMessageSentAfter: IsTimedelta,
     Action.SendMessage: SendMessage,
-    Action.GetInfo: GetInfo,
+    Action.GetUserInfo: GetUserInfo,
     Action.Exit: IsNone,
     Action.VarAssign: VarAssign,
     Action.VarAssignRandom: VarAssignRandom,
@@ -347,7 +347,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.EmptyCustomHeat,
     Action.DeleteLastMessageSentAfter,
     Action.SendMessage,
-    Action.GetInfo,
+    Action.GetUserInfo,
     Action.Exit,
     Action.VarAssign,
     Action.VarAssignRandom,

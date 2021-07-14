@@ -57,7 +57,7 @@ class Action(enum.Enum):
     IssueCommand = "issue-command"
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
     SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
-    GetInfo = "get-info" # Get info of an arbitrary user
+    GetUserInfo = "get-user-info" # Get info of an arbitrary user
     Exit = "exit" # Stops processing the rule
     VarAssign = "var-assign" # Assigns a string to a variable
     VarAssignRandom = "var-assign-random" # Assigns a random string to a variable

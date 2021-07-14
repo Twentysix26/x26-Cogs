@@ -1157,8 +1157,8 @@ class WardenRule:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message. "
                                         f"{params.edit_message_id} is not a valid ID")
 
-        @processor(Action.GetInfo)
-        async def get_info(params: models.GetInfo):
+        @processor(Action.GetUserInfo)
+        async def get_user_info(params: models.GetUserInfo):
             params.id = safe_sub(params.id)
             if not params.id.isdigit():
                 raise ExecutionError(f"{params.id} is not a valid ID.")
