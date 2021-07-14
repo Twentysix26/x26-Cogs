@@ -327,6 +327,20 @@ async def test_rule_cond_eval():
         guild=FAKE_GUILD,
         message=FAKE_MESSAGE)) is True
 
+    rule = WardenRule()
+    await rule.parse(rl.CONDITIONAL_ACTION_TEST_ASSIGN, cog=None)
+    await rule.do_actions(cog=None,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)
+
+    rule = WardenRule()
+    await rule.parse(rl.CONDITIONAL_ACTION_TEST_CHECK, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE)) is True
+
 @pytest.mark.asyncio
 async def test_conditions():
     async def eval_cond(condition: Condition, params, expected_result: bool):

@@ -230,3 +230,42 @@ CONDITION_TEST = """
     do:
         - no-op:
 """
+
+CONDITIONAL_ACTION_TEST_ASSIGN = """
+    name: condition-test
+    rank: 1
+    event: on-message
+    if:
+        - message-matches-any: ["*"]
+    do:
+        - add-custom-heatpoint: ["thisshouldbetwo", 1m]
+        - custom-heat-is: ["thisshouldbetwo", 1]
+        - if-true:
+            - add-custom-heatpoint: ["thisshouldbetwo", 1m]
+        - if-false:
+            - add-custom-heatpoint: ["thisshouldbezero", 1m]
+
+        - add-custom-heatpoint: ["thisshouldbeone", 1m]
+
+        - compare: [1, "!=", 1]
+        - if-false:
+            - add-custom-heatpoint: ["compare-ok", 1m]
+
+        - compare: [1, "==", 1]
+        - if-true:
+            - add-custom-heatpoint: ["compare-ok2", 1m]
+"""
+
+CONDITIONAL_ACTION_TEST_CHECK = """
+    name: condition-test-check
+    rank: 1
+    event: on-message
+    if:
+        - custom-heat-is: ["thisshouldbetwo", 2]
+        - custom-heat-is: ["thisshouldbeone", 1]
+        - custom-heat-is: ["thisshouldbezero", 0]
+        - custom-heat-is: ["compare-ok", 1]
+        - custom-heat-is: ["compare-ok2", 1]
+    do:
+        - no-op:
+"""
