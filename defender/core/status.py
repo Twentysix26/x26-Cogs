@@ -85,7 +85,7 @@ async def make_status(ctx, cog):
     # 1.2 - Message cache
     # 1.2.1 - Warden enhancements
     # 1.3 - Punish action type
-    em.set_author(name="Defender system v1.3")
+    em.set_author(name="Defender system v1.6")
     em.add_field(name="Notify role", value=n_role.mention if n_role else "None set", inline=True)
     em.add_field(name="Notify channel", value=n_channel.mention if n_channel else "None set", inline=True)
     em.add_field(name="Punish role", value=punish_role.mention if punish_role else "None set", inline=True)

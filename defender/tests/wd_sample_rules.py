@@ -238,6 +238,12 @@ CONDITIONAL_ACTION_TEST_ASSIGN = """
     if:
         - message-matches-any: ["*"]
     do:
+        - if-false: # This should not happen: nothing has been evaluated yet
+            - add-custom-heatpoint: ["thisshouldbezero-1", 1m]
+
+        - if-true: # This should not happen: nothing has been evaluated yet
+            - add-custom-heatpoint: ["thisshouldbezero-1", 1m]
+
         - add-custom-heatpoint: ["thisshouldbetwo", 1m]
         - custom-heat-is: ["thisshouldbetwo", 1]
         - if-true:
@@ -254,6 +260,9 @@ CONDITIONAL_ACTION_TEST_ASSIGN = """
         - compare: [1, "==", 1]
         - if-true:
             - add-custom-heatpoint: ["compare-ok2", 1m]
+
+        - exit: # This should interrupt the rule
+        - add-custom-heatpoint: ["thisshouldbezero-1", 1m]
 """
 
 CONDITIONAL_ACTION_TEST_CHECK = """
@@ -264,6 +273,7 @@ CONDITIONAL_ACTION_TEST_CHECK = """
         - custom-heat-is: ["thisshouldbetwo", 2]
         - custom-heat-is: ["thisshouldbeone", 1]
         - custom-heat-is: ["thisshouldbezero", 0]
+        - custom-heat-is: ["thisshouldbezero-1", 0]
         - custom-heat-is: ["compare-ok", 1]
         - custom-heat-is: ["compare-ok2", 1]
     do:
