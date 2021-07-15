@@ -1185,6 +1185,8 @@ class WardenRule:
                     value = await cog.bot.is_mod(member)
                 elif attr == "is_helper":
                     value = await cog.is_helper(member)
+                elif attr == "message_count":
+                    value = await cog.get_total_recorded_messages(member)
                 else:
                     value = getattr(member, attr, None)
                     if value is None:
