@@ -2,7 +2,7 @@
 Defender - Protects your community with automod features and
            empowers the staff and users you trust with
            advanced moderation tools
-Copyright (C) 2020  Twentysix (https://github.com/Twentysix26/)
+Copyright (C) 2020-2021  Twentysix (https://github.com/Twentysix26/)
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -80,12 +80,7 @@ async def make_status(ctx, cog):
 
     em = discord.Embed(color=discord.Colour.red(), description=msg)
     em.set_footer(text=f"`{p}dset general` to configure")
-    # TODO Proper versioning :-) For now:
-    # 1.1 - Warden
-    # 1.2 - Message cache
-    # 1.2.1 - Warden enhancements
-    # 1.3 - Punish action type
-    em.set_author(name="Defender system v1.6")
+    em.set_author(name=f"Defender system v{cog.__version__}")
     em.add_field(name="Notify role", value=n_role.mention if n_role else "None set", inline=True)
     em.add_field(name="Notify channel", value=n_channel.mention if n_channel else "None set", inline=True)
     em.add_field(name="Punish role", value=punish_role.mention if punish_role else "None set", inline=True)
