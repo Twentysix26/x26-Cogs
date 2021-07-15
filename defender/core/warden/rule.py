@@ -313,6 +313,8 @@ class WardenRule:
                     for p in parameter:
                         await validate_condition(p)
                 elif isinstance(enum, ConditionalActionBlock):
+                    if parameter is None:
+                        raise InvalidRule("Conditional action blocks cannot be empty.")
                     for raw_action in parameter:
                         if not isinstance(raw_action, dict):
                             raise InvalidRule(f"`{enum.value}` contains a non-map. Did you forget the colon?")
