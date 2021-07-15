@@ -317,7 +317,12 @@ class WardenRule:
                         if not isinstance(raw_action, dict):
                             raise InvalidRule(f"`{enum.value}` contains a non-map. Did you forget the colon?")
                         for action, subparameter in raw_action.items():
-                            action = self._get_actions_enum(action)
+                            try:
+                                action = self._get_actions_enum(action)
+                            except ValueError:
+                                suggestion = make_fuzzy_suggestion(action, [a.value for a in Action
+                                                                            if a not in DEPRECATED])
+                                raise InvalidRule(f"Invalid action: `{action}`.{suggestion}")
                             await validate_action(action, subparameter)
 
 

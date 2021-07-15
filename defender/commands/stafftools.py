@@ -335,7 +335,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except InvalidRule as e:
             return await ctx.send(f"Error parsing the rule: {e}")
         except Exception as e:
-            log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
+            log.error("Warden - unexpected error during rule parsing", exc_info=e)
             return await ctx.send(f"Something very wrong happened during the rule parsing. Please check its format.")
 
         if WardenEvent.Periodic in new_rule.events:
@@ -512,7 +512,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 await ctx.send(f"Error parsing the rule: {e}")
                 continue
             except Exception as e:
-                log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
+                log.error("Warden - unexpected error during rule parsing", exc_info=e)
                 await ctx.send(f"Something very wrong happened during the rule parsing. Please check its format.")
                 continue
             else:
