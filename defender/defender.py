@@ -69,6 +69,7 @@ default_guild_settings = {
     "join_monitor_enabled": False,
     "join_monitor_n_users": 10, # Alert staff if more than X users...
     "join_monitor_minutes": 5, # ... joined in the past Y minutes
+    "join_monitor_v_level": 0, # Raise verification up to X on raids
     "join_monitor_susp_hours": 0, # Notify staff if new join is younger than X hours
     "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
     "warden_enabled": True,

@@ -24,6 +24,7 @@ from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
 from ..core.utils import is_own_invite, ACTIONS_VERBS
+from ..core.warden import heat
 from io import BytesIO
 from collections import deque
 from datetime import timedelta
@@ -228,13 +229,33 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             if m.joined_at > x_minutes_ago:
                 recent_users += 1
 
-        if recent_users >= users:
-            await self.send_notification(guild,
-                                         f"Abnormal influx of new users ({recent_users} in the past "
-                                         f"{minutes} minutes). Possible raid ongoing or about to start.",
-                                         title=EMBED_TITLE, ping=True, heat_key="core-jm-flood",
-                                         no_repeat_for=timedelta(minutes=15))
-            return True
+        if recent_users < users:
+            return False
+
+        lvl_msg = ""
+        lvl = await self.config.guild(guild).join_monitor_v_level()
+        if lvl > guild.verification_level.value:
+            if not heat.get_custom_heat(guild, "core-jm-lvl") == 0:
+                return False
+            heat.increase_custom_heat(guild, "core-jm-lvl", timedelta(minutes=1))
+            try:
+                lvl = discord.VerificationLevel(lvl)
+                await guild.edit(verification_level=lvl)
+                lvl_msg =  ("\nI have raised the server's verification level "
+                            f"to `{lvl}`.")
+            except discord.Forbidden:
+                lvl_msg =  ("\nI tried to raise the server's verification level "
+                            "but I lack the permissions to do so.")
+            except:
+                lvl_msg =  ("\nI tried to raise the server's verification level "
+                            "but I failed to do so.")
+
+        await self.send_notification(guild,
+                                     f"Abnormal influx of new users ({recent_users} in the past "
+                                     f"{minutes} minutes). Possible raid ongoing or about to start.{lvl_msg}",
+                                     title=EMBED_TITLE, ping=True, heat_key="core-jm-flood",
+                                     no_repeat_for=timedelta(minutes=15))
+        return True
 
     async def join_monitor_suspicious(self, member):
         EMBED_TITLE = "🔎🕵️ • Join monitor"

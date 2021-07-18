@@ -21,6 +21,7 @@ from ..enums import EmergencyModules, Action, Rank, PerspectiveAttributes
 from redbot.core import commands
 from ..core import cache as df_cache
 from redbot.core.commands import GuildConverter
+from discord import VerificationLevel
 import discord
 import asyncio
 
@@ -441,6 +442,36 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
         await self.config.guild(ctx.guild).join_monitor_susp_hours.set(hours)
         await ctx.tick()
+
+    @joinmonitorgroup.command(name="verificationlevel")
+    async def joinmonitorvlevel(self, ctx: commands.Context, verification_level: str):
+        """Raises the server's verification level on raids
+
+        You can find a full description of Discord's verification levels in
+        the server's settings "Moderation" tab.
+
+        Verification levels:
+        0 - No action
+        1 - Low: verified email
+        2 - Medium: must be registered for longer than 5 minutes
+        3 - High: must be a member of this server for longer than 10 minutes
+        4 - Highest: must have a verified phone on their Discord account"""
+        try:
+            lvl = VerificationLevel(int(verification_level))
+        except ValueError:
+            return await ctx.send_help()
+
+        if not ctx.me.guild_permissions.manage_guild:
+            return await ctx.send("I cannot do this without `Manage server` permissions. "
+                                  "Please fix this and try again.")
+
+        await self.config.guild(ctx.guild).join_monitor_v_level.set(lvl.value)
+
+        if lvl.value:
+            await ctx.send(f"I will raise the server's verification level up to `{lvl}` "
+                           "if I detect many users joining at the same time.")
+        else:
+            await ctx.send("Got it. I won't raise the server's verification level.")
 
     @dset.group(name="raiderdetection")
     @commands.admin()

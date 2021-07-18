@@ -204,12 +204,18 @@ async def make_status(ctx, cog):
     users = await cog.config.guild(guild).join_monitor_n_users()
     minutes = await cog.config.guild(guild).join_monitor_minutes()
     newhours = await cog.config.guild(guild).join_monitor_susp_hours()
+    v_level = await cog.config.guild(guild).join_monitor_v_level()
 
     msg += ("**Join monitor   🔎🕵️**\nThis auto-module is designed to report suspicious user joins. It is able "
             "to detect an abnormal influx of new users and report any account that has been recently "
             "created.\n")
     msg += (f"It is set so that if **{users} users** join in the span of **{minutes} minutes** I will notify "
             "the staff with a ping.\n")
+    if v_level:
+        msg += ("Additionally I will raise the server's verification level to "
+                f"**{discord.VerificationLevel(v_level)}**.\n")
+    else:
+        msg += ("I will **not** raise the server's verification level.\n")
     if newhours:
         msg += f"I will also report any new user whose account is less than **{newhours} hours old**.\n"
     else:
