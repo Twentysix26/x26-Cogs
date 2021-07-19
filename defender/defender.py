@@ -32,6 +32,7 @@ from .core.warden.enums import Event as WardenEvent
 from .core.warden import heat
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
+from .core.utils import QuickAction
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
@@ -136,6 +137,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         self.wd_periodic_task = self.loop.create_task(self.wd_periodic_rules())
         self.monitor = defaultdict(lambda: Deque(maxlen=500))
         self.wd_pool = Pool(maxtasksperchild=1000)
+        self.quick_actions = defaultdict(lambda: dict())
 
     async def rank_user(self, member: discord.Member):
         """Returns the user's rank"""
@@ -508,7 +510,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                                 ping=False, file: discord.File=None, react: str=None,
                                 jump_to: discord.Message=None,
                                 allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
-                                no_repeat_for: datetime.timedelta=None)->Optional[discord.Message]:
+                                no_repeat_for: datetime.timedelta=None, quick_action: QuickAction=None)->Optional[discord.Message]:
         """Sends a notification to the staff channel if a guild is passed. Embed preference is respected."""
         if no_repeat_for:
             if isinstance(destination, discord.Guild):
@@ -567,6 +569,10 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                                      allowed_mentions=allowed_mentions)
         if react:
             await msg.add_reaction(react)
+
+        if quick_action and is_staff_notification:
+            self.quick_actions[guild.id][msg.id] = quick_action
+
         return msg
 
     def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None):

@@ -35,6 +35,9 @@ class Action(enum.Enum):
     Softban = "softban"
     Punish = "punish"
 
+class QAAction(enum.Enum):
+    BanDeleteOneDay = "ban"
+
 class AutoModules(enum.Enum):
     RaiderDetection = "Raider detection"
     InviteFilter = "Invite filter"

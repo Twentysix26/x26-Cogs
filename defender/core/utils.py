@@ -15,7 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from ..enums import Action
+from ..enums import Action, QAAction
+from collections import namedtuple
 import discord
 import re
 
@@ -26,6 +27,20 @@ ACTIONS_VERBS = {
     Action.Punish: "punished",
     Action.NoAction: "",
 }
+
+QUICK_ACTION_EMOJIS = {
+    "👢": Action.Kick,
+    "🔨": Action.Ban,
+    "💨": Action.Softban,
+    "👊": Action.Punish,
+    "👊🏻": Action.Punish,
+    "👊🏼": Action.Punish,
+    "👊🏾": Action.Punish,
+    "👊🏿": Action.Punish,
+    "🔂": QAAction.BanDeleteOneDay,
+}
+
+QuickAction = namedtuple("QuickAction", ("target", "reason"))
 
 async def is_own_invite(guild: discord.Guild, match: re.Match):
     if not guild.me.guild_permissions.manage_guild:

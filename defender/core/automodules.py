@@ -23,7 +23,7 @@ from redbot.core.utils.common_filters import INVITE_URL_RE
 from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
-from ..core.utils import is_own_invite, ACTIONS_VERBS
+from ..core.utils import QuickAction, is_own_invite, ACTIONS_VERBS
 from ..core.warden import heat
 from io import BytesIO
 from collections import namedtuple, OrderedDict
@@ -75,6 +75,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except Exception as e:
             log.error("Unexpected error in invite filter's message deletion", exc_info=e)
 
+        quick_action = QuickAction(author.id, "Posting an invite link")
         heat_key = f"core-if-{author.id}-{message.channel.id}"
         action = Action(await self.config.guild(guild).invite_filter_action())
 
@@ -105,13 +106,14 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         elif action == Action.NoAction:
             return await self.send_notification(guild, f"I have deleted a message with this content:\n{content}",
                                                 title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
-                                                no_repeat_for=timedelta(minutes=1), heat_key=heat_key)
+                                                no_repeat_for=timedelta(minutes=1), heat_key=heat_key,
+                                                quick_action=quick_action)
         else:
             raise ValueError("Invalid action for invite filter")
 
         await self.send_notification(guild, f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}",
                                      title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
-                                     no_repeat_for=timedelta(minutes=1), heat_key=heat_key)
+                                     no_repeat_for=timedelta(minutes=1), heat_key=heat_key,  quick_action=quick_action)
 
         await self.create_modlog_case(
             self.bot,
@@ -152,6 +154,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if recent != max_messages:
             return
 
+        quick_action = QuickAction(author.id, "Message spammer")
         action = Action(await self.config.guild(guild).raider_detection_action())
 
         if action == Action.Ban:
@@ -176,7 +179,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                         fields=EMBED_FIELDS,
                                         jump_to=message,
                                         no_repeat_for=timedelta(minutes=15),
-                                        ping=True)
+                                        ping=True, quick_action=quick_action)
             return
         elif action == Action.Punish:
             punish_role = guild.get_role(await self.config.guild(guild).punish_role())
@@ -208,7 +211,8 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         f = discord.File(BytesIO(log.encode("utf-8")), f"{author.id}-log.txt")
         await self.send_notification(guild, f"I have {ACTIONS_VERBS[action]} a user for posting {recent} "
                                      f"messages in {minutes} minutes. Attached their last stored messages.", file=f,
-                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, no_repeat_for=timedelta(minutes=1))
+                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, no_repeat_for=timedelta(minutes=1),
+                                     quick_action=quick_action)
         return True
 
     async def join_monitor_flood(self, member):
@@ -287,7 +291,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 try:
                     await self.send_notification(guild, description, title=EMBED_TITLE, fields=EMBED_FIELDS,
                                                  thumbnail=avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
-                                                 heat_key=heat_key)
+                                                 heat_key=heat_key, quick_action=QuickAction(member.id, "New account"))
                 except (discord.Forbidden, discord.HTTPException):
                     pass
 
@@ -394,7 +398,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             heat_key = f"core-ca-{author.id}-{message.channel.id}-{len(message.content)}"
 
         await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, heat_key=heat_key,
-                                     no_repeat_for=timedelta(minutes=1))
+                                     no_repeat_for=timedelta(minutes=1), quick_action=QuickAction(author.id, reason))
 
         with contextlib.suppress(discord.HTTPException, discord.Forbidden):
             await message.delete()

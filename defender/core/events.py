@@ -16,12 +16,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from ..abc import MixinMeta, CompositeMetaClass
-from ..enums import Rank
+from ..enums import Action, Rank, QAAction
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
+from ..core.utils import QUICK_ACTION_EMOJIS
 from ..exceptions import ExecutionError
 from . import cache as df_cache
 from redbot.core import commands
+from datetime import datetime
 import discord
 import logging
 import asyncio
@@ -303,13 +305,92 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, _, user: discord.Member):
+    async def on_reaction_add(self, reaction: discord.Reaction, user: discord.Member):
         if not hasattr(user, "guild") or not user.guild or user.bot:
             return
         if await self.bot.cog_disabled_in_guild(self, user.guild): # type: ignore
             return
         if await self.bot.is_mod(user): # Is staff?
             await self.refresh_staff_activity(user.guild)
+        else:
+            return
+
+        guild = user.guild
+
+        notify_channel_id = await self.config.guild(guild).notify_channel()
+        if reaction.message.channel.id != notify_channel_id:
+            return
+
+        try:
+            action = QUICK_ACTION_EMOJIS[str(reaction)]
+        except KeyError:
+            return
+
+        quick_action = self.quick_actions[guild.id].get(reaction.message.id, None)
+        if quick_action is None:
+            return
+
+        target = guild.get_member(quick_action.target)
+        if target is None:
+            return
+        elif target.top_role >= user.top_role:
+            self.send_to_monitor(guild, f"[QuickAction] Prevented user {user} from taking action on {target}: "
+                                        "hierachy check failed.")
+            return
+
+        if quick_action in (Action.Ban, Action.Softban, Action.Kick): # Expel = no more actions
+            self.quick_actions[guild.id].pop(reaction.message.id, None)
+
+        if user == target: # Safeguard for Warden integration
+            self.send_to_monitor(guild, f"[QuickAction] Prevented user {user} from taking action on themselves. "
+                                        "Was this deliberate?")
+            return
+        elif await self.bot.is_mod(target):
+            self.send_to_monitor(guild, f"[QuickAction] Target user {user} is a staff member. I cannot do that.")
+            return
+
+        check1 = user.guild_permissions.ban_members is False and action in (Action.Ban, Action.Softban, QAAction.BanDeleteOneDay)
+        check2 = user.guild_permissions.kick_members is False and action == Action.Kick
+
+        if any((check1, check2)):
+            self.send_to_monitor(guild, f"[QuickAction] Mod {user} lacks permissions to {action.value}.")
+            return
+
+        if action == Action.Ban:
+            await guild.ban(target, reason=quick_action.reason, delete_message_days=0)
+            self.dispatch_event("member_remove", target, action.value, quick_action.reason)
+        elif action == Action.Softban:
+            await guild.ban(target, reason=quick_action.reason, delete_message_days=1)
+            await guild.unban(target)
+            self.dispatch_event("member_remove", target, action.value, quick_action.reason)
+        elif action == Action.Kick:
+            await guild.kick(target, reason=quick_action.reason)
+            self.dispatch_event("member_remove", target, action.value, quick_action.reason)
+        elif action == Action.Punish:
+            punish_role = guild.get_role(await self.config.guild(guild).punish_role())
+            if punish_role and not self.is_role_privileged(punish_role):
+                await target.add_roles(punish_role, reason=f"Defender: punish role assigned by {user.id}")
+            else:
+                self.send_to_monitor(guild, "[QuickAction] Failed to punish user. Is the punish role "
+                                            "still present and with *no* privileges?")
+            return
+        elif action == QAAction.BanDeleteOneDay:
+            await guild.ban(target, reason=quick_action.reason, delete_message_days=1)
+            self.dispatch_event("member_remove", target, action.value, quick_action.reason)
+
+        await self.create_modlog_case(
+            self.bot,
+            guild,
+            datetime.utcnow(),
+            action.value,
+            target,
+            user,
+            quick_action.reason if quick_action.reason else None,
+            until=None,
+            channel=None,
+        )
+
+
 
     @commands.Cog.listener()
     async def on_reaction_remove(self, _, user: discord.Member):

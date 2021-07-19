@@ -22,7 +22,8 @@ from redbot.core.bot import Red
 from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
 from .core.warden.rule import WardenRule
-from typing import List
+from .core.utils import QuickAction
+from typing import List, Dict
 import datetime
 import discord
 import asyncio
@@ -49,6 +50,7 @@ class MixinMeta(ABC):
         self.joined_users: dict
         self.monitor: dict
         self.loop: asyncio.AbstractEventLoop
+        self.quick_actions: Dict[int, Dict[int, QuickAction]]
 
     @abstractmethod
     async def rank_user(self, member: discord.Member) -> Rank:
@@ -119,7 +121,8 @@ class MixinMeta(ABC):
                                 ping=False, file: discord.File=None, react: str=None,
                                 jump_to: discord.Message=None,
                                 allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
-                                no_repeat_for: datetime.timedelta=None)->Optional[discord.Message]:
+                                no_repeat_for: datetime.timedelta=None,
+                                quick_action: QuickAction=None)->Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod
