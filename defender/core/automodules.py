@@ -26,8 +26,9 @@ from ..core import cache as df_cache
 from ..core.utils import is_own_invite, ACTIONS_VERBS
 from ..core.warden import heat
 from io import BytesIO
-from collections import deque
+from collections import namedtuple, OrderedDict
 from datetime import timedelta
+from datetime import datetime
 import contextlib
 import discord
 import logging
@@ -36,6 +37,7 @@ import aiohttp
 PERSPECTIVE_API_URL = "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key={}"
 AIOHTTP_TIMEOUT = aiohttp.ClientTimeout(total=5)
 log = logging.getLogger("red.x26cogs.defender")
+LiteUser = namedtuple("LiteUser", ("id", "joined_at"))
 
 class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     async def invite_filter(self, message):
@@ -214,20 +216,24 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         guild = member.guild
 
         if guild.id not in self.joined_users:
-            self.joined_users[guild.id] = deque([], maxlen=100)
+            self.joined_users[guild.id] = OrderedDict()
 
         cache = self.joined_users[guild.id]
-        cache.append(member)
+        cache[member.id] = LiteUser(id=member.id, joined_at=member.joined_at)
+        if len(cache) > 100:
+            cache.popitem(last=False)
 
         users = await self.config.guild(guild).join_monitor_n_users()
         minutes = await self.config.guild(guild).join_monitor_minutes()
-        x_minutes_ago = member.joined_at - timedelta(minutes=minutes)
+        x_minutes_ago = datetime.utcnow() - timedelta(minutes=minutes)
 
         recent_users = 0
 
-        for m in cache:
+        for m in reversed(cache.values()):
             if m.joined_at > x_minutes_ago:
                 recent_users += 1
+            else:
+                break
 
         if recent_users < users:
             return False
