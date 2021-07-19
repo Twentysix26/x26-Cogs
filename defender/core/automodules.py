@@ -37,7 +37,7 @@ import aiohttp
 PERSPECTIVE_API_URL = "https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key={}"
 AIOHTTP_TIMEOUT = aiohttp.ClientTimeout(total=5)
 log = logging.getLogger("red.x26cogs.defender")
-LiteUser = namedtuple("LiteUser", ("id", "joined_at"))
+LiteUser = namedtuple("LiteUser", ("id", "name", "joined_at"))
 
 class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     async def invite_filter(self, message):
@@ -219,7 +219,8 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             self.joined_users[guild.id] = OrderedDict()
 
         cache = self.joined_users[guild.id]
-        cache[member.id] = LiteUser(id=member.id, joined_at=member.joined_at)
+        cache[member.id] = LiteUser(id=member.id, name=str(member), joined_at=member.joined_at)
+        cache.move_to_end(member.id) # If it's a rejoin we want it last
         if len(cache) > 100:
             cache.popitem(last=False)
 
@@ -227,15 +228,14 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         minutes = await self.config.guild(guild).join_monitor_minutes()
         x_minutes_ago = datetime.utcnow() - timedelta(minutes=minutes)
 
-        recent_users = 0
-
+        recent_users = []
         for m in reversed(cache.values()):
             if m.joined_at > x_minutes_ago:
-                recent_users += 1
+                recent_users.append(m)
             else:
                 break
 
-        if recent_users < users:
+        if len(recent_users) < users:
             return False
 
         lvl_msg = ""
@@ -256,9 +256,12 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 lvl_msg =  ("\nI tried to raise the server's verification level "
                             "but I failed to do so.")
 
+        most_recent_txt = "\n".join([f"{m.id} - {m.name}" for m in recent_users[:10]])
+
         await self.send_notification(guild,
-                                     f"Abnormal influx of new users ({recent_users} in the past "
-                                     f"{minutes} minutes). Possible raid ongoing or about to start.{lvl_msg}",
+                                     f"Abnormal influx of new users ({len(recent_users)} in the past "
+                                     f"{minutes} minutes). Possible raid ongoing or about to start.{lvl_msg}"
+                                     f"\nMost recent joins: {box(most_recent_txt)}",
                                      title=EMBED_TITLE, ping=True, heat_key="core-jm-flood",
                                      no_repeat_for=timedelta(minutes=15))
         return True
