@@ -44,6 +44,8 @@ class TimeDelta(str):
         return f"TimeDelta({super().__repr__()})"
 
 class BaseModel(PydanticBaseModel):
+    _no_unpacking = False
+    _short_form = ()
     class Config:
         extra = "forbid"
         allow_reuse = True
@@ -182,12 +184,15 @@ class VarTransform(BaseModel):
 ######### MIXED VALIDATORS  #########
 
 class NonEmptyList(BaseModel):
+    _no_unpacking = True
     value: conlist(Union[int, str], min_items=1)
 
 class NonEmptyListInt(BaseModel):
+    _no_unpacking = True
     value: conlist(int, min_items=1)
 
 class NonEmptyListStr(BaseModel):
+    _no_unpacking = True
     value: conlist(str, min_items=1)
 
 class IsStr(BaseModel):
@@ -424,31 +429,34 @@ DEPRECATED = [
 ]
 
 def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[list, dict, str, int, bool])->BaseModel:
+    """
+    In Warden it's possible to pass arguments in "Long form" and "Short form"
+    Long form is a dict, and we can simply validate it against its model
+    Short form is a list that we unpack "on top" of the model, akin to the concept of positional arguments
+
+    Short form would of course be prone to easily break if I were to change the order of the attributes
+    in the model, so I have added the optional attribute "_short_form" to enforce an exact order
+    Additionally, the "_no_unpacking" attribute denotes parameters that should never be unpacked
+    on top of the model, like models with a single list as an attribute
+    """
     try:
         validator = ACTIONS_VALIDATORS[action_or_cond] # type: ignore
     except KeyError:
         validator = CONDITIONS_VALIDATORS[action_or_cond] # type: ignore
 
-    properties = validator.schema()['properties']
-    single_param_validator = len(properties) == 1 and "value" in properties.keys()
-    # Simple type checking: int, str, a list of strs or a list of ints...
-    if single_param_validator:
-        model = validator(value=parameter)
+    if isinstance(parameter, dict):
+        model = validator(**parameter)
     else:
-        if isinstance(parameter, dict):
-            model = validator(**parameter)
-        elif isinstance(parameter, list):
-            # A list with an expected format / order of parameters
-            # We will map it properly so that we can validate
-            # it with pydantic
-            args = {}
-            for i, _property in enumerate(properties):
-                try:
-                    args[_property] = parameter[i]
-                except IndexError:
-                    pass
-            model = validator(**args)
+        if not validator._short_form:
+            validator._short_form = [k for k in validator.schema()['properties']]
+        args = {}
+        if validator._no_unpacking is False:
+            params = parameter if isinstance(parameter, list) else (parameter,)
+            for i, attr in enumerate(validator._short_form):
+                args[attr] = params[i]
         else:
-            model = validator(value=parameter)
+            args[validator._short_form[0]] = parameter
+
+        model = validator(**args)
 
     return model
