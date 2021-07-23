@@ -81,6 +81,7 @@ class Condition(enum.Enum):
     MessageMatchesRegex = "message-matches-regex"
     UserCreatedLessThan = "user-created-less-than"
     UserJoinedLessThan = "user-joined-less-than"
+    UserActivityMatchesAny = "user-activity-matches-any"
     UserHasDefaultAvatar = "user-has-default-avatar"
     UserHasSentLessThanMessages = "user-has-sent-less-than-messages"
     ChannelMatchesAny = "channel-matches-any"

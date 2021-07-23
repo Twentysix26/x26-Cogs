@@ -466,6 +466,21 @@ class WardenRule:
                 text=message.content
             )
 
+        @checker(Condition.UserActivityMatchesAny)
+        async def user_activity_matches_any(params: models.NonEmptyListStr):
+            to_check = []
+            for activity in user.activities:
+                if isinstance(activity, discord.BaseActivity):
+                    if activity.name is not None:
+                        to_check.append(activity.name)
+
+            for activity in to_check:
+                for pattern in params.value:
+                    if fnmatch.fnmatch(activity.lower(), pattern.lower()):
+                        return True
+
+            return False
+
         @checker(Condition.UserIdMatchesAny)
         async def user_id_matches_any(params: models.NonEmptyListInt):
             for _id in params.value:
