@@ -305,8 +305,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     @commands.Cog.listener()
-    async def on_reaction_add(self, reaction: discord.Reaction, user: discord.Member):
-        if not hasattr(user, "guild") or not user.guild or user.bot:
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
+        user = payload.member
+        if not user or not hasattr(user, "guild") or not user.guild or user.bot:
             return
         if await self.bot.cog_disabled_in_guild(self, user.guild): # type: ignore
             return
@@ -316,9 +317,10 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
 
         guild = user.guild
+        reaction = payload.emoji
 
         notify_channel_id = await self.config.guild(guild).notify_channel()
-        if reaction.message.channel.id != notify_channel_id:
+        if payload.channel_id != notify_channel_id:
             return
 
         try:
@@ -326,7 +328,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except KeyError:
             return
 
-        quick_action = self.quick_actions[guild.id].get(reaction.message.id, None)
+        quick_action = self.quick_actions[guild.id].get(payload.message_id, None)
         if quick_action is None:
             return
 
@@ -339,7 +341,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
 
         if quick_action in (Action.Ban, Action.Softban, Action.Kick): # Expel = no more actions
-            self.quick_actions[guild.id].pop(reaction.message.id, None)
+            self.quick_actions[guild.id].pop(payload.message_id, None)
 
         if user == target: # Safeguard for Warden integration
             self.send_to_monitor(guild, f"[QuickAction] Prevented user {user} from taking action on themselves. "
