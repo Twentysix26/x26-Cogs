@@ -19,6 +19,8 @@ from .enums import Action, Condition, Event
 from typing import List, Union, Optional, Dict
 from redbot.core.commands.converter import parse_timedelta
 from pydantic import BaseModel as PydanticBaseModel, conlist, validator
+from pydantic import ValidationError, ExtraError
+from pydantic.error_wrappers import ErrorWrapper
 import logging
 
 log = logging.getLogger("red.x26cogs.defender")
@@ -80,6 +82,25 @@ class SendMessageToChannel(BaseModel):
     id_or_name: Union[int, str]
     content: str
 
+class EmbedField(BaseModel):
+    name: str
+    value: str
+    inline: Optional[bool]=True
+
+class NotifyStaff(BaseModel):
+    _short_form = ("content",)
+    content: str
+    title: Optional[str]
+    fields: Optional[List[EmbedField]]=[]
+    thumbnail: Optional[str]
+    footer_text: Optional[str]
+    ping: Optional[bool]
+    qa_target: Optional[str]
+    qa_reason: Optional[str]
+    no_repeat_for: Optional[TimeDelta]
+    key_no_repeat_for: Optional[str]
+    allow_everyone_ping: Optional[bool]=False
+
 class NotifyStaffWithEmbed(BaseModel):
     title: str
     content: str
@@ -101,12 +122,8 @@ class IssueCommand(BaseModel):
     id: int
     command: str
 
-class EmbedField(BaseModel):
-    name: str
-    value: str
-    inline: Optional[bool]=True
-
 class SendMessage(BaseModel):
+    _short_form = ("id", "content")
     id: str # or context variable
     content: Optional[str]=""
     description: Optional[str]=None
@@ -252,7 +269,7 @@ CONDITIONS_VALIDATORS = {
 ACTIONS_VALIDATORS = {
     Action.Dm: SendMessageToUser,
     Action.DmUser: IsStr,
-    Action.NotifyStaff: IsStr,
+    Action.NotifyStaff: NotifyStaff,
     Action.NotifyStaffAndPing: IsStr,
     Action.NotifyStaffWithEmbed: NotifyStaffWithEmbed,
     Action.BanAndDelete: IsInt,
@@ -426,6 +443,8 @@ DEPRECATED = [
     Action.DmUser,
     Action.SendInChannel,
     Action.SendToChannel,
+    Action.NotifyStaffAndPing,
+    Action.NotifyStaffWithEmbed,
 ]
 
 def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[list, dict, str, int, bool])->BaseModel:
@@ -444,19 +463,29 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
     except KeyError:
         validator = CONDITIONS_VALIDATORS[action_or_cond] # type: ignore
 
+    # Long form
     if isinstance(parameter, dict):
-        model = validator(**parameter)
-    else:
-        if not validator._short_form:
-            validator._short_form = [k for k in validator.schema()['properties']]
-        args = {}
-        if validator._no_unpacking is False:
-            params = parameter if isinstance(parameter, list) else (parameter,)
-            for i, attr in enumerate(validator._short_form):
-                args[attr] = params[i]
+        return validator(**parameter)
+
+    # Short form
+    if not validator._short_form:
+        validator._short_form = [k for k in validator.schema()['properties']]
+
+    args = {}
+    if validator._no_unpacking is False:
+        if isinstance(parameter, list):
+            if len(parameter) > len(validator._short_form):
+                raise ValidationError([ErrorWrapper(ExtraError(), loc="Short form")], validator)
+            params = parameter
         else:
-            args[validator._short_form[0]] = parameter
+            params = (parameter,)
 
-        model = validator(**args)
+        for i, attr in enumerate(validator._short_form):
+            try:
+                args[attr] = params[i]
+            except IndexError:
+                pass
+    else:
+        args[validator._short_form[0]] = parameter
 
-    return model
+    return validator(**args)

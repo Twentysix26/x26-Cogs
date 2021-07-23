@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from __future__ import annotations
 from ...core.warden.validation import (ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLOWED_DEBUG_ACTIONS, model_validator,
                                        DEPRECATED)
 from ...core.warden import validation as models
@@ -24,7 +25,7 @@ from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
 from ...exceptions import InvalidRule, ExecutionError, StopExecution
 from ...core import cache as df_cache
-from ...core.utils import is_own_invite
+from ...core.utils import is_own_invite, QuickAction
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.utils.chat_formatting import box
 from redbot.core.commands.converter import parse_timedelta
@@ -33,6 +34,7 @@ from string import Template
 from redbot.core import modlog
 from typing import Optional
 from pydantic import ValidationError
+from typing import TYPE_CHECKING
 from . import heat
 import random
 import yaml
@@ -41,6 +43,9 @@ import discord
 import datetime
 import logging
 import re
+
+if TYPE_CHECKING:
+    from ...abc import MixinMeta
 
 log = logging.getLogger("red.x26cogs.defender")
 
@@ -90,7 +95,7 @@ class WardenRule:
         self.next_run = None
         self.run_every = None
 
-    async def parse(self, rule_str, cog, author=None):
+    async def parse(self, rule_str, cog: MixinMeta, author=None):
         self.raw_rule = rule_str
 
         try:
@@ -328,7 +333,7 @@ class WardenRule:
                             await validate_action(action, subparameter)
 
 
-    async def satisfies_conditions(self, *, rank: Rank, cog, user: discord.Member=None, message: discord.Message=None,
+    async def satisfies_conditions(self, *, rank: Rank, cog: MixinMeta, user: discord.Member=None, message: discord.Message=None,
                                    guild: discord.Guild=None, debug=False)->ConditionResult:
         cr = ConditionResult(rule_name=self.name, debug=debug)
         if rank < self.rank:
@@ -398,7 +403,7 @@ class WardenRule:
         cr.result = True
         return cr
 
-    async def _evaluate_conditions(self, conditions, *, cog, user: discord.Member=None, message: discord.Message=None,
+    async def _evaluate_conditions(self, conditions, *, cog: MixinMeta, user: discord.Member=None, message: discord.Message=None,
                                    guild: discord.Guild=None, templates_vars={}, debug):
 
         if message and not user:
@@ -732,7 +737,7 @@ class WardenRule:
 
         return bools
 
-    async def do_actions(self, *, cog, user: discord.Member=None, message: discord.Message=None,
+    async def do_actions(self, *, cog: MixinMeta, user: discord.Member=None, message: discord.Message=None,
                          guild: discord.Guild=None, debug=False):
         if message and not user:
             user = message.author
@@ -836,20 +841,67 @@ class WardenRule:
                 last_sent_message = None
 
         @processor(Action.NotifyStaff)
-        async def notify_staff(params: models.IsStr):
+        async def notify_staff(params: models.NotifyStaff):
             nonlocal last_sent_message
-            text = Template(params.value).safe_substitute(templates_vars)
-            last_sent_message = await cog.send_notification(guild, text, allow_everyone_ping=True,
-                                                            force_text_only=True)
+            # Checks if only "content" has been passed
+            text_only = params.__fields_set__ == {"content"}
 
-        @processor(Action.NotifyStaffAndPing)
+            quick_action = None
+            if params.qa_target:
+                if params.qa_reason is None:
+                    params.qa_reason = ""
+
+                safe_sub(params.qa_target)
+                safe_sub(params.qa_reason)
+
+                try:
+                    quick_action = QuickAction(int(params.qa_target), params.qa_reason)
+                except ValueError:
+                    raise ExecutionError(f"{params.qa_target} is not a valid ID.")
+
+            title = safe_sub(params.title) if params.title else None
+            heat_key = safe_sub(params.key_no_repeat_for) if params.key_no_repeat_for else None
+
+            fields = []
+            if params.fields:
+                for param in params.fields:
+                    fields.append(param.dict())
+
+            for field in fields:
+                for attr in ("name", "value"):
+                    if attr in field:
+                        field[attr] = safe_sub(field[attr])
+
+            footer = None
+            if not text_only:
+                if params.footer_text is None:
+                    footer = f"Warden rule `{self.name}`"
+                elif params.footer_text == "":
+                    footer = None
+                else:
+                    footer = safe_sub(params.footer_text)
+
+            last_sent_message = await cog.send_notification(guild,
+                                                            safe_sub(params.content),
+                                                            title=title,
+                                                            ping=params.ping,
+                                                            fields=fields,
+                                                            footer=footer,
+                                                            thumbnail=safe_sub(params.thumbnail) if params.thumbnail else None,
+                                                            no_repeat_for=params.no_repeat_for,
+                                                            heat_key=heat_key,
+                                                            quick_action=quick_action,
+                                                            force_text_only=text_only,
+                                                            allow_everyone_ping=params.allow_everyone_ping)
+
+        @processor(Action.NotifyStaffAndPing, suggest=Action.NotifyStaff)
         async def notify_staff_and_ping(params: models.IsStr):
             nonlocal last_sent_message
             text = Template(params.value).safe_substitute(templates_vars)
             last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
                                                             force_text_only=True)
 
-        @processor(Action.NotifyStaffWithEmbed)
+        @processor(Action.NotifyStaffWithEmbed, suggest=Action.NotifyStaff)
         async def notify_staff_with_embed(params: models.NotifyStaffWithEmbed):
             nonlocal last_sent_message
             title = Template(params.title).safe_substitute(templates_vars)

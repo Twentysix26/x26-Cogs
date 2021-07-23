@@ -335,7 +335,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         elif target.top_role >= user.top_role:
             self.send_to_monitor(guild, f"[QuickAction] Prevented user {user} from taking action on {target}: "
-                                        "hierachy check failed.")
+                                        "hierarchy check failed.")
             return
 
         if quick_action in (Action.Ban, Action.Softban, Action.Kick): # Expel = no more actions
