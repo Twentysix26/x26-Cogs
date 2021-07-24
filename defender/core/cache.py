@@ -122,13 +122,13 @@ async def add_message_edit(message):
 
     # .edits will contain past edits
     # .content will always be current
-    async for m in AsyncIter(_message_cache[guild.id]["users"].get(author.id, []), steps=10):
+    async for m in AsyncIter(_message_cache[guild.id]["users"].get(author.id, []).copy(), steps=10):
         if m.id == message.id:
             m.edits.appendleft(MessageEdit(content=m.content, edited_at=message.edited_at))
             m.content = message.content
             break
     else:
-        async for m in AsyncIter(_message_cache[guild.id]["channels"].get(channel.id, []), steps=10):
+        async for m in AsyncIter(_message_cache[guild.id]["channels"].get(channel.id, []).copy(), steps=10):
             if m.id == message.id:
                 m.edits.appendleft(MessageEdit(content=m.content, edited_at=message.edited_at))
                 m.content = message.content
