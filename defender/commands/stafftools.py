@@ -443,8 +443,15 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except KeyError:
             return await ctx.send("There is no rule with that name.")
 
+        no_box = "```" in rule.raw_rule
+
         for p in pagify(rule.raw_rule, page_length=1950, escape_mass_mentions=False):
-            await ctx.send(box(p, lang="yaml"))
+            if no_box:
+                for symbol in ("|", "~", ">", "*", "`"):
+                    p = p.replace(symbol, f"\\{symbol}")
+                await ctx.send(p)
+            else:
+                await ctx.send(box(p, lang="yaml"))
 
     @commands.cooldown(1, 3600*24, commands.BucketType.guild) # only one session per guild
     @wardengroup.command(name="upload")
