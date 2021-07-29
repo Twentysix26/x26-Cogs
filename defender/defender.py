@@ -32,7 +32,7 @@ from .core.warden.enums import Event as WardenEvent
 from .core.warden import heat
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
-from .core.utils import QuickAction
+from .core.utils import QuickAction, utcnow
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
@@ -40,8 +40,6 @@ import datetime
 import discord
 import asyncio
 import logging
-
-utcnow = datetime.datetime.utcnow
 
 log = logging.getLogger("red.x26cogs.defender")
 

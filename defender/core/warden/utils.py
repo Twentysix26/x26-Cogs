@@ -7,12 +7,10 @@ import logging
 import functools
 import asyncio
 import multiprocessing
-import datetime
 
 EMOJI_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:([0-9]+)>')
 REMOVE_C_EMOJIS_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:[0-9]+>')
 
-utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
 
 # Based on d.py's EmojiConverter

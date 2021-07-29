@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from ..enums import Action, QAAction
 from collections import namedtuple
+import datetime
 import discord
 import re
 
@@ -58,3 +59,9 @@ async def is_own_invite(guild: discord.Guild, match: re.Match):
             return True
 
     return False
+
+def utcnow():
+    if discord.version_info.major >= 2:
+        return datetime.datetime.now(datetime.timezone.utc)
+    else:
+        return datetime.datetime.utcnow()

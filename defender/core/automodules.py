@@ -23,7 +23,7 @@ from redbot.core.utils.common_filters import INVITE_URL_RE
 from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
-from ..core.utils import QuickAction, is_own_invite, ACTIONS_VERBS
+from ..core.utils import QuickAction, is_own_invite, ACTIONS_VERBS, utcnow
 from ..core.warden import heat
 from io import BytesIO
 from collections import namedtuple, OrderedDict
@@ -230,7 +230,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         users = await self.config.guild(guild).join_monitor_n_users()
         minutes = await self.config.guild(guild).join_monitor_minutes()
-        x_minutes_ago = datetime.utcnow() - timedelta(minutes=minutes)
+        x_minutes_ago = utcnow() - timedelta(minutes=minutes)
 
         recent_users = []
         for m in reversed(cache.values()):

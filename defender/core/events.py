@@ -19,7 +19,7 @@ from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import Action, Rank, QAAction
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
-from ..core.utils import QUICK_ACTION_EMOJIS
+from ..core.utils import QUICK_ACTION_EMOJIS, utcnow
 from ..exceptions import ExecutionError
 from . import cache as df_cache
 from redbot.core import commands
@@ -383,7 +383,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         await self.create_modlog_case(
             self.bot,
             guild,
-            datetime.utcnow(),
+            utcnow(),
             action.value,
             target,
             user,

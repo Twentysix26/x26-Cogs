@@ -25,6 +25,7 @@ from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_pro
 from ..core.warden import heat
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
+from ..core.utils import utcnow
 from ..exceptions import InvalidRule
 from ..core.announcements import get_announcements_embed
 from redbot.core.utils import AsyncIter
@@ -40,8 +41,6 @@ import datetime
 import tarfile
 
 log = logging.getLogger("red.x26cogs.defender")
-
-utcnow = datetime.datetime.utcnow
 
 class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 

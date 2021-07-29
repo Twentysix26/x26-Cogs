@@ -25,7 +25,7 @@ from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
 from ...exceptions import InvalidRule, ExecutionError, StopExecution
 from ...core import cache as df_cache
-from ...core.utils import is_own_invite, QuickAction
+from ...core.utils import is_own_invite, QuickAction, utcnow
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.utils.chat_formatting import box
 from redbot.core.commands.converter import parse_timedelta
@@ -48,8 +48,6 @@ if TYPE_CHECKING:
     from ...abc import MixinMeta
 
 log = logging.getLogger("red.x26cogs.defender")
-
-utcnow = datetime.datetime.utcnow
 
 ALLOW_ALL_MENTIONS = discord.AllowedMentions(everyone=True, roles=True, users=True)
 RULE_REQUIRED_KEYS = ("name", "event", "rank", "if", "do")

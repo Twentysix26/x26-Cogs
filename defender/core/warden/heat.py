@@ -16,9 +16,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import discord
-import datetime
 import logging
 import asyncio
+from ...core.utils import utcnow
 from copy import deepcopy
 from datetime import timedelta
 from collections import defaultdict, deque
@@ -33,7 +33,6 @@ amount of time and are shared between different Warden rules.
 """
 
 MAX_HEATPOINTS = 100
-utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
 
 _guild_heat = {"channels" : {}, "users": {}, "custom": {}}

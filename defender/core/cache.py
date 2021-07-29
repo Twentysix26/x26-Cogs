@@ -23,13 +23,12 @@ from discord.ext.commands.errors import BadArgument
 from discord.ext.commands import IDConverter
 from discord.utils import time_snowflake
 from redbot.core.utils import AsyncIter
+from ..core.utils import utcnow
 import re
-import datetime
 import discord
 import logging
 import asyncio
 
-utcnow = datetime.datetime.utcnow
 log = logging.getLogger("red.x26cogs.defender")
 
 MessageEdit = namedtuple("MessageEdit", ("content", "edited_at"))
