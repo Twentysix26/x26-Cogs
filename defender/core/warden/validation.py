@@ -46,7 +46,7 @@ class TimeDelta(str):
         return f"TimeDelta({super().__repr__()})"
 
 class BaseModel(PydanticBaseModel):
-    _no_unpacking = False
+    _single_value = False
     _short_form = ()
     class Config:
         extra = "forbid"
@@ -201,30 +201,35 @@ class VarTransform(BaseModel):
 ######### MIXED VALIDATORS  #########
 
 class NonEmptyList(BaseModel):
-    _no_unpacking = True
+    _single_value = True
     value: conlist(Union[int, str], min_items=1)
 
 class NonEmptyListInt(BaseModel):
-    _no_unpacking = True
+    _single_value = True
     value: conlist(int, min_items=1)
 
 class NonEmptyListStr(BaseModel):
-    _no_unpacking = True
+    _single_value = True
     value: conlist(str, min_items=1)
 
 class IsStr(BaseModel):
+    _single_value = True
     value: str
 
 class IsInt(BaseModel):
+    _single_value = True
     value: int
 
 class IsBool(BaseModel):
+    _single_value = True
     value: bool
 
 class IsNone(BaseModel):
+    _single_value = True
     value: None
 
 class IsTimedelta(BaseModel):
+    _single_value = True
     value: TimeDelta
 
 # The accepted types of each condition for basic sanity checking
@@ -457,8 +462,8 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
 
     Short form would of course be prone to easily break if I were to change the order of the attributes
     in the model, so I have added the optional attribute "_short_form" to enforce an exact order
-    Additionally, the "_no_unpacking" attribute denotes parameters that should never be unpacked
-    on top of the model, like models with a single list as an attribute
+    Additionally, the "_single_value" attribute denotes models for which their parameters should never be unpacked
+    on top of, such as models with a single list as an attribute. For these models long form is not allowed.
     """
     try:
         validator = ACTIONS_VALIDATORS[action_or_cond] # type: ignore
@@ -466,7 +471,7 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
         validator = CONDITIONS_VALIDATORS[action_or_cond] # type: ignore
 
     # Long form
-    if isinstance(parameter, dict):
+    if not validator._single_value and isinstance(parameter, dict):
         return validator(**parameter)
 
     # Short form
@@ -474,7 +479,7 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
         validator._short_form = [k for k in validator.schema()['properties']]
 
     args = {}
-    if validator._no_unpacking is False:
+    if validator._single_value is False:
         if isinstance(parameter, list):
             if len(parameter) > len(validator._short_form):
                 raise ValidationError([ErrorWrapper(ExtraError(), loc="Short form")], validator)
