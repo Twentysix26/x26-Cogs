@@ -26,7 +26,7 @@ from ..core.warden import heat
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..core.utils import utcnow
-from ..exceptions import InvalidRule
+from ..exceptions import ExecutionError, InvalidRule
 from ..core.announcements import get_announcements_embed
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
@@ -627,12 +627,14 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             async for m in AsyncIter(targets, steps=2):
                 try:
                     await rule.do_actions(user=m, cog=self)
-                except:
+                except Exception as e:
                     errors += 1
+                    self.send_to_monitor(ctx.guild, f"[Warden] ({rule.name}): {e}")
 
         text = f"Rule `{name}` has been executed on **{len(targets)} users**."
         if errors:
-            text += f"\n**{errors}** of them triggered an error on this rule."
+            text += (f"\n**{errors}** of them triggered an error on this rule. For more details check "
+                     f"`{ctx.prefix}def monitor`.")
 
         await ctx.send(text)
 

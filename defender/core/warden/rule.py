@@ -1122,7 +1122,8 @@ class WardenRule:
                 notify_channel_id = await cog.config.guild(guild).notify_channel()
                 msg_obj.channel = guild.get_channel(notify_channel_id)
                 if msg_obj.channel is None:
-                    raise ExecutionError(f"Failed to issue command. Sorry!")
+                    raise ExecutionError(f"Failed to issue command. I could not find the "
+                                         "notification channel.")
             else:
                 msg_obj.channel = message.channel
             msg_obj.author = issuer
