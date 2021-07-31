@@ -864,8 +864,8 @@ class WardenRule:
                 if params.qa_reason is None:
                     params.qa_reason = ""
 
-                safe_sub(params.qa_target)
-                safe_sub(params.qa_reason)
+                params.qa_target = safe_sub(params.qa_target)
+                params.qa_reason = safe_sub(params.qa_reason)
 
                 try:
                     quick_action = QuickAction(int(params.qa_target), params.qa_reason)
