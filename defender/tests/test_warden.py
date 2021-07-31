@@ -459,3 +459,11 @@ async def test_conditions():
     await eval_cond(Condition.UserHasAnyRoleIn, ["dassdads", "my_role"], True)
 
     # Missing tests for category, public channels, regex related and emojis
+
+    # This tests the "_single_value" changes. The condition should only accept a single value,
+    # not a list to unpack and not a dict
+    with pytest.raises(InvalidRule, match=r".*could not be parsed*"):
+        await eval_cond(Condition.MessageHasAttachment, ["true"], True)
+
+    with pytest.raises(InvalidRule, match=r".*could not be parsed*"):
+        await eval_cond(Condition.MessageHasAttachment, {"value": True}, True)
