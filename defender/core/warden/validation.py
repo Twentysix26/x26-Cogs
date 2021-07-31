@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from .enums import Action, Condition, Event
 from typing import List, Union, Optional, Dict
 from redbot.core.commands.converter import parse_timedelta
-from pydantic import BaseModel as PydanticBaseModel, conlist, validator
+from pydantic import BaseModel as PydanticBaseModel, conlist, validator, root_validator
 from pydantic import ValidationError, ExtraError
 from pydantic.error_wrappers import ErrorWrapper
 import logging
@@ -87,19 +87,34 @@ class EmbedField(BaseModel):
     value: str
     inline: Optional[bool]=True
 
+class Message(BaseModel):
+    channel_id: str
+    message_id: str
+
 class NotifyStaff(BaseModel):
     _short_form = ("content",)
     content: str
     title: Optional[str]
     fields: Optional[List[EmbedField]]=[]
+    add_ctx_fields: Optional[bool]
     thumbnail: Optional[str]
     footer_text: Optional[str]
     ping: Optional[bool]
+    jump_to: Optional[Message]
+    jump_to_ctx_message: Optional[bool]
     qa_target: Optional[str]
     qa_reason: Optional[str]
     no_repeat_for: Optional[TimeDelta]
-    key_no_repeat_for: Optional[str]
+    no_repeat_key: Optional[str]
     allow_everyone_ping: Optional[bool]=False
+
+    @root_validator(pre=False, allow_reuse=True)
+    def check_jump_to(cls, values):
+        if values["jump_to_ctx_message"] is True and values["jump_to"]:
+            raise ValueError('You cannot specify a message to jump to while also choosing '
+                             'the option to jump to the context\'s message.')
+
+        return values
 
 class NotifyStaffWithEmbed(BaseModel):
     title: str

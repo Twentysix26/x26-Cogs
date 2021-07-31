@@ -870,12 +870,32 @@ class WardenRule:
                 try:
                     quick_action = QuickAction(int(params.qa_target), params.qa_reason)
                 except ValueError:
-                    raise ExecutionError(f"{params.qa_target} is not a valid ID.")
+                    raise ExecutionError(f"{params.qa_target} is not a valid ID for a Quick Action target.")
+
+            jump_to_msg = None
+
+            if params.jump_to_ctx_message:
+                jump_to_msg = message
+
+            if params.jump_to:
+                params.jump_to.channel_id = safe_sub(params.jump_to.channel_id)
+                params.jump_to.message_id = safe_sub(params.jump_to.message_id)
+                try:
+                    jump_to_ch = discord.utils.get(guild.text_channels, id=int(params.jump_to.channel_id))
+                except ValueError:
+                    raise ExecutionError(f"{params.jump_to.channel_id} is not a valid channel ID for a \"jump to\" message.")
+                if not params.jump_to.message_id.isdigit():
+                    raise ExecutionError(f"{params.jump_to.message_id} is not a valid message ID for a \"jump to\" message.")
+                if jump_to_ch:
+                    jump_to_msg = jump_to_ch.get_partial_message(params.jump_to.message_id)
+                else:
+                    raise ExecutionError(f"I could not find the destination channel for the \"jump to\" message.")
 
             title = safe_sub(params.title) if params.title else None
-            heat_key = safe_sub(params.key_no_repeat_for) if params.key_no_repeat_for else None
+            heat_key = safe_sub(params.no_repeat_key) if params.no_repeat_key else None
 
             fields = []
+
             if params.fields:
                 for param in params.fields:
                     fields.append(param.dict())
@@ -884,6 +904,15 @@ class WardenRule:
                 for attr in ("name", "value"):
                     if attr in field:
                         field[attr] = safe_sub(field[attr])
+
+            if params.add_ctx_fields:
+                ctx_fields = []
+                if user:
+                    ctx_fields.append({"name": "Username", "value": f"`{user}`"})
+                    ctx_fields.append({"name": "ID", "value": f"`{user.id}`"})
+                if message:
+                    ctx_fields.append({"name": "Channel", "value": message.channel.mention})
+                fields = ctx_fields + fields
 
             footer = None
             if not text_only:
@@ -901,6 +930,7 @@ class WardenRule:
                                                             fields=fields,
                                                             footer=footer,
                                                             thumbnail=safe_sub(params.thumbnail) if params.thumbnail else None,
+                                                            jump_to=jump_to_msg,
                                                             no_repeat_for=params.no_repeat_for,
                                                             heat_key=heat_key,
                                                             quick_action=quick_action,
