@@ -559,10 +559,14 @@ class WardenRule:
             return params.value is public
 
         @checker(Condition.UserCreatedLessThan)
-        async def user_created_less_than(params: models.IsInt):
-            if params.value == 0:
-                return True
-            x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
+        async def user_created_less_than(params: models.UserJoinedCreated):
+            if isinstance(params.value, int):
+                if params.value == 0:
+                    return True
+                x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
+            else:
+                x_hours_ago = utcnow() - params.value # type: ignore
+
             return user.created_at > x_hours_ago
 
         @checker(Condition.UserIsRank)
@@ -570,10 +574,14 @@ class WardenRule:
             return await cog.rank_user(user) == Rank(params.value)
 
         @checker(Condition.UserJoinedLessThan)
-        async def user_joined_less_than(params: models.IsInt):
-            if params.value == 0:
-                return True
-            x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
+        async def user_joined_less_than(params: models.UserJoinedCreated):
+            if isinstance(params.value, int):
+                if params.value == 0:
+                    return True
+                x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
+            else:
+                x_hours_ago = utcnow() - params.value # type: ignore
+
             return user.joined_at > x_hours_ago
 
         @checker(Condition.UserHasDefaultAvatar)

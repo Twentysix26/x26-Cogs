@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from .enums import Action, Condition, Event
 from typing import List, Union, Optional, Dict
-from redbot.core.commands.converter import parse_timedelta
+from redbot.core.commands.converter import parse_timedelta, BadArgument
 from pydantic import BaseModel as PydanticBaseModel, conlist, validator, root_validator
 from pydantic import ValidationError, ExtraError
 from pydantic.error_wrappers import ErrorWrapper
@@ -37,7 +37,10 @@ class TimeDelta(str):
     def validate(cls, v):
         if not isinstance(v, str):
             raise TypeError("Not a valid timedelta")
-        td = parse_timedelta(v)
+        try:
+            td = parse_timedelta(v)
+        except BadArgument as e:
+            raise TypeError(f"{e}")
         if td is None:
             raise TypeError("Not a valid timedelta")
         return td
@@ -71,6 +74,9 @@ class Compare(BaseModel):
             if v.lower() not in allowed:
                 raise ValueError("Unknown operator")
         return v
+
+class UserJoinedCreated(BaseModel):
+    value: Union[TimeDelta, int]
 
 ######### ACTION VALIDATORS #########
 
@@ -256,8 +262,8 @@ CONDITIONS_VALIDATORS = {
     Condition.NicknameMatchesRegex: IsStr,
     Condition.MessageMatchesAny: NonEmptyListStr,
     Condition.MessageMatchesRegex: IsStr,
-    Condition.UserCreatedLessThan: IsInt,
-    Condition.UserJoinedLessThan: IsInt,
+    Condition.UserCreatedLessThan: UserJoinedCreated,
+    Condition.UserJoinedLessThan: UserJoinedCreated,
     Condition.UserActivityMatchesAny: NonEmptyListStr,
     Condition.UserHasDefaultAvatar: IsBool,
     Condition.ChannelMatchesAny: NonEmptyList,
