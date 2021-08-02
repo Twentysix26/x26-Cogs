@@ -348,7 +348,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                         "Was this deliberate?")
             return
         elif await self.bot.is_mod(target):
-            self.send_to_monitor(guild, f"[QuickAction] Target user {user} is a staff member. I cannot do that.")
+            self.send_to_monitor(guild, f"[QuickAction] Target user {target} is a staff member. I cannot do that.")
             return
 
         check1 = user.guild_permissions.ban_members is False and action in (Action.Ban, Action.Softban, QAAction.BanDeleteOneDay)
@@ -358,26 +358,28 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             self.send_to_monitor(guild, f"[QuickAction] Mod {user} lacks permissions to {action.value}.")
             return
 
+        auditlog_reason = f"Defender QuickAction issued by {user} ({user.id})"
+
         if action == Action.Ban:
-            await guild.ban(target, reason=quick_action.reason, delete_message_days=0)
+            await guild.ban(target, reason=auditlog_reason, delete_message_days=0)
             self.dispatch_event("member_remove", target, action.value, quick_action.reason)
         elif action == Action.Softban:
-            await guild.ban(target, reason=quick_action.reason, delete_message_days=1)
+            await guild.ban(target, reason=auditlog_reason, delete_message_days=1)
             await guild.unban(target)
             self.dispatch_event("member_remove", target, action.value, quick_action.reason)
         elif action == Action.Kick:
-            await guild.kick(target, reason=quick_action.reason)
+            await guild.kick(target, reason=auditlog_reason)
             self.dispatch_event("member_remove", target, action.value, quick_action.reason)
         elif action == Action.Punish:
             punish_role = guild.get_role(await self.config.guild(guild).punish_role())
             if punish_role and not self.is_role_privileged(punish_role):
-                await target.add_roles(punish_role, reason=f"Defender: punish role assigned by {user.id}")
+                await target.add_roles(punish_role, reason=auditlog_reason)
             else:
                 self.send_to_monitor(guild, "[QuickAction] Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")
             return
         elif action == QAAction.BanDeleteOneDay:
-            await guild.ban(target, reason=quick_action.reason, delete_message_days=1)
+            await guild.ban(target, reason=auditlog_reason, delete_message_days=1)
             self.dispatch_event("member_remove", target, action.value, quick_action.reason)
 
         await self.create_modlog_case(
