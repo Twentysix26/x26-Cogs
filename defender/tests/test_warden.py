@@ -7,6 +7,7 @@ from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
 from . import wd_sample_rules as rl
 from datetime import datetime, timedelta
+from discord import Activity
 import pytest
 
 
@@ -53,6 +54,10 @@ class FakeUser:
     joined_at = datetime.utcnow()
     avatar_url = "test.com"
     roles = {}
+    activities = [
+        Activity(name="fake activity"),
+        Activity(name="spam")
+    ]
 
 FAKE_USER = FakeUser()
 
@@ -461,6 +466,9 @@ async def test_conditions():
     FAKE_USER.roles[role1] = role1
     await eval_cond(Condition.UserHasAnyRoleIn, [12345, "1111111"], True)
     await eval_cond(Condition.UserHasAnyRoleIn, ["dassdads", "my_role"], True)
+
+    await eval_cond(Condition.UserActivityMatchesAny, ["xx", "*spam*"], True)
+    await eval_cond(Condition.UserActivityMatchesAny, ["xx", "*bla*"], False)
 
     # Missing tests for category, public channels, regex related and emojis
 
