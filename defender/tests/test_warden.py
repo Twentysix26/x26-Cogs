@@ -426,13 +426,17 @@ async def test_conditions():
 
     FAKE_USER.joined_at = datetime.utcnow()
     await eval_cond(Condition.UserJoinedLessThan, 1, True)
+    await eval_cond(Condition.UserJoinedLessThan, "1 hour", True)
     FAKE_USER.joined_at = datetime.utcnow() - timedelta(hours=2)
     await eval_cond(Condition.UserJoinedLessThan, 1, False)
+    await eval_cond(Condition.UserJoinedLessThan, "1 hour", False)
 
     FAKE_USER.created_at = datetime.utcnow()
     await eval_cond(Condition.UserCreatedLessThan, 1, True)
+    await eval_cond(Condition.UserCreatedLessThan, "1 hour", True)
     FAKE_USER.created_at = datetime.utcnow() - timedelta(hours=2)
     await eval_cond(Condition.UserCreatedLessThan, 1, False)
+    await eval_cond(Condition.UserCreatedLessThan, "1 hour", False)
 
     FAKE_USER.avatar_url = "discord.gg/ad/sda/s/ads.png"
     await eval_cond(Condition.UserHasDefaultAvatar, "true", False)
