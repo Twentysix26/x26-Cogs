@@ -397,11 +397,17 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         elif action == Action.NoAction:
             heat_key = f"core-ca-{author.id}-{message.channel.id}-{len(message.content)}"
 
-        await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, heat_key=heat_key,
-                                     no_repeat_for=timedelta(minutes=1), quick_action=QuickAction(author.id, reason))
+        ca_msg = await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, heat_key=heat_key,
+                                              no_repeat_for=timedelta(minutes=1), quick_action=QuickAction(author.id, reason))
 
-        with contextlib.suppress(discord.HTTPException, discord.Forbidden):
-            await message.delete()
+        emoji = '\U00002049' + '\U0000FE0F'
+        await ca_msg.add_reaction(emoji)
+        # await message.channel.send(f'DEBUG: {results}')
+        ca_delete_message_on_trigger = await self.config.guild(guild).ca_delete_message_on_trigger()
+
+        if ca_delete_message_on_trigger:
+            with contextlib.suppress(discord.HTTPException, discord.Forbidden):
+                await message.delete()
 
         await self.create_modlog_case(
             self.bot,
@@ -414,3 +420,4 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             until=None,
             channel=None,
         )
+

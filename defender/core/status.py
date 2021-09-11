@@ -161,6 +161,7 @@ async def make_status(ctx, cog):
     if d_enabled:
         enabled = await cog.config.guild(guild).raider_detection_enabled()
 
+    delmsg = await cog.config.guild(guild).ca_delete_message_on_trigger()
     rank = await cog.config.guild(guild).raider_detection_rank()
     messages = await cog.config.guild(guild).raider_detection_messages()
     minutes = await cog.config.guild(guild).raider_detection_minutes()
@@ -267,7 +268,10 @@ async def make_status(ctx, cog):
     if ca_action == Action.Ban:
         ca_action = f"**ban** the author and **delete {ca_wipe} days** worth of messages"
     elif ca_action == Action.NoAction:
-        ca_action = "**delete** it and **notify** the staff"
+        if delmsg:
+            ca_action = f"**delete** it and **notify** the staff"
+        else:
+            ca_action = f"**NOT delete** it and **notify** the staff"
     else:
         ca_action = f"**{ca_action.value}** the author"
 

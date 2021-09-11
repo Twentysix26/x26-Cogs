@@ -699,6 +699,15 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.send(f"Value set. I will delete {days} days worth "
                        "of messages if the action is ban.")
 
+    @caset.command(name="delmsg")
+    async def casetdelmsg(self, ctx: commands.Context):
+        """Sets whether a CA Event will delete the message"""
+        delmsg = await self.config.guild(ctx.guild).ca_delete_message_on_trigger()
+        await self.config.guild(ctx.guild).ca_delete_message_on_trigger.set(not delmsg)
+        delmsg = await self.config.guild(ctx.guild).ca_delete_message_on_trigger()
+        await ctx.send(f"Value set.  Delete Message After Event is now {delmsg}")
+
+
     @dset.group(name="voteout")
     @commands.admin()
     async def voteoutgroup(self, ctx: commands.Context):
