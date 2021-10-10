@@ -676,8 +676,8 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
         await self.config.guild(ctx.guild).ca_action.set(action)
         if Action(action) == Action.NoAction:
-            await ctx.send("Action set. Since you've chosen 'none' I will only delete "
-                           "the message and notify the staff about it.")
+            await ctx.send("Action set. Since you've chosen 'none' I will only "
+                           "notify the staff about it.")
         await ctx.tick()
 
     @caset.command(name="reason")
@@ -698,6 +698,15 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await self.config.guild(ctx.guild).ca_wipe.set(days)
         await ctx.send(f"Value set. I will delete {days} days worth "
                        "of messages if the action is ban.")
+
+    @caset.command(name="deletemessage")
+    async def casetdeletemessage(self, ctx: commands.Context, on_or_off: bool):
+        """Toggles whether to delete the offending message"""
+        await self.config.guild(ctx.guild).ca_delete_message.set(on_or_off)
+        if on_or_off:
+            await ctx.send("I will delete the offending message.")
+        else:
+            await ctx.send("I will not delete the offending message.")
 
     @dset.group(name="voteout")
     @commands.admin()

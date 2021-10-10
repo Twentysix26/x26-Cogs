@@ -369,6 +369,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 f'The following message scored {round(attribute_score, 2)}% in the **{triggered_attribute}** category:\n'
                 f"{box(sanitized_content)}")
 
+        delete_days = 0
         reason = await self.config.guild(guild).ca_reason()
         heat_key = f"core-ca-{author.id}-{message.channel.id}"
 
@@ -380,7 +381,8 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await guild.kick(author, reason=reason)
             self.dispatch_event("member_remove", author, Action.Kick.value, reason)
         elif action == Action.Softban:
-            await guild.ban(author, reason=reason, delete_message_days=1)
+            delete_days = 1
+            await guild.ban(author, reason=reason, delete_message_days=delete_days)
             await guild.unban(author)
             self.dispatch_event("member_remove", author, Action.Softban.value, reason)
         elif action == Action.Punish:
@@ -400,8 +402,9 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, heat_key=heat_key,
                                      no_repeat_for=timedelta(minutes=1), quick_action=QuickAction(author.id, reason))
 
-        with contextlib.suppress(discord.HTTPException, discord.Forbidden):
-            await message.delete()
+        if await self.config.guild(guild).ca_delete_message() and delete_days == 0:
+            with contextlib.suppress(discord.HTTPException, discord.Forbidden):
+                await message.delete()
 
         await self.create_modlog_case(
             self.bot,

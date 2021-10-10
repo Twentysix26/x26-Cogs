@@ -264,12 +264,28 @@ async def make_status(ctx, cog):
 
     ca_action = Action(await cog.config.guild(guild).ca_action())
     ca_wipe = await cog.config.guild(guild).ca_wipe()
+    ca_show_single_deletion = True
     if ca_action == Action.Ban:
-        ca_action = f"**ban** the author and **delete {ca_wipe} days** worth of messages"
+        if ca_wipe:
+            ca_show_single_deletion = False
+            ca_action = f"**ban** the author and **delete {ca_wipe} days** worth of messages"
+        else:
+            ca_action = f"**ban** the author"
+    elif ca_action == Action.Softban:
+        ca_show_single_deletion = False
+        ca_action = f"**softban** the author"
     elif ca_action == Action.NoAction:
-        ca_action = "**delete** it and **notify** the staff"
+        ca_action = "**notify** the staff"
     else:
         ca_action = f"**{ca_action.value}** the author"
+
+    ca_message_delete = await cog.config.guild(guild).ca_delete_message()
+    ca_del = ""
+    if ca_show_single_deletion:
+        if ca_message_delete:
+            ca_del = " and **delete** it"
+        else:
+            ca_del = " and **not delete** it"
 
     ca_rank = await cog.config.guild(guild).ca_rank()
     ca_attributes = len(await cog.config.guild(guild).ca_attributes())
@@ -281,7 +297,7 @@ async def make_status(ctx, cog):
             "detect abusive content.\nIt supports a variety of languages and it is a powerful tool "
             "for monitoring and prevention. Be mindful of *false positives*: context is not taken "
             f"in consideration.\n{ca_token}.\nIt is set so that if I detect an abusive message I will "
-            f"{ca_action}. The offending user must be **Rank {ca_rank}** or below.\nI will take action "
+            f"{ca_action}{ca_del}. The offending user must be **Rank {ca_rank}** or below.\nI will take action "
             f"only if the **{ca_threshold}%** threshold is reached for any of the **{ca_attributes}** "
             f"attribute(s) that have been set.\n")
     msg += "This module is currently "
