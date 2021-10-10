@@ -1228,8 +1228,8 @@ class WardenRule:
                 em.set_thumbnail(url=params.thumbnail)
                 em.set_footer(text=params.footer_text, icon_url=params.footer_icon_url)
                 for field in params.fields:
-                    em.add_field(name=field.name,
-                                value=field.value,
+                    em.add_field(name=safe_sub(field.name),
+                                value=safe_sub(field.value),
                                 inline=field.inline)
                 if params.add_timestamp:
                     em.timestamp = utcnow()
