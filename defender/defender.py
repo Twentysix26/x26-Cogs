@@ -32,7 +32,7 @@ from .core.warden.enums import Event as WardenEvent
 from .core.warden import heat
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
-from .core.utils import QuickAction, utcnow
+from .core.utils import QuickAction, utcnow, timestamp
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
@@ -263,8 +263,8 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         avatar = user.avatar_url_as(static_format="png")
         em.set_thumbnail(url=avatar)
         em.set_author(name=f"{user}", url=avatar)
-        em.add_field(name="Account created", value=user.created_at.strftime("%Y/%m/%d %H:%M:%S"), inline=True)
-        em.add_field(name="Joined this server", value=user.joined_at.strftime("%Y/%m/%d %H:%M:%S"), inline=True)
+        em.add_field(name="Account created", value=timestamp(user.created_at), inline=True)
+        em.add_field(name="Joined this server", value=timestamp(user.joined_at), inline=True)
         if link:
             em.add_field(name="Link", value=user.mention, inline=True)
         if rank:
