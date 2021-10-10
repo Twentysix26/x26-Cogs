@@ -65,3 +65,9 @@ def utcnow():
         return datetime.datetime.now(datetime.timezone.utc)
     else:
         return datetime.datetime.utcnow()
+
+def timestamp(datetime: datetime.datetime, relative=False):
+    if relative:
+        return f"<t:{int(datetime.timestamp())}:R>"
+    else:
+        return f"<t:{int(datetime.timestamp())}>"

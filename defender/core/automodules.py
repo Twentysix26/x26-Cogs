@@ -18,13 +18,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Most automodules are too small to have their own files
 
 from ..abc import MixinMeta, CompositeMetaClass
-from redbot.core.utils.chat_formatting import box, humanize_timedelta, inline
+from redbot.core.utils.chat_formatting import box
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
 from ..core.utils import QuickAction, is_own_invite, ACTIONS_VERBS, utcnow
 from ..core.warden import heat
+from .utils import timestamp
 from io import BytesIO
 from collections import namedtuple, OrderedDict
 from datetime import timedelta
@@ -274,13 +275,12 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         EMBED_TITLE = "🔎🕵️ • Join monitor"
         EMBED_FIELDS = [{"name": "Username", "value": f"`{member}`"},
                         {"name": "ID", "value": f"`{member.id}`"},
-                        {"name": "Account created", "value": member.created_at.strftime("%Y/%m/%d %H:%M:%S")},
-                        {"name": "Joined this server", "value": member.joined_at.strftime("%Y/%m/%d %H:%M:%S")}]
+                        {"name": "Account created", "value": timestamp(member.created_at)},
+                        {"name": "Joined this server", "value": timestamp(member.joined_at)}]
         guild = member.guild
         hours = await self.config.guild(guild).join_monitor_susp_hours()
 
-        delta = member.joined_at - member.created_at
-        description = f"A {humanize_timedelta(timedelta=delta)} old user just joined the server."
+        description = f"A user created {timestamp(member.created_at, relative=True)} just joined the server."
         avatar = member.avatar_url_as(static_format="png")
         heat_key = f"core-jm-{member.id}"
 
@@ -295,7 +295,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 except (discord.Forbidden, discord.HTTPException):
                     pass
 
-        description = f"A {humanize_timedelta(timedelta=delta)} old user just joined the server {guild.name}."
+        description = f"A user created {timestamp(member.created_at, relative=True)} just joined the server {guild.name}."
         subs = await self.config.guild(guild).join_monitor_susp_subs()
 
         for _id in subs:
