@@ -83,7 +83,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             pages = [box(p, lang="rust") for p in pages]
             await menu(ctx, pages, DEFAULT_CONTROLS)
 
-    @defender.group(name="messages")
+    @defender.group(name="messages", aliases=["msg"])
     async def defmessagesgroup(self, ctx: commands.Context):
         """Access recorded messages of users / channels"""
 
@@ -306,7 +306,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         else:
             await ctx.send("Nothing to show.")
 
-    @defender.group(name="warden")
+    @defender.group(name="warden", aliases=["wd"])
     @commands.admin()
     async def wardengroup(self, ctx: commands.Context):
         """Warden rules management

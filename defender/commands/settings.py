@@ -296,7 +296,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await self.config.guild(ctx.guild).rank3_joined_days.set(days)
         await ctx.tick()
 
-    @dset.group(name="invitefilter")
+    @dset.group(name="invitefilter", aliases=["if"])
     @commands.admin()
     async def invitefiltergroup(self, ctx: commands.Context):
         """Invite filter auto module configuration
@@ -398,7 +398,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("Vaporize manual module disabled.")
 
-    @dset.group(name="joinmonitor")
+    @dset.group(name="joinmonitor", aliases=["jm"])
     @commands.admin()
     async def joinmonitorgroup(self, ctx: commands.Context):
         """Join monitor auto module configuration
@@ -473,7 +473,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("Got it. I won't raise the server's verification level.")
 
-    @dset.group(name="raiderdetection")
+    @dset.group(name="raiderdetection", aliases=["rd"])
     @commands.admin()
     async def raiderdetectiongroup(self, ctx: commands.Context):
         """Raider detection auto module configuration
@@ -544,7 +544,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.send(f"Value set. I will delete {days} days worth "
                        "of messages if the action is ban.")
 
-    @dset.group(name="warden")
+    @dset.group(name="warden", aliases=["wd"])
     @commands.admin()
     async def wardenset(self, ctx: commands.Context):
         """Warden auto module configuration
@@ -600,7 +600,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await self.config.wd_upload_max_size.set(kilobytes)
         await ctx.send(f"Size set. I will not accept any rule bigger than {kilobytes}KB.")
 
-    @dset.group(name="commentanalysis")
+    @dset.group(name="commentanalysis", aliases=["ca"])
     @commands.admin()
     async def caset(self, ctx: commands.Context):
         """Comment analysis configuration
