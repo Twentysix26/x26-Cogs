@@ -319,6 +319,13 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     async def wardengroupaddrule(self, ctx: commands.Context, *, rule: str):
         """Adds a new rule"""
         guild = ctx.guild
+        # Since some people immediately dive into Warden before configuring everything up...
+        n_channel = await self.config.guild(guild).notify_channel()
+        if n_channel == 0:
+            await ctx.send("It is important that you configure and understand how Defender works before "
+                           f"using Warden. Please read `{ctx.prefix}def status` in its entirety.")
+            return
+
         rule = rule.strip("\n")
         prompts_sent = False
         if rule.startswith("```yaml"):
