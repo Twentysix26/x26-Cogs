@@ -23,9 +23,9 @@ from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock
 from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
-from ...exceptions import InvalidRule, ExecutionError, StopExecution
+from ...exceptions import InvalidRule, ExecutionError, StopExecution, MisconfigurationError
 from ...core import cache as df_cache
-from ...core.utils import is_own_invite, QuickAction, utcnow
+from ...core.utils import get_external_invite, QuickAction, utcnow
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.utils.chat_formatting import box
 from redbot.core.commands.converter import parse_timedelta
@@ -617,15 +617,18 @@ class WardenRule:
 
         @checker(Condition.MessageContainsInvite)
         async def message_contains_invite(params: models.IsBool):
-            invite_match = INVITE_URL_RE.search(message.content)
-            if invite_match:
+            results = INVITE_URL_RE.findall(message.content)
+            if results:
                 has_invite = True
                 try:
-                    if await is_own_invite(guild, invite_match):
+                    if await get_external_invite(guild, results) is None:
                         has_invite = False
+                except MisconfigurationError as e:
+                    raise ExecutionError(str(e))
                 except Exception as e:
-                    log.error("Unexpected error in warden's own invite check", exc_info=e)
-                    has_invite = False
+                    error_text = "Unexpected error: failed to fetch server's own invites"
+                    log.error(error_text, exc_info=e)
+                    raise ExecutionError(error_text)
             else:
                 has_invite = False
             return has_invite is params.value
@@ -750,7 +753,11 @@ class WardenRule:
             except KeyError:
                 raise ExecutionError(f"Unhandled condition '{condition.value}'.")
 
-            result = await processor_func(params)
+            try:
+                result = await processor_func(params)
+            except ExecutionError as e:
+                cog.send_to_monitor(guild, f"[Warden] ({self.name}): {e}")
+                result = False # TODO
             if result in (True, False):
                 bools.append(result)
             else:

@@ -18,12 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # Most automodules are too small to have their own files
 
 from ..abc import MixinMeta, CompositeMetaClass
-from redbot.core.utils.chat_formatting import box
+from redbot.core.utils.chat_formatting import box, humanize_list
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from ..abc import CompositeMetaClass
 from ..enums import Action
 from ..core import cache as df_cache
-from ..core.utils import QuickAction, is_own_invite, ACTIONS_VERBS, utcnow
+from ..core.utils import QuickAction, get_external_invite, ACTIONS_VERBS, utcnow, timestamp
 from ..core.warden import heat
 from .utils import timestamp
 from io import BytesIO
@@ -49,7 +49,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         {"name": "ID", "value": f"`{author.id}`"},
                         {"name": "Channel", "value": message.channel.mention}]
 
-        result = INVITE_URL_RE.search(message.content)
+        result = INVITE_URL_RE.findall(message.content)
 
         if not result:
             return
@@ -57,27 +57,17 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         exclude_own_invites = await self.config.guild(guild).invite_filter_exclude_own_invites()
 
         if exclude_own_invites:
-            try:
-                if await is_own_invite(guild, result):
-                    return False
-            except Exception as e:
-                log.error("Unexpected error in invite filter's own invite check", exc_info=e)
+            external_invite = await get_external_invite(guild, result)
+            if external_invite is None:
                 return False
+        else:
+            external_invite = result[0][1]
 
-        content = box(message.content)
+        if len(message.content) > 1000:
+            content = box(f"{message.content[:1000]}(...)")
+        else:
+            content = box(message.content)
 
-        try:
-            await message.delete()
-        except discord.Forbidden:
-            self.send_to_monitor(guild, "[InviteFilter] Failed to delete message: "
-                                        f"no permissions in #{message.channel}")
-        except discord.NotFound:
-            pass
-        except Exception as e:
-            log.error("Unexpected error in invite filter's message deletion", exc_info=e)
-
-        quick_action = QuickAction(author.id, "Posting an invite link")
-        heat_key = f"core-if-{author.id}-{message.channel.id}"
         action = Action(await self.config.guild(guild).invite_filter_action())
 
         if action == Action.Ban:
@@ -104,16 +94,57 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 self.send_to_monitor(guild, "[InviteFilter] Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")
                 return
-        elif action == Action.NoAction:
-            return await self.send_notification(guild, f"I have deleted a message with this content:\n{content}",
-                                                title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
-                                                no_repeat_for=timedelta(minutes=1), heat_key=heat_key,
-                                                quick_action=quick_action)
-        else:
-            raise ValueError("Invalid action for invite filter")
 
-        await self.send_notification(guild, f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}",
-                                     title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
+        try:
+            await message.delete()
+        except discord.Forbidden:
+            self.send_to_monitor(guild, "[InviteFilter] Failed to delete message: "
+                                        f"no permissions in #{message.channel}")
+        except discord.NotFound:
+            pass
+        except Exception as e:
+            log.error("Unexpected error in invite filter's message deletion", exc_info=e)
+
+        invite_data = f"**About [discord.gg/{external_invite}](https://discord.gg/{external_invite})**\n"
+
+        try:
+            invite = await self.bot.fetch_invite(external_invite)
+        except (discord.NotFound, discord.HTTPException):
+            invite_data += f"I could not gather more information about the invite."
+        else:
+            if invite.guild:
+                invite_data += f"This invite leads to the server `{invite.guild.name}` (`{invite.guild.id}`)\n"
+                if invite.approximate_presence_count is not None and invite.approximate_member_count is not None:
+                    invite_data += (f"It has **{invite.approximate_member_count}** members "
+                                    f"({invite.approximate_presence_count} online)\n")
+                icon_url = invite.guild.icon_url_as()
+                banner_url = invite.guild.banner_url_as()
+                is_partner = "PARTNERED" in invite.guild.features
+                is_verified = "VERIFIED" in invite.guild.features
+                chars = []
+                chars.append(f"It was created {timestamp(invite.guild.created_at, relative=True)}")
+                if is_partner:
+                    chars.append("it is a **partner** server")
+                if is_verified:
+                    chars.append("it is **verified**")
+                if icon_url:
+                    chars.append(f"it has an [icon set]({icon_url})")
+                if banner_url:
+                    chars.append(f"it has a [banner set]({banner_url})")
+                if invite.guild.description:
+                    chars.append(f"the following is its description:\n{box(invite.guild.description)}")
+                invite_data += f"{humanize_list(chars)}"
+            else:
+                invite_data += f"I have failed to retrieve the server's data. Possibly a group DM invite?\n"
+
+        if action == Action.NoAction:
+            notif_text = f"I have deleted a message with this content:\n{content}\n{invite_data}"
+        else:
+            notif_text = f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}\n{invite_data}"
+
+        quick_action = QuickAction(author.id, "Posting an invite link")
+        heat_key = f"core-if-{author.id}-{message.channel.id}"
+        await self.send_notification(guild, notif_text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
                                      no_repeat_for=timedelta(minutes=1), heat_key=heat_key,  quick_action=quick_action)
 
         await self.create_modlog_case(

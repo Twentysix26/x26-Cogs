@@ -20,7 +20,7 @@ from ..enums import Action, Rank, QAAction
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
 from ..core.utils import QUICK_ACTION_EMOJIS, utcnow
-from ..exceptions import ExecutionError
+from ..exceptions import ExecutionError, MisconfigurationError
 from . import cache as df_cache
 from redbot.core import commands
 from datetime import datetime
@@ -95,6 +95,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 except discord.Forbidden as e:
                     self.send_to_monitor(guild, "[InviteFilter] Failed to take action on "
                                                 f"user {author.id}. Please check my permissions.")
+                except MisconfigurationError as e:
+                    self.send_to_monitor(guild, f"[InviteFilter] {e}")
                 except Exception as e:
                     log.warning("Unexpected error in InviteFilter", exc_info=e)
         if expelled:
@@ -197,6 +199,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 except discord.Forbidden as e:
                     self.send_to_monitor(guild, "[InviteFilter] Failed to take action on "
                                                 f"user {author.id}. Please check my permissions.")
+                except MisconfigurationError as e:
+                    self.send_to_monitor(guild, f"[InviteFilter] {e}")
                 except Exception as e:
                     log.warning("Unexpected error in InviteFilter", exc_info=e)
 

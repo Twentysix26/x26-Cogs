@@ -15,11 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+from typing import Tuple, List
 from ..enums import Action, QAAction
+from ..exceptions import MisconfigurationError
 from collections import namedtuple
 import datetime
 import discord
-import re
 
 ACTIONS_VERBS = {
     Action.Ban: "banned",
@@ -43,22 +44,29 @@ QUICK_ACTION_EMOJIS = {
 
 QuickAction = namedtuple("QuickAction", ("target", "reason"))
 
-async def is_own_invite(guild: discord.Guild, match: re.Match):
+async def get_external_invite(guild: discord.Guild, invites: List[Tuple]):
     if not guild.me.guild_permissions.manage_guild:
-        return False
+        raise MisconfigurationError("I need 'manage guild' permissions to fetch this server's invites.")
 
     has_vanity_url = "VANITY_URL" in guild.features
+    vanity_url = await guild.vanity_invite() if has_vanity_url else ""
+    if vanity_url:
+        vanity_url = vanity_url.code
 
-    if has_vanity_url:
-        invite_url = await guild.vanity_invite()
-        if invite_url.code.lower() == match.group(2).lower():
-            return True
-
+    own_invites = []
     for invite in await guild.invites():
-        if invite.code == match.group(2):
-            return True
+        own_invites.append(invite.code)
 
-    return False
+    for invite in invites:
+        if invite[1] == vanity_url:
+            continue
+        for own_invite in own_invites:
+            if invite[1] == own_invite:
+                break
+        else:
+            return invite[1]
+
+    return None
 
 def utcnow():
     if discord.version_info.major >= 2:
