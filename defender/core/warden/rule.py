@@ -346,8 +346,11 @@ class WardenRule:
 
         # For the rule's conditions to pass, every "root level" condition (or block of conditions)
         # must equal to True
-        return await self._evaluate_conditions_block(block=self.conditions, cog=cog, user=user, message=message, guild=guild,
-                                                    debug=debug)
+        try:
+            return await self._evaluate_conditions_block(block=self.conditions, cog=cog, user=user, message=message, guild=guild,
+                                                        debug=debug)
+        except ExecutionError:
+            return cr # Ensure the rule doesn't pass if a condition errored
 
     async def _evaluate_conditions_block(self, *, block, cog, user: discord.Member=None, message: discord.Message=None,
                                    guild: discord.Guild=None, templates_vars={}, debug)->ConditionResult:
@@ -757,7 +760,7 @@ class WardenRule:
                 result = await processor_func(params)
             except ExecutionError as e:
                 cog.send_to_monitor(guild, f"[Warden] ({self.name}): {e}")
-                result = False # TODO
+                raise e
             if result in (True, False):
                 bools.append(result)
             else:
