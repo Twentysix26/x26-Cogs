@@ -759,7 +759,8 @@ class WardenRule:
             try:
                 result = await processor_func(params)
             except ExecutionError as e:
-                cog.send_to_monitor(guild, f"[Warden] ({self.name}): {e}")
+                if cog: # is None in unit tests
+                    cog.send_to_monitor(guild, f"[Warden] ({self.name}): {e}")
                 raise e
             if result in (True, False):
                 bools.append(result)

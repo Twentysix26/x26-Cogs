@@ -386,7 +386,7 @@ async def test_conditions():
     await eval_cond(Condition.MessageContainsInvite, "true", False)
     await eval_cond(Condition.MessageContainsInvite, "false", True)
     FAKE_MESSAGE.content = "aaa https://discord.gg/red aaa"
-    await eval_cond(Condition.MessageContainsInvite, "true", True)
+    await eval_cond(Condition.MessageContainsInvite, "true", False) # Can't be True: will always raise due to missing perms
     await eval_cond(Condition.MessageContainsInvite, "false", False)
 
     FAKE_MESSAGE.content = "aaa 2626 https://discord.gg/file.txt aaa"
