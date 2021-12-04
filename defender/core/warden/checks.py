@@ -20,9 +20,11 @@ from ...exceptions import InvalidRule
 from ...enums import Rank
 from redbot.core.commands.converter import parse_timedelta
 from discord.ext.commands import BadArgument
+import string
 import datetime
 import discord
 
+VALID_VAR_NAME_CHARS = string.ascii_letters + string.digits + "_"
 
 async def _check_role_hierarchy(*, cog, author: discord.Member, action: Action, parameter: list):
     guild = author.guild
@@ -168,6 +170,13 @@ async def _check_message_delete_after(*, cog, author: discord.Member, action: Ac
         raise InvalidRule(f"`{action.value}` Invalid parameter. Must be between 1 second and 1 minute. "
                            "You must specify `seconds` or `minutes`")
 
+async def _check_variable_name(*, cog, author: discord.Member, action: Action, parameter: list):
+    var_name = parameter[0]
+    for c in var_name:
+        if c not in VALID_VAR_NAME_CHARS:
+            raise InvalidRule(f"`{action.value}` Invalid variable name. It can only contain "
+                              "letters, numbers and underscores.")
+
 async def _check_valid_rank(*, cog, author: discord.Member, condition: Condition, parameter: int):
     try:
         rank = Rank(parameter)
@@ -210,6 +219,7 @@ ACTIONS_SANITY_CHECK = {
     Action.AddCustomHeatpoints: _check_custom_heatpoints,
     Action.IssueCommand: _check_issue_command,
     Action.DeleteLastMessageSentAfter: _check_message_delete_after,
+    Action.VarAssign: _check_variable_name,
 }
 
 CONDITIONS_SANITY_CHECK = {
