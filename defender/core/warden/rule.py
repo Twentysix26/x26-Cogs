@@ -1264,7 +1264,7 @@ class WardenRule:
                     # A user could just have DMs disabled
                     if is_user is False:
                         raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
-                                            f"to channel #{destination}")
+                                            f"to channel #{destination}. {e}")
             else:
                 if isinstance(destination, discord.Member):
                     destination = destination.dm_channel if destination.dm_channel else await destination.create_dm()
@@ -1274,7 +1274,7 @@ class WardenRule:
                                            embed=em, allowed_mentions=mentions)
                 except (discord.HTTPException, discord.Forbidden) as e:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message "
-                                        f"in channel #{destination}")
+                                        f"in channel #{destination}. {e}")
                 except ValueError:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message. "
                                         f"{params.edit_message_id} is not a valid ID")
