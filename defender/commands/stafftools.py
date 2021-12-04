@@ -646,8 +646,20 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         await ctx.send(text)
 
     @wardengroup.command(name="memory")
-    async def wardengroupmemory(self, ctx: commands.Context):
-        """Shows or resets the memory of Warden"""
+    async def wardengroupmemory(self, ctx: commands.Context, *, keywords: str=""):
+        """Shows or resets the memory of Warden
+
+        Can be filtered. Supports wildcards (* and ?)"""
+        def is_relevant(value, keywords):
+            if not keywords:
+                return True
+            if "*" not in keywords and "?" not in keywords:
+                keywords = f"*{keywords}*"
+            keywords = keywords.lower()
+            if fnmatch.fnmatch(value.lower(), keywords):
+                return True
+            return False
+
         prod_state = heat.get_state(ctx.guild)
         dev_state = heat.get_state(ctx.guild, debug=True)
         text = ""
@@ -658,7 +670,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             for _type in ("custom", "users", "channels"):
                 to_add = []
                 for k, v in sorted(state[_type].items()):
-                    to_add.append(f"{k}: {len(v)}")
+                    if is_relevant(k, keywords):
+                        to_add.append(f"{k}: {len(v)}")
                 if to_add:
                     if first_run:
                         text += f"- **{state_name}**:"
