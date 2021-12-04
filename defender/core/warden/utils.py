@@ -1,7 +1,7 @@
 from fuzzywuzzy import fuzz, process
 from redbot.core.utils import AsyncIter
 import emoji
-import re
+import regex as re
 import discord
 import logging
 import functools

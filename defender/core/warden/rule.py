@@ -42,7 +42,7 @@ import fnmatch
 import discord
 import datetime
 import logging
-import re
+import regex as re
 
 if TYPE_CHECKING:
     from ...abc import MixinMeta

@@ -24,7 +24,7 @@ from discord.ext.commands import IDConverter
 from discord.utils import time_snowflake
 from redbot.core.utils import AsyncIter
 from ..core.utils import utcnow
-import re
+import regex as re
 import discord
 import logging
 import asyncio
