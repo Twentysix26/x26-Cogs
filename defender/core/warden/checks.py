@@ -196,6 +196,14 @@ async def _check_regex_enabled(*, cog, author: discord.Member, condition: Condit
         raise InvalidRule(f"`{condition.value}` Regex use is globally disabled. The bot owner must use "
                            "`[p]dset warden regexallowed` to activate it.")
 
+async def _check_valid_user_status(*, cog, author: discord.Member, condition: Condition, parameter: list):
+    for status in parameter:
+        try:
+            discord.Status(status.lower())
+        except ValueError:
+            raise InvalidRule(f"`{condition.value}` Invalid status. The condition must contain one of "
+                              "the following statuses: online, offline, idle, dnd.")
+
 async def _check_cond_custom_heat(*, cog, author: discord.Member, condition: Condition, parameter: list):
     if not isinstance(parameter[0], str):
         raise InvalidRule(f"`{condition.value}` Invalid parameter. The custom heat key must be a string.")
@@ -228,6 +236,7 @@ CONDITIONS_SANITY_CHECK = {
     Condition.MessageMatchesRegex: _check_regex_enabled,
     Condition.UsernameMatchesRegex: _check_regex_enabled,
     Condition.NicknameMatchesRegex: _check_regex_enabled,
+    Condition.UserStatusMatchesAny: _check_valid_user_status,
     Condition.CustomHeatIs: _check_cond_custom_heat,
     Condition.CustomHeatMoreThan: _check_cond_custom_heat,
 }

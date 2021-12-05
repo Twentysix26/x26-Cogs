@@ -482,6 +482,14 @@ class WardenRule:
 
             return False
 
+        @checker(Condition.UserStatusMatchesAny)
+        async def user_status_matches_any(params: models.NonEmptyListStr):
+            status_str = str(user.status)
+            for status in params.value:
+                if status.lower() == status_str:
+                    return True
+            return False
+
         @checker(Condition.UserIdMatchesAny)
         async def user_id_matches_any(params: models.NonEmptyListInt):
             for _id in params.value:

@@ -220,7 +220,7 @@ async def test_rule_cond_eval():
                 guild=FAKE_GUILD,
                 user=FAKE_USER)) is expected_result[i]
 
-    ##### Sandbox store
+    ##### Prod store
     rule = WardenRule()
     await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
@@ -249,7 +249,7 @@ async def test_rule_cond_eval():
         message=FAKE_MESSAGE)) is True
     ##############
 
-    ##### Prod store
+    ##### Sandbox store
     rule = WardenRule()
     await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
     assert bool(await rule.satisfies_conditions(
