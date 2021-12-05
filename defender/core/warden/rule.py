@@ -784,10 +784,14 @@ class WardenRule:
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
 
+        guild_icon_url = guild.icon_url_as()
+        guild_banner_url = guild.banner_url_as()
         templates_vars = {
             "rule_name": self.name,
             "guild": str(guild),
             "guild_id": guild.id,
+            "guild_icon_url": guild_icon_url if guild_icon_url else "",
+            "guild_banner_url": guild_banner_url if guild_banner_url else "",
             "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
         }
 
