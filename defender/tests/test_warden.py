@@ -27,6 +27,8 @@ class FakeGuild:
     me = FakeMe
     text_channels = {}
     roles = {}
+    icon_url_as = lambda x: ""
+    banner_url_as = lambda x: ""
 
     def get_role(self, _id):
         for role in self.roles:
@@ -60,6 +62,10 @@ class FakeUser:
     ]
 
 FAKE_USER = FakeUser()
+
+class FakeAttachment:
+    filename = "26.jpg"
+    url = "https://blabla"
 
 class FakeMessage:
     id = 852499907842801729
@@ -371,7 +377,7 @@ async def test_conditions():
     FAKE_MESSAGE.attachments = []
     await eval_cond(Condition.MessageHasAttachment, "true", False)
     await eval_cond(Condition.MessageHasAttachment, "false", True)
-    FAKE_MESSAGE.attachments = ["aaa"]
+    FAKE_MESSAGE.attachments = [FakeAttachment()]
     await eval_cond(Condition.MessageHasAttachment, "true", True)
     await eval_cond(Condition.MessageHasAttachment, "false", False)
 

@@ -178,8 +178,8 @@ INCREASE_HEATPOINTS = """
     - add-user-heatpoints: [1, 9m]
     - add-channel-heatpoint: 9m
     - add-channel-heatpoints: [5, 4m]
-    - add-custom-heatpoint: ["test", 50m]
-    - add-custom-heatpoints: ["test", 12, 50m]
+    - add-custom-heatpoint: ["test-852499907842801728", 50m]
+    - add-custom-heatpoints: ["test-$channel_id", 12, 50m]
 """
 
 CHECK_HEATPOINTS = """
@@ -191,8 +191,8 @@ CHECK_HEATPOINTS = """
         - channel-heat-is: 6
         - user-heat-more-than: 0
         - channel-heat-more-than: 0
-        - custom-heat-is: ["test", 13]
-        - custom-heat-more-than: ["test", 5]
+        - custom-heat-is: ["test-852499907842801728", 13]
+        - custom-heat-more-than: ["test-$channel_id", 5]
     do:
         - no-op:
 """

@@ -353,7 +353,7 @@ class WardenRule:
             return cr # Ensure the rule doesn't pass if a condition errored
 
     async def _evaluate_conditions_block(self, *, block, cog, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None, templates_vars={}, debug)->ConditionResult:
+                                   guild: discord.Guild=None, templates_vars=None, debug)->ConditionResult:
         # This is used during condition processing AND action processing for conditional actions
         cr = ConditionResult(rule_name=self.name, debug=debug)
 
@@ -405,29 +405,23 @@ class WardenRule:
         return cr
 
     async def _evaluate_conditions(self, conditions, *, cog: MixinMeta, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None, templates_vars={}, debug):
+                                   guild: discord.Guild=None, templates_vars=None, debug):
 
         if message and not user:
             user = message.author
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
 
-        # We are only supporting a few template variables here for custom heatpoints
-        if not templates_vars:
-            templates_vars = {
-                "rule_name": self.name,
-                "guild_id": guild.id
-            }
-
-            if user:
-                templates_vars["user_id"] = user.id
-
-            if message:
-                templates_vars["message_id"] = message.id
-
-            if channel:
-                templates_vars["channel_id"] = channel.id
-                templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
+        if templates_vars is None:
+            templates_vars = {}
+            await populate_ctx_vars(t_vars=templates_vars,
+                                    rule=self,
+                                    cog=cog,
+                                    guild=guild,
+                                    message=message,
+                                    user=user,
+                                    channel=channel,
+                                    debug=debug)
 
         checkers = {}
 
@@ -784,49 +778,15 @@ class WardenRule:
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
 
-        guild_icon_url = guild.icon_url_as()
-        guild_banner_url = guild.banner_url_as()
-        templates_vars = {
-            "rule_name": self.name,
-            "guild": str(guild),
-            "guild_id": guild.id,
-            "guild_icon_url": guild_icon_url if guild_icon_url else "",
-            "guild_banner_url": guild_banner_url if guild_banner_url else "",
-            "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
-        }
-
-        if user:
-            templates_vars.update({
-            "user": str(user),
-            "user_name": user.name,
-            "user_id": user.id,
-            "user_mention": user.mention,
-            "user_nickname": str(user.nick),
-            "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
-            "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
-            "user_heat": heat.get_user_heat(user, debug=debug),
-            "user_avatar_url": user.avatar_url
-            })
-
-        if message:
-            templates_vars["message"] = message.content.replace("@", "@\u200b")
-            templates_vars["message_clean"] = message.clean_content
-            templates_vars["message_id"] = message.id
-            templates_vars["message_created_at"] = message.created_at
-            templates_vars["message_link"] = message.jump_url
-            if message.attachments:
-                attachment = message.attachments[0]
-                templates_vars["attachment_filename"] = attachment.filename
-                templates_vars["attachment_url"] = attachment.url
-
-        if channel:
-            templates_vars["channel"] = f"#{channel}"
-            templates_vars["channel_name"] = channel.name
-            templates_vars["channel_id"] = channel.id
-            templates_vars["channel_mention"] = channel.mention
-            templates_vars["channel_category"] = channel.category.name if channel.category else "None"
-            templates_vars["channel_category_id"] = channel.category.id if channel.category else "0"
-            templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
+        templates_vars = {}
+        await populate_ctx_vars(t_vars=templates_vars,
+                                rule=self,
+                                cog=cog,
+                                guild=guild,
+                                message=message,
+                                user=user,
+                                channel=channel,
+                                debug=debug)
 
         def safe_sub(string):
             if string == discord.Embed.Empty:
@@ -1507,3 +1467,54 @@ class WardenRule:
 
     def __repr__(self):
         return f"<WardenRule '{self.name}'>"
+
+async def populate_ctx_vars(*, t_vars: dict, rule: WardenRule, cog, guild, message, user, channel, debug):
+    guild_icon_url = guild.icon_url_as()
+    guild_banner_url = guild.banner_url_as()
+    t_vars.update({
+        "rule_name": rule.name,
+        "guild": str(guild),
+        "guild_id": guild.id,
+        "guild_icon_url": guild_icon_url if guild_icon_url else "",
+        "guild_banner_url": guild_banner_url if guild_banner_url else "",
+        "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
+    })
+
+    if user:
+        t_vars.update({
+            "user": str(user),
+            "user_name": user.name,
+            "user_id": user.id,
+            "user_mention": user.mention,
+            "user_nickname": str(user.nick),
+            "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
+            "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
+            "user_heat": heat.get_user_heat(user, debug=debug),
+            "user_avatar_url": user.avatar_url
+        })
+
+    if message:
+        t_vars.update({
+            "message": message.content.replace("@", "@\u200b"),
+            "message_clean": message.clean_content,
+            "message_id": message.id,
+            "message_created_at": message.created_at,
+            "message_link": message.jump_url
+        })
+        if message.attachments:
+            attachment = message.attachments[0]
+            t_vars.update({
+                "attachment_filename": attachment.filename,
+                "attachment_url": attachment.url
+            })
+
+    if channel:
+        t_vars.update({
+            "channel": f"#{channel}",
+            "channel_name": channel.name,
+            "channel_id": channel.id,
+            "channel_mention": channel.mention,
+            "channel_category": channel.category.name if channel.category else "None",
+            "channel_category_id": channel.category.id if channel.category else "0",
+            "channel_heat": heat.get_channel_heat(channel, debug=debug),
+        })
