@@ -29,8 +29,6 @@ class Event(enum.Enum):
 
 class Action(enum.Enum):
     NotifyStaff = "notify-staff"
-    NotifyStaffAndPing = "notify-staff-and-ping"
-    NotifyStaffWithEmbed = "notify-staff-with-embed"
     BanAndDelete = "ban-user-and-delete" # Ban user in context and delete X days
     Kick = "kick-user" # Kick user in context
     Softban = "softban-user" # Softban user in context
@@ -70,6 +68,8 @@ class Action(enum.Enum):
     DmUser = "dm-user" # DMs user in context
     SendInChannel = "send-in-channel" # Send message to channel in context
     SendToChannel = "send-to-channel" # Sends a message to an arbitrary channel
+    NotifyStaffAndPing = "notify-staff-and-ping"
+    NotifyStaffWithEmbed = "notify-staff-with-embed"
 
 class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"

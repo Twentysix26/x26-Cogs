@@ -23,7 +23,7 @@ from ..core.utils import QUICK_ACTION_EMOJIS, utcnow
 from ..exceptions import ExecutionError, MisconfigurationError
 from . import cache as df_cache
 from redbot.core import commands
-from datetime import datetime
+from discord import MessageType
 import discord
 import logging
 import asyncio
@@ -41,7 +41,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         if author.bot:
             return
-
+        if message.type != MessageType.default:
+            return
         if not await self.config.guild(guild).enabled():
             return
 
@@ -151,6 +152,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         if author.bot:
             return
+        if message.type != MessageType.default:
+            return
         if message_before.content == message.content:
             return
 
@@ -228,6 +231,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
             return
         if author.bot:
+            return
+        if message.type != MessageType.default:
             return
 
         if not await self.config.guild(guild).enabled():
