@@ -6,7 +6,7 @@ Cogs made by Twentysix for the Red community
 Allows you to browse a [Red-Index](https://github.com/Cog-Creators/Red-Index/) repo/cog index directly from your Red instance, helping you discover new repos and cogs. This is integrated with the core Downloader, so you can easily install a new repo or a new cog by clicking a reaction. Yay technology!
 ### Defender
 Protects your community with automod features and empowers the staff and users you trust with advanced moderation tools.
-You can read [my write-up about this cog here](https://x26.it/2020/09/06/project-showcase-defender.html).  
+For more information about this cog you can read [the docs](https://github.com/Twentysix26/x26-Cogs/wiki/Defender) and [my write-up](https://x26.it/2020/09/06/project-showcase-defender.html).  
 This cog offers:  
 - A wide range of modules, automatic and manual, designed to counter many common patterns of bad actors and thwart large scale attacks
 - A very customizable experience: every single module can be fine tuned to better fit your community
