@@ -160,7 +160,7 @@ async def _check_message_delete_after(*, cog, author: discord.Member, action: Ac
     td = None
     try:
         td = parse_timedelta(parameter,
-                             maximum=datetime.timedelta(minutes=1),
+                             maximum=datetime.timedelta(minutes=15),
                              minimum=datetime.timedelta(seconds=1),
                              allowed_units=["minutes", "seconds"])
     except BadArgument:
