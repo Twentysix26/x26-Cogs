@@ -3,13 +3,13 @@
         "Twentysix (Twentysix#5252)"
     ],
     "description": "Protects your community with automod features and empowers the staff and users you trust with advanced moderation tools",
-    "install_msg": "Thank you for installing Defender. This cog is very feature packed and customizable: `[p]defender status` will give you a very good overview of how this cog works and will also direct you to the individual settings commands. See `[p]help Defender` too for a list of commands.\nFor further informations you can also read my blog post at <https://x26.it/2020/09/06/project-showcase-defender.html>",
+    "install_msg": "Thank you for installing Defender. This cog is very feature packed and customizable: `[p]def status` will give you a very good overview of how this cog works and will also direct you to the individual settings commands. See `[p]help Defender` too for a list of commands.\nFor further information you can read the docs <https://github.com/Twentysix26/x26-Cogs/wiki/Defender> and my blog post at <https://x26.it/2020/09/06/project-showcase-defender.html>",
     "short": "Protects your community with automod features and empowers the staff and users you trust with advanced moderation tools",
     "tags": [
         "automod",
-        "monitoring",
+        "antiraid",
         "moderation",
-        "voteban"
+        "monitoring"
     ],
     "requirements": ["pyyaml~=5.4.1", "emoji~=1.2", "pydantic~=1.8", "regex==2021.11.10"],
     "min_bot_version": "3.4.0",
