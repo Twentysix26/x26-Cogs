@@ -656,7 +656,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             if "*" not in keywords and "?" not in keywords:
                 keywords = f"*{keywords}*"
             keywords = keywords.lower()
-            if fnmatch.fnmatch(value.lower(), keywords):
+            if fnmatch.fnmatch(str(value).lower(), keywords):
                 return True
             return False
 
