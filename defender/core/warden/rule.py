@@ -952,7 +952,8 @@ class WardenRule:
 
         @processor(Action.SetChannelSlowmode)
         async def set_channel_slowmode(params: models.IsTimedelta):
-            await channel.edit(slowmode_delay=params.value.seconds)
+            if params.value.seconds != channel.slowmode_delay:
+                await channel.edit(slowmode_delay=params.value.seconds)
 
         @processor(Action.SendToChannel, suggest=Action.SendMessage)
         async def send_to_channel(params: models.SendMessageToChannel):

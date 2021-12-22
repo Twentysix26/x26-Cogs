@@ -111,7 +111,7 @@ default_owner_settings = {
 class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeMetaClass):
     """Security tools to protect communities"""
 
-    __version__ = "1.9"
+    __version__ = "1.9.1"
 
     def __init__(self, bot):
         self.bot = bot
