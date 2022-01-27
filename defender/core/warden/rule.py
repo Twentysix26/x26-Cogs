@@ -1286,6 +1286,10 @@ class WardenRule:
                     value = str(value).lower()
                 elif isinstance(value, datetime.datetime):
                     value = value.strftime("%Y/%m/%d %H:%M:%S")
+                elif isinstance(value, discord.BaseActivity):
+                    value = value.name if value.name is not None else "none"
+                elif isinstance(value, discord.Spotify):
+                    value = "none"
                 elif isinstance(value, (str, int, discord.Asset, discord.Status)):
                     value = str(value)
                 else:
