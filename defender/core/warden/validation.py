@@ -161,6 +161,8 @@ class SendMessage(BaseModel):
     color: Optional[Union[bool, int]]=True
     add_timestamp: Optional[bool]=False
     allow_mass_mentions: Optional[bool]=False
+    ping_on_reply: Optional[bool]=False
+    reply_message_id: Optional[str]=None
     edit_message_id: Optional[str]=None
 
 class GetUserInfo(BaseModel):

@@ -1225,22 +1225,31 @@ class WardenRule:
                 else:
                     em.color = discord.Colour(params.color)
 
-            mentions = discord.AllowedMentions(everyone=params.allow_mass_mentions, roles=True, users=True)
+            mentions = discord.AllowedMentions(everyone=params.allow_mass_mentions, roles=True, users=True,
+                                               replied_user=params.ping_on_reply)
 
             if params.edit_message_id:
                 params.edit_message_id = safe_sub(params.edit_message_id)
 
+            if isinstance(destination, discord.Member):
+                destination = destination.dm_channel if destination.dm_channel else await destination.create_dm()
+
+            reference = None
+            if params.reply_message_id:
+                params.reply_message_id = safe_sub(params.reply_message_id)
+                if params.reply_message_id.isdigit():
+                    reference = destination.get_partial_message(int(params.reply_message_id))
+
             if not params.edit_message_id:
                 try:
-                    last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions)
+                    last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions,
+                                                               reference=reference)
                 except (discord.HTTPException, discord.Forbidden) as e:
                     # A user could just have DMs disabled
                     if is_user is False:
                         raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
                                             f"to channel #{destination}. {e}")
             else:
-                if isinstance(destination, discord.Member):
-                    destination = destination.dm_channel if destination.dm_channel else await destination.create_dm()
                 try:
                     partial_msg = destination.get_partial_message(int(params.edit_message_id))
                     await partial_msg.edit(content=params.content if params.content else None,
