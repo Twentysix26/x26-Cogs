@@ -140,8 +140,10 @@ class AddHeatpoints(BaseModel):
     delta: TimeDelta
 
 class IssueCommand(BaseModel):
-    id: int
+    _short_form = ("issue_as", "command")
+    issue_as: int
     command: str
+    destination: Optional[str]=None
 
 class SendMessage(BaseModel):
     _short_form = ("id", "content")

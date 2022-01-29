@@ -1134,23 +1134,36 @@ class WardenRule:
 
         @processor(Action.IssueCommand)
         async def issue_command(params: models.IssueCommand):
-            issuer = guild.get_member(params.id)
+            issuer = guild.get_member(params.issue_as)
             if issuer is None:
-                raise ExecutionError(f"User {params.id} is not in the server.")
+                raise ExecutionError(f"User {params.issue_as} is not in the server.")
             msg_obj = df_cache.get_msg_obj()
             if msg_obj is None:
                 raise ExecutionError(f"Failed to issue command. Sorry!")
-            if message is None:
+
+            # User id + command in a non-message context
+            if message is None and params.destination is None:
                 notify_channel_id = await cog.config.guild(guild).notify_channel()
                 msg_obj.channel = guild.get_channel(notify_channel_id)
                 if msg_obj.channel is None:
                     raise ExecutionError(f"Failed to issue command. I could not find the "
                                          "notification channel.")
             else:
-                msg_obj.channel = message.channel
+                if params.destination is None: # User id + command in a message context
+                    msg_obj.channel = message.channel
+                else: # User id + command + arbitrary destination
+                    params.destination = safe_sub(params.destination)
+                    try:
+                        msg_obj.channel = guild.get_channel(int(params.destination))
+                    except ValueError:
+                        raise ExecutionError(f"{params.destination} is not a valid ID.")
+                    if msg_obj.channel is None:
+                        raise ExecutionError(f"Failed to issue command. I could not find the "
+                                            "notification channel.")
+
             msg_obj.author = issuer
             prefix = await cog.bot.get_prefix(msg_obj)
-            msg_obj.content = prefix[0] + Template(params.command).safe_substitute(templates_vars)
+            msg_obj.content = prefix[0] + safe_sub(params.command)
             cog.bot.dispatch("message", msg_obj)
 
         @processor(Action.DeleteLastMessageSentAfter)
