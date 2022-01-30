@@ -88,6 +88,96 @@ INVALID_PERIODIC_MISSING_EVENT = """
         - no-op:
 """
 
+OOB_USER_HEATPOINTS = """
+    name: heat
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - add-user-heatpoints: [500, 4 hours]
+"""
+
+OOB_USER_HEATPOINTS2 = """
+    name: heat
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - add-user-heatpoints: [5, 400 hours]
+"""
+
+OOB_CUSTOM_HEATPOINTS = """
+    name: heat
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - add-custom-heatpoints: ["boop", 500, 4 hours]
+"""
+
+OOB_CUSTOM_HEATPOINTS2 = """
+    name: heat
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - add-custom-heatpoints: ["boop", 500, 4 hours]
+"""
+
+OOB_CUSTOM_HEATPOINTS2 = """
+    name: heat
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - add-custom-heatpoints: ["boop", 5, 400 hours]
+"""
+
+RESERVED_KEY_CUSTOM_HEATPOINTS = """
+    name: heat
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - add-custom-heatpoints: ["core-boop", 5, 4 hours]
+"""
+
+INVALID_VAR_NAME = """
+    name: var
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - var-assign: ["aa-aa", 123]
+"""
+
+INVALID_RANK = """
+    name: var
+    rank: 2
+    event: on-user-join
+    if:
+        - user-is-rank: 10
+    do:
+        - no-op:
+"""
+
+OOB_DELETE_AFTER = """
+    name: var
+    rank: 2
+    event: on-user-join
+    if:
+        - username-matches-any: ["abcd"]
+    do:
+        - delete-last-message-sent-after: 5 days
+"""
+
 VALID_MIXED_RULE = """
     name: spiders-are-spooky
     rank: 1
@@ -257,7 +347,8 @@ CONDITIONAL_ACTION_TEST_ASSIGN = """
         - if-false:
             - add-custom-heatpoint: ["compare-ok", 1m]
 
-        - compare: [1, "==", 1]
+        - var-assign: [one, 1]
+        - compare: [$one, "==", 1]
         - if-true:
             - add-custom-heatpoint: ["compare-ok2", 1m]
 

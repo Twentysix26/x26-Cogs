@@ -18,12 +18,68 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from .enums import Action, Condition, Event
 from typing import List, Union, Optional, Dict
 from redbot.core.commands.converter import parse_timedelta, BadArgument
-from pydantic import BaseModel as PydanticBaseModel, conlist, validator, root_validator
+from pydantic import BaseModel as PydanticBaseModel, conlist, validator, root_validator, conint
 from pydantic import ValidationError, ExtraError
 from pydantic.error_wrappers import ErrorWrapper
+from datetime import timedelta
+from ...exceptions import InvalidRule
 import logging
+import string
+import discord
+
+VALID_VAR_NAME_CHARS = string.ascii_letters + string.digits + "_"
 
 log = logging.getLogger("red.x26cogs.defender")
+
+class BaseModel(PydanticBaseModel):
+    _single_value = False
+    _short_form = ()
+    class Config:
+        extra = "forbid"
+        allow_reuse = True
+
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        raise NotImplementedError
+
+#
+#   VALIDATORS
+#
+
+class HeatKey(str):
+    """
+    Custom heat key restriction
+    """
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        v = str(v)
+        if v.startswith("core-"):
+            raise TypeError("The custom heatpoint's key cannot start with 'core-': "
+                            "this is reserved for internal use.")
+        return v
+
+    def __repr__(self):
+        return f"HeatKey({super().__repr__()})"
+
+class AlphaNumeric(str):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        v = str(v)
+        for char in v:
+            if char not in VALID_VAR_NAME_CHARS:
+                raise TypeError(f"Invalid variable name. It can only contain "
+                                "letters, numbers and underscores.")
+        return v
+
+    def __repr__(self):
+        return f"AlphaNumeric({super().__repr__()})"
 
 class TimeDelta(str):
     """
@@ -35,10 +91,14 @@ class TimeDelta(str):
 
     @classmethod
     def validate(cls, v):
+        return cls.parse_td(v)
+
+    @classmethod
+    def parse_td(cls, v, min=None, max=None):
         if not isinstance(v, str):
             raise TypeError("Not a valid timedelta")
         try:
-            td = parse_timedelta(v)
+            td = parse_timedelta(v, minimum=min, maximum=max)
         except BadArgument as e:
             raise TypeError(f"{e}")
         if td is None:
@@ -48,14 +108,38 @@ class TimeDelta(str):
     def __repr__(self):
         return f"TimeDelta({super().__repr__()})"
 
-class BaseModel(PydanticBaseModel):
-    _single_value = False
-    _short_form = ()
-    class Config:
-        extra = "forbid"
-        allow_reuse = True
+class HTimeDelta(TimeDelta):
+    """
+    Restricted Timedelta for heatpoints
+    """
+    @classmethod
+    def validate(cls, v):
+        return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(hours=24))
 
-######### CONDITION VALIDATORS #########
+class SlowmodeTimeDelta(TimeDelta):
+    """
+    Restricted Timedelta for slowmode
+    """
+    @classmethod
+    def validate(cls, v):
+        return cls.parse_td(v, min=timedelta(seconds=0), max=timedelta(hours=6))
+
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        if not author.guild_permissions.manage_channels:
+            raise InvalidRule(f"`{action_or_cond.value}` You need `manage channels` permissions to make a rule with "
+                            "this action.")
+
+class DeleteLastMessageSentAfterTimeDelta(TimeDelta):
+    """
+    Restricted Timedelta for delete message after
+    """
+    @classmethod
+    def validate(cls, v):
+        return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(minutes=15))
+
+#
+#   MODELS
+#
 
 class CheckCustomHeatpoint(BaseModel):
     label: str
@@ -75,11 +159,6 @@ class Compare(BaseModel):
                 raise ValueError("Unknown operator")
         return v
 
-class UserJoinedCreated(BaseModel):
-    value: Union[TimeDelta, int]
-
-######### ACTION VALIDATORS #########
-
 class SendMessageToUser(BaseModel):
     id: int
     content: str
@@ -87,6 +166,14 @@ class SendMessageToUser(BaseModel):
 class SendMessageToChannel(BaseModel):
     id_or_name: Union[int, str]
     content: str
+
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        guild = author.guild
+        channel_dest = guild.get_channel(self.id_or_name)
+        if not channel_dest:
+            channel_dest = discord.utils.get(guild.text_channels, name=self.id_or_name)
+        if not channel_dest:
+            raise InvalidRule(f"`{action_or_cond.value}` Channel '{self.id_or_name}' not found.")
 
 class EmbedField(BaseModel):
     name: str
@@ -127,23 +214,28 @@ class NotifyStaffWithEmbed(BaseModel):
     content: str
 
 class AddCustomHeatpoint(BaseModel):
-    label: str
-    delta: TimeDelta
+    label: HeatKey
+    delta: HTimeDelta
 
 class AddCustomHeatpoints(BaseModel):
-    label: str
-    points: int
-    delta: TimeDelta
+    label: HeatKey
+    points: conint(gt=0, le=100)
+    delta: HTimeDelta
 
 class AddHeatpoints(BaseModel):
-    points: int
-    delta: TimeDelta
+    points: conint(gt=0, le=100)
+    delta: HTimeDelta
 
 class IssueCommand(BaseModel):
     _short_form = ("issue_as", "command")
     issue_as: int
     command: str
     destination: Optional[str]=None
+
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        if self.issue_as != author.id:
+            raise InvalidRule(f"`{action_or_cond.value}` The first parameter must be your ID. For security reasons "
+                               "you're not allowed to issue commands as other users.")
 
 class SendMessage(BaseModel):
     _short_form = ("id", "content")
@@ -172,7 +264,7 @@ class GetUserInfo(BaseModel):
     mapping: Dict[str, str]
 
 class VarAssign(BaseModel):
-    var_name: str
+    var_name: AlphaNumeric
     value: str
     evaluate: bool=False
 
@@ -223,11 +315,30 @@ class VarTransform(BaseModel):
                 raise ValueError("Unknown operation")
         return v
 
-######### MIXED VALIDATORS  #########
-
 class NonEmptyList(BaseModel):
     _single_value = True
     value: conlist(Union[int, str], min_items=1)
+
+class RolesList(NonEmptyList):
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        guild = author.guild
+        roles = []
+
+        is_server_owner = author.id == guild.owner_id
+
+        for role_id_or_name in self.value:
+            role = guild.get_role(role_id_or_name)
+            if role is None:
+                role = discord.utils.get(guild.roles, name=role_id_or_name)
+            if role is None:
+                raise InvalidRule(f"`{action_or_cond.value}`: Role `{role_id_or_name}` doesn't seem to exist.")
+            roles.append(role)
+
+        if not is_server_owner:
+            for r in roles:
+                if r.position >= author.top_role.position:
+                    raise InvalidRule(f"`{action_or_cond.value}` Cannot assign or remove role `{r.name}` through Warden. "
+                                    "You are autorized to only add or remove roles below your top role.")
 
 class NonEmptyListInt(BaseModel):
     _single_value = True
@@ -237,9 +348,33 @@ class NonEmptyListStr(BaseModel):
     _single_value = True
     value: conlist(str, min_items=1)
 
+class StatusList(NonEmptyListStr):
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        for status in self.value:
+            try:
+                discord.Status(status.lower())
+            except ValueError:
+                raise InvalidRule(f"`{action_or_cond.value}` Invalid status. The condition must contain one of "
+                                "the following statuses: online, offline, idle, dnd.")
+
 class IsStr(BaseModel):
     _single_value = True
     value: str
+
+class IsRegex(IsStr):
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        enabled: bool = await cog.config.wd_regex_allowed()
+        if not enabled:
+            raise InvalidRule(f"`{action_or_cond.value}` Regex use is globally disabled. The bot owner must use "
+                            "`[p]dset warden regexallowed` to activate it.")
+
+#
+#   SINGLE VALUE MODELS
+#
+
+class UserJoinedCreated(BaseModel):
+    _single_value = True
+    value: Union[TimeDelta, int]
 
 class IsInt(BaseModel):
     _single_value = True
@@ -257,19 +392,35 @@ class IsTimedelta(BaseModel):
     _single_value = True
     value: TimeDelta
 
+class IsHTimedelta(BaseModel):
+    _single_value = True
+    value: HTimeDelta
+
+class IsSlowmodeTimedelta(BaseModel):
+    _single_value = True
+    value: SlowmodeTimeDelta
+
+class IsDeleteLastMessageSentAfterTimeDelta(BaseModel):
+    _single_value = True
+    value: DeleteLastMessageSentAfterTimeDelta
+
+class IsRank(BaseModel):
+    _single_value = True
+    value: conint(ge=1, le=4)
+
 # The accepted types of each condition for basic sanity checking
 CONDITIONS_VALIDATORS = {
     Condition.UserIdMatchesAny: NonEmptyListInt,
     Condition.UsernameMatchesAny: NonEmptyListStr,
-    Condition.UsernameMatchesRegex: IsStr,
+    Condition.UsernameMatchesRegex: IsRegex,
     Condition.NicknameMatchesAny: NonEmptyListStr,
-    Condition.NicknameMatchesRegex: IsStr,
+    Condition.NicknameMatchesRegex: IsRegex,
     Condition.MessageMatchesAny: NonEmptyListStr,
-    Condition.MessageMatchesRegex: IsStr,
+    Condition.MessageMatchesRegex: IsRegex,
     Condition.UserCreatedLessThan: UserJoinedCreated,
     Condition.UserJoinedLessThan: UserJoinedCreated,
     Condition.UserActivityMatchesAny: NonEmptyListStr,
-    Condition.UserStatusMatchesAny: NonEmptyListStr,
+    Condition.UserStatusMatchesAny: StatusList,
     Condition.UserHasDefaultAvatar: IsBool,
     Condition.ChannelMatchesAny: NonEmptyList,
     Condition.CategoryMatchesAny: NonEmptyList,
@@ -288,7 +439,7 @@ CONDITIONS_VALIDATORS = {
     Condition.MessageHasMTCharacters: IsInt,
     Condition.IsStaff: IsBool,
     Condition.IsHelper: IsBool,
-    Condition.UserIsRank: IsInt,
+    Condition.UserIsRank: IsRank,
     Condition.UserHeatIs: IsInt,
     Condition.UserHeatMoreThan: IsInt,
     Condition.ChannelHeatIs: IsInt,
@@ -312,17 +463,17 @@ ACTIONS_VALIDATORS = {
     Action.Modlog: IsStr,
     Action.DeleteUserMessage: IsNone,
     Action.SendInChannel: IsStr,
-    Action.SetChannelSlowmode: IsTimedelta,
-    Action.AddRolesToUser: NonEmptyList,
-    Action.RemoveRolesFromUser: NonEmptyList,
+    Action.SetChannelSlowmode: IsSlowmodeTimedelta,
+    Action.AddRolesToUser: RolesList,
+    Action.RemoveRolesFromUser: RolesList,
     Action.EnableEmergencyMode: IsBool,
     Action.SetUserNickname: IsStr,
     Action.NoOp: IsNone,
     Action.SendToMonitor: IsStr,
     Action.SendToChannel: SendMessageToChannel,
-    Action.AddUserHeatpoint: IsTimedelta,
+    Action.AddUserHeatpoint: IsHTimedelta,
     Action.AddUserHeatpoints: AddHeatpoints,
-    Action.AddChannelHeatpoint: IsTimedelta,
+    Action.AddChannelHeatpoint: IsHTimedelta,
     Action.AddChannelHeatpoints: AddHeatpoints,
     Action.AddCustomHeatpoint: AddCustomHeatpoint,
     Action.AddCustomHeatpoints: AddCustomHeatpoints,
@@ -330,7 +481,7 @@ ACTIONS_VALIDATORS = {
     Action.EmptyChannelHeat: IsNone,
     Action.EmptyCustomHeat: IsStr,
     Action.IssueCommand: IssueCommand,
-    Action.DeleteLastMessageSentAfter: IsTimedelta,
+    Action.DeleteLastMessageSentAfter: IsDeleteLastMessageSentAfterTimeDelta,
     Action.SendMessage: SendMessage,
     Action.GetUserInfo: GetUserInfo,
     Action.Exit: IsNone,

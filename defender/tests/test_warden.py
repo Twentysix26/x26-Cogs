@@ -2,7 +2,7 @@ from ..core.warden.enums import Action, Condition, Event
 from ..enums import Rank
 from ..core.warden.validation import ALLOWED_ACTIONS, ALLOWED_CONDITIONS, CONDITIONS_VALIDATORS, ACTIONS_VALIDATORS
 from ..core.warden.validation import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
-from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT
+from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, BaseModel
 from ..core.warden.rule import WardenRule
 from ..exceptions import InvalidRule
 from . import wd_sample_rules as rl
@@ -82,6 +82,13 @@ class FakeMessage:
 
 FAKE_MESSAGE = FakeMessage()
 
+def test_inheritance():
+    for c in CONDITIONS_VALIDATORS.values():
+        assert issubclass(c, BaseModel)
+
+    for c in ACTIONS_VALIDATORS.values():
+        assert issubclass(c, BaseModel)
+
 def test_check_validators_consistency():
     def x_contains_only_y(x, y):
         for element in x:
@@ -150,6 +157,22 @@ async def test_rule_parsing():
         await WardenRule().parse(rl.INVALID_MIXED_RULE_CONDITION, cog=None)
     with pytest.raises(InvalidRule, match=r".*Action `delete-user-message` not allowed*"):
         await WardenRule().parse(rl.INVALID_MIXED_RULE_ACTION, cog=None)
+    with pytest.raises(InvalidRule, match=r".*ensure this value is*"):
+        await WardenRule().parse(rl.OOB_USER_HEATPOINTS, cog=None)
+    with pytest.raises(InvalidRule, match=r".*amount of time is too large*"):
+        await WardenRule().parse(rl.OOB_USER_HEATPOINTS2, cog=None)
+    with pytest.raises(InvalidRule, match=r".*ensure this value is*"):
+        await WardenRule().parse(rl.OOB_CUSTOM_HEATPOINTS, cog=None)
+    with pytest.raises(InvalidRule, match=r".*amount of time is too large*"):
+        await WardenRule().parse(rl.OOB_CUSTOM_HEATPOINTS2, cog=None)
+    with pytest.raises(InvalidRule, match=r".*cannot start with*"):
+        await WardenRule().parse(rl.RESERVED_KEY_CUSTOM_HEATPOINTS, cog=None)
+    with pytest.raises(InvalidRule, match=r".*Invalid variable name*"):
+        await WardenRule().parse(rl.INVALID_VAR_NAME, cog=None)
+    with pytest.raises(InvalidRule, match=r".*less than or equal to 4*"):
+        await WardenRule().parse(rl.INVALID_RANK, cog=None)
+    with pytest.raises(InvalidRule, match=r".*amount of time is too large*"):
+        await WardenRule().parse(rl.OOB_DELETE_AFTER, cog=None)
 
     await WardenRule().parse(rl.TUTORIAL_SIMPLE_RULE, cog=None)
     await WardenRule().parse(rl.TUTORIAL_PRIORITY_RULE, cog=None)

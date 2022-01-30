@@ -21,7 +21,6 @@ from ...core.warden.validation import (ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLO
 from ...core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock
-from .checks import ACTIONS_SANITY_CHECK, CONDITIONS_SANITY_CHECK
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
 from ...exceptions import InvalidRule, ExecutionError, StopExecution, MisconfigurationError
 from ...core import cache as df_cache
@@ -228,14 +227,14 @@ class WardenRule:
                 raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
 
             try:
-                model_validator(condition, parameter)
+                model = model_validator(condition, parameter)
             except ValidationError as e:
                 raise InvalidRule(f"Condition `{condition.value}` invalid:\n{box(str(e))}")
 
             if author:
                 try:
-                    await CONDITIONS_SANITY_CHECK[condition](cog=cog, author=author, condition=condition, parameter=parameter) # type: ignore
-                except KeyError:
+                    await model._runtime_check(cog=cog, author=author, action_or_cond=condition)
+                except NotImplementedError:
                     pass
 
         for raw_condition in self.conditions:
@@ -278,14 +277,14 @@ class WardenRule:
                 raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
 
             try:
-                model_validator(action, parameter)
+                model = model_validator(action, parameter)
             except ValidationError as e:
                 raise InvalidRule(f"Action `{action.value}` invalid:\n{box(str(e))}")
 
             if author:
                 try:
-                    await ACTIONS_SANITY_CHECK[action](cog=cog, author=author, action=action, parameter=parameter)
-                except KeyError:
+                    await model._runtime_check(cog=cog, author=author, action_or_cond=action)
+                except NotImplementedError:
                     pass
 
         # Basically a list of one-key dicts
@@ -575,7 +574,7 @@ class WardenRule:
             return user.created_at > x_hours_ago
 
         @checker(Condition.UserIsRank)
-        async def user_is_rank(params: models.IsInt):
+        async def user_is_rank(params: models.IsRank):
             return await cog.rank_user(user) == Rank(params.value)
 
         @checker(Condition.UserJoinedLessThan)
