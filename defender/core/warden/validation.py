@@ -2,7 +2,7 @@
 Defender - Protects your community with automod features and
            empowers the staff and users you trust with
            advanced moderation tools
-Copyright (C) 2020-2021  Twentysix (https://github.com/Twentysix26/)
+Copyright (C) 2020-present  Twentysix (https://github.com/Twentysix26/)
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -338,7 +338,7 @@ class RolesList(NonEmptyList):
             for r in roles:
                 if r.position >= author.top_role.position:
                     raise InvalidRule(f"`{action_or_cond.value}` Cannot assign or remove role `{r.name}` through Warden. "
-                                    "You are autorized to only add or remove roles below your top role.")
+                                    "You are authorized to only add or remove roles below your top role.")
 
 class NonEmptyListInt(BaseModel):
     _single_value = True
