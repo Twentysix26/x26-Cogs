@@ -328,9 +328,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         rule = rule.strip("\n")
         prompts_sent = False
-        if rule.startswith("```yaml"):
+        if rule.startswith(("```yaml", "```YAML")):
             rule = rule.lstrip("`yamlYAML")
-        if rule.startswith("```yml"):
+        if rule.startswith(("```yml", "```YML")):
             rule = rule.lstrip("`ymlYML")
         if rule.startswith("```") or rule.endswith("```"):
             rule = rule.strip("`")
