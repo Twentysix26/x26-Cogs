@@ -124,11 +124,6 @@ class SlowmodeTimeDelta(TimeDelta):
     def validate(cls, v):
         return cls.parse_td(v, min=timedelta(seconds=0), max=timedelta(hours=6))
 
-    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
-        if not author.guild_permissions.manage_channels:
-            raise InvalidRule(f"`{action_or_cond.value}` You need `manage channels` permissions to make a rule with "
-                            "this action.")
-
 class DeleteLastMessageSentAfterTimeDelta(TimeDelta):
     """
     Restricted Timedelta for delete message after
@@ -399,6 +394,11 @@ class IsHTimedelta(BaseModel):
 class IsSlowmodeTimedelta(BaseModel):
     _single_value = True
     value: SlowmodeTimeDelta
+
+    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
+        if not author.guild_permissions.manage_channels:
+            raise InvalidRule(f"`{action_or_cond.value}` You need `manage channels` permissions to make a rule with "
+                            "this action.")
 
 class IsDeleteLastMessageSentAfterTimeDelta(BaseModel):
     _single_value = True
