@@ -1159,6 +1159,9 @@ class WardenRule:
                     if msg_obj.channel is None:
                         raise ExecutionError(f"Failed to issue command. I could not find the "
                                             "notification channel.")
+                    if msg_obj.channel.permissions_for(issuer).view_channel is False:
+                        raise ExecutionError("Failed to issue command. The issuer has no permissions "
+                                             "to view the destination channel.")
 
             msg_obj.author = issuer
             prefix = await cog.bot.get_prefix(msg_obj)
