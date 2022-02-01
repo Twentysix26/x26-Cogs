@@ -1178,14 +1178,16 @@ class WardenRule:
         @processor(Action.SendMessage)
         async def send_message(params: models.SendMessage):
             nonlocal last_sent_message
-            default_values = 0
+            send_embed = False
+
+            for key in params.__fields_set__:
+                if key not in params._text_only_attrs:
+                    send_embed = True
+                    break
 
             for key in params.dict():
-                if key == "edit_message_id":
-                    continue
                 attr = getattr(params, key)
-                if attr is None:
-                    default_values += 1
+                if attr is None and key not in params._text_only_attrs:
                     setattr(params, key, discord.Embed.Empty)
                 elif isinstance(attr, str):
                     setattr(params, key, safe_sub(attr))
@@ -1209,13 +1211,12 @@ class WardenRule:
                                         f"'{params.id}' is not a valid channel name.")
 
             em = None
-            no_embed = default_values >= 10 # Yuck, maybe I'll think of something better
 
-            if no_embed and not params.content:
+            if send_embed is False and not params.content:
                 raise ExecutionError(f"[Warden] ({self.name}): I have no content and "
                                       "no embed to send.")
 
-            if no_embed is False:
+            if send_embed:
                 em = discord.Embed(title=params.title,
                                 description=params.description,
                                 url=params.url)

@@ -234,6 +234,10 @@ class IssueCommand(BaseModel):
 
 class SendMessage(BaseModel):
     _short_form = ("id", "content")
+    # Used internally to determine whether an embed has to be sent
+    # If any key other than these ones is passed an embed will be sent
+    _text_only_attrs = ("id", "content", "allow_mass_mentions", "ping_on_reply",
+                        "reply_message_id", "edit_message_id", "add_timestamp")
     id: str # or context variable
     content: Optional[str]=""
     description: Optional[str]=None
