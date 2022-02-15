@@ -4,9 +4,10 @@ from ..core.warden.validation import ALLOWED_ACTIONS, ALLOWED_CONDITIONS, CONDIT
 from ..core.warden.validation import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
 from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, BaseModel
 from ..core.warden.rule import WardenRule
+from ..core.utils import utcnow
 from ..exceptions import InvalidRule
 from . import wd_sample_rules as rl
-from datetime import datetime, timedelta
+from datetime import timedelta
 from discord import Activity
 import pytest
 
@@ -27,8 +28,8 @@ class FakeGuild:
     me = FakeMe
     text_channels = {}
     roles = {}
-    icon_url_as = lambda x: ""
-    banner_url_as = lambda x: ""
+    icon = None
+    banner = None
 
     def get_role(self, _id):
         for role in self.roles:
@@ -46,6 +47,10 @@ class FakeChannel:
 
 FAKE_CHANNEL = FakeChannel()
 
+class FakeAsset:
+    filename = "26.jpg"
+    url = "https://blabla"
+
 class FakeUser:
     nick = None
     display_name = "Twentysix"
@@ -53,9 +58,9 @@ class FakeUser:
     id = 852499907842801726
     guild = FAKE_GUILD
     mention = "<@852499907842801726>"
-    created_at = datetime.utcnow()
-    joined_at = datetime.utcnow()
-    avatar_url = "test.com"
+    created_at = utcnow()
+    joined_at = utcnow()
+    avatar = FakeAsset()
     roles = {}
     activities = [
         Activity(name="fake activity"),
@@ -64,17 +69,13 @@ class FakeUser:
 
 FAKE_USER = FakeUser()
 
-class FakeAttachment:
-    filename = "26.jpg"
-    url = "https://blabla"
-
 class FakeMessage:
     id = 852499907842801729
     guild = FAKE_GUILD
     channel = FAKE_CHANNEL
     author = FAKE_USER
     content = clean_content = "increase"
-    created_at = datetime.utcnow()
+    created_at = utcnow()
     jump_url = ""
     attachments = []
     raw_mentions = []
@@ -403,7 +404,7 @@ async def test_conditions():
     FAKE_MESSAGE.attachments = []
     await eval_cond(Condition.MessageHasAttachment, "true", False)
     await eval_cond(Condition.MessageHasAttachment, "false", True)
-    FAKE_MESSAGE.attachments = [FakeAttachment()]
+    FAKE_MESSAGE.attachments = [FakeAsset()]
     await eval_cond(Condition.MessageHasAttachment, "true", True)
     await eval_cond(Condition.MessageHasAttachment, "false", False)
 
@@ -461,24 +462,24 @@ async def test_conditions():
     await eval_cond(Condition.NicknameMatchesAny, ["dsaasdasd", "Twentysix"], True)
     await eval_cond(Condition.NicknameMatchesAny, ["dsaasd", "dsadss"], False)
 
-    FAKE_USER.joined_at = datetime.utcnow()
+    FAKE_USER.joined_at = utcnow()
     await eval_cond(Condition.UserJoinedLessThan, 1, True)
     await eval_cond(Condition.UserJoinedLessThan, "1 hour", True)
-    FAKE_USER.joined_at = datetime.utcnow() - timedelta(hours=2)
+    FAKE_USER.joined_at = utcnow() - timedelta(hours=2)
     await eval_cond(Condition.UserJoinedLessThan, 1, False)
     await eval_cond(Condition.UserJoinedLessThan, "1 hour", False)
 
-    FAKE_USER.created_at = datetime.utcnow()
+    FAKE_USER.created_at = utcnow()
     await eval_cond(Condition.UserCreatedLessThan, 1, True)
     await eval_cond(Condition.UserCreatedLessThan, "1 hour", True)
-    FAKE_USER.created_at = datetime.utcnow() - timedelta(hours=2)
+    FAKE_USER.created_at = utcnow() - timedelta(hours=2)
     await eval_cond(Condition.UserCreatedLessThan, 1, False)
     await eval_cond(Condition.UserCreatedLessThan, "1 hour", False)
 
-    FAKE_USER.avatar_url = "discord.gg/ad/sda/s/ads.png"
+    FAKE_USER.avatar.url = "discord.gg/ad/sda/s/ads.png"
     await eval_cond(Condition.UserHasDefaultAvatar, "true", False)
     await eval_cond(Condition.UserHasDefaultAvatar, "false", True)
-    FAKE_USER.avatar_url = "discord.gg/asddasad/embed/avatars/2.png"
+    FAKE_USER.avatar.url = "discord.gg/asddasad/embed/avatars/2.png"
     await eval_cond(Condition.UserHasDefaultAvatar, "true", True)
     await eval_cond(Condition.UserHasDefaultAvatar, "false", False)
 

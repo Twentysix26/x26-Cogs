@@ -260,12 +260,11 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
         self.staff_activity[guild.id] = timestamp
 
-    async def make_identify_embed(self, message, user, rank=True, link=True):
+    async def make_identify_embed(self, message: discord.Member, user, rank=True, link=True):
         messages = await self.get_total_recorded_messages(user)
         em = discord.Embed()
-        avatar = user.avatar_url_as(static_format="png")
-        em.set_thumbnail(url=avatar)
-        em.set_author(name=f"{user}", url=avatar)
+        em.set_thumbnail(url=user.avatar)
+        em.set_author(name=f"{user}", url=user.avatar)
         em.add_field(name="Account created", value=timestamp(user.created_at), inline=True)
         em.add_field(name="Joined this server", value=timestamp(user.joined_at), inline=True)
         if link:

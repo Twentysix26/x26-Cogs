@@ -600,7 +600,7 @@ class WardenRule:
         @checker(Condition.UserHasDefaultAvatar)
         async def user_has_default_avatar(params: models.IsBool):
             default_avatar_url_pattern = "*/embed/avatars/*.png"
-            match = fnmatch.fnmatch(str(user.avatar_url), default_avatar_url_pattern)
+            match = fnmatch.fnmatch(user.avatar.url, default_avatar_url_pattern)
             return params.value is match
 
         @checker(Condition.InEmergencyMode)
@@ -1508,14 +1508,12 @@ class WardenRule:
         return f"<WardenRule '{self.name}'>"
 
 async def populate_ctx_vars(*, t_vars: dict, rule: WardenRule, cog, guild, message, user, channel, debug):
-    guild_icon_url = guild.icon_url_as()
-    guild_banner_url = guild.banner_url_as()
     t_vars.update({
         "rule_name": rule.name,
         "guild": str(guild),
         "guild_id": guild.id,
-        "guild_icon_url": guild_icon_url if guild_icon_url else "",
-        "guild_banner_url": guild_banner_url if guild_banner_url else "",
+        "guild_icon_url": guild.icon.url if guild.icon else "",
+        "guild_banner_url": guild.banner.url if guild.banner else "",
         "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
     })
 
@@ -1530,7 +1528,7 @@ async def populate_ctx_vars(*, t_vars: dict, rule: WardenRule, cog, guild, messa
             "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
             "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
             "user_heat": heat.get_user_heat(user, debug=debug),
-            "user_avatar_url": user.avatar_url
+            "user_avatar_url": user.avatar.url if user.avatar else ""
         })
 
     if message:
