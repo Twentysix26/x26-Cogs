@@ -122,8 +122,6 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 if invite.approximate_presence_count is not None and invite.approximate_member_count is not None:
                     invite_data += (f"It has **{invite.approximate_member_count}** members "
                                     f"({invite.approximate_presence_count} online)\n")
-                icon_url = invite.guild.icon_url_as()
-                banner_url = invite.guild.banner_url_as()
                 is_partner = "PARTNERED" in invite.guild.features
                 is_verified = "VERIFIED" in invite.guild.features
                 chars = []
@@ -132,10 +130,10 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                     chars.append("it is a **partner** server")
                 if is_verified:
                     chars.append("it is **verified**")
-                if icon_url:
-                    chars.append(f"it has an [icon set]({icon_url})")
-                if banner_url:
-                    chars.append(f"it has a [banner set]({banner_url})")
+                if invite.guild.icon:
+                    chars.append(f"it has an [icon set]({invite.guild.icon})")
+                if invite.guild.banner:
+                    chars.append(f"it has a [banner set]({invite.guild.banner})")
                 if invite.guild.description:
                     chars.append(f"the following is its description:\n{box(invite.guild.description)}")
                 invite_data += f"{humanize_list(chars)}"
@@ -317,7 +315,6 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         hours = await self.config.guild(guild).join_monitor_susp_hours()
 
         description = f"A user created {timestamp(member.created_at, relative=True)} just joined the server."
-        avatar = member.avatar_url_as(static_format="png")
         heat_key = f"core-jm-{member.id}"
 
         if hours:
@@ -326,7 +323,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 footer = "To turn off these notifications do `[p]dset joinmonitor notifynew 0` (admin only)"
                 try:
                     await self.send_notification(guild, description, title=EMBED_TITLE, fields=EMBED_FIELDS,
-                                                 thumbnail=avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
+                                                 thumbnail=member.avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
                                                  heat_key=heat_key, quick_action=QuickAction(member.id, "New account"))
                 except (discord.Forbidden, discord.HTTPException):
                     pass
@@ -348,7 +345,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 footer = "To turn off these notifications do `[p]def notifynew 0` in the server."
                 try:
                     await self.send_notification(user, description, title=EMBED_TITLE, fields=EMBED_FIELDS,
-                                                 thumbnail=avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
+                                                 thumbnail=member.avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
                                                  heat_key=f"{heat_key}-{user.id}")
                 except (discord.Forbidden, discord.HTTPException):
                     pass
