@@ -37,6 +37,7 @@ from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
 from string import Template
+from discord import ui
 import datetime
 import discord
 import asyncio
@@ -509,7 +510,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                                 ping=False, file: discord.File=None, react: str=None,
                                 jump_to: discord.Message=None,
                                 allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
-                                no_repeat_for: datetime.timedelta=None, quick_action: QAView=None)->Optional[discord.Message]:
+                                no_repeat_for: datetime.timedelta=None, view: ui.View=None)->Optional[discord.Message]:
         """Sends a notification to the staff channel if a guild is passed. Embed preference is respected."""
         if no_repeat_for:
             if isinstance(destination, discord.Guild):
@@ -565,7 +566,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
         allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
         msg = await destination.send(message_content, file=file, embed=embed,
-                                     allowed_mentions=allowed_mentions, view=quick_action)
+                                     allowed_mentions=allowed_mentions, view=view)
         if react:
             await msg.add_reaction(react)
 

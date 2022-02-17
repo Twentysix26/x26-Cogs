@@ -142,7 +142,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         quick_action = self.make_qa_interaction(author.id, "Posting an invite link")
         heat_key = f"core-if-{author.id}-{message.channel.id}"
         await self.send_notification(guild, notif_text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
-                                     no_repeat_for=timedelta(minutes=1), heat_key=heat_key,  quick_action=quick_action)
+                                     no_repeat_for=timedelta(minutes=1), heat_key=heat_key,  view=quick_action)
 
         await self.create_modlog_case(
             self.bot,
@@ -208,7 +208,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                         fields=EMBED_FIELDS,
                                         jump_to=message,
                                         no_repeat_for=timedelta(minutes=15),
-                                        ping=True, quick_action=quick_action)
+                                        ping=True, view=quick_action)
             return
         elif action == Action.Punish:
             punish_role = guild.get_role(await self.config.guild(guild).punish_role())
@@ -241,7 +241,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         await self.send_notification(guild, f"I have {ACTIONS_VERBS[action]} a user for posting {recent} "
                                      f"messages in {minutes} minutes. Attached their last stored messages.", file=f,
                                      title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, no_repeat_for=timedelta(minutes=1),
-                                     quick_action=quick_action)
+                                     view=quick_action)
         return True
 
     async def join_monitor_flood(self, member):
@@ -319,7 +319,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 try:
                     await self.send_notification(guild, description, title=EMBED_TITLE, fields=EMBED_FIELDS,
                                                  thumbnail=member.avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
-                                                 heat_key=heat_key, quick_action=quick_action)
+                                                 heat_key=heat_key, view=quick_action)
                 except (discord.Forbidden, discord.HTTPException):
                     pass
 
@@ -429,7 +429,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         quick_action = self.make_qa_interaction(author.id, reason)
         await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, heat_key=heat_key,
-                                     no_repeat_for=timedelta(minutes=1), quick_action=quick_action)
+                                     no_repeat_for=timedelta(minutes=1), view=quick_action)
 
         if await self.config.guild(guild).ca_delete_message() and delete_days == 0:
             with contextlib.suppress(discord.HTTPException, discord.Forbidden):

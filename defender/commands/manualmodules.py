@@ -18,14 +18,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from ..enums import EmergencyMode
 from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import EmergencyModules, Action, Rank
-from redbot.core import commands, modlog
+from ..core.utils import EmergencyView
+from redbot.core import commands
 from redbot.core.utils.chat_formatting import box
 import discord
 import asyncio
 
 
 class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
-    @commands.cooldown(1, 120, commands.BucketType.channel)
+    #@commands.cooldown(1, 120, commands.BucketType.channel)
     @commands.command(aliases=["staff"])
     @commands.guild_only()
     async def alert(self, ctx):
@@ -56,10 +57,8 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         emergency_modules = await self.config.guild(guild).emergency_modules()
 
         react_text = ""
-        emoji = None
         if emergency_modules:
-            react_text = " React to this message or take some actions in this server to disable the emergency timer."
-            emoji = "⚠️"
+            react_text = " Press the button or take some actions in this server to disable the emergency timer."
 
         await self.send_notification(guild,
                                     f"An alert has been issued!{react_text}",
@@ -67,7 +66,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                                      fields=EMBED_FIELDS,
                                      ping=True,
                                      jump_to=ctx.message,
-                                     react=emoji)
+                                     view=EmergencyView(self))
         await ctx.send("The staff has been notified. Please keep calm, I'm sure everything is fine. 🔥")
 
         ### Emergency mode
@@ -108,7 +107,7 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                     "Please stand by. ⚠️")
 
             last_msg = await ctx.send(f"{ctx.author.mention} " + text.format(minutes))
-            await self.send_notification(guild, "⚠️ Seems like you're not around. I will automatically engage "
+            await self.send_notification(guild, "⚠️ Looks like you're not around. I will automatically engage "
                                                 f"emergency mode in {minutes} minutes if you don't show up.",
                                                 force_text_only=True)
             while minutes != 0:

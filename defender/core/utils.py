@@ -153,3 +153,22 @@ class QASelect(discord.ui.Select):
             until=None,
             channel=None,
         )
+
+class StopAlertButton(discord.ui.Button):
+    async def callback(self, inter: discord.Interaction):
+        self.view.stop()
+        await self.view.cog.refresh_staff_activity(inter.guild)
+        self.disabled = True
+        await inter.response.edit_message(view=self.view)
+
+class EmergencyView(discord.ui.View):
+    def __init__(self, cog):
+        super().__init__(timeout=0)
+        self.cog = cog
+        self.add_item(StopAlertButton(style=discord.ButtonStyle.danger, emoji="⚠️", label="Stop timer"))
+
+    async def interaction_check(self, inter: discord.Interaction):
+        if not await self.cog.bot.is_mod(inter.user):
+            await inter.response.send_message("Only staff members are allowed to press this button. You sure don't look like one.", ephemeral=True)
+            return False
+        return True

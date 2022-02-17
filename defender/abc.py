@@ -121,7 +121,7 @@ class MixinMeta(ABC):
                                 jump_to: discord.Message=None,
                                 allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
                                 no_repeat_for: datetime.timedelta=None,
-                                quick_action: QAView=None)->Optional[discord.Message]:
+                                view: discord.ui.View=None)->Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod
