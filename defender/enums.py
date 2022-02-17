@@ -35,8 +35,12 @@ class Action(enum.Enum):
     Softban = "softban"
     Punish = "punish"
 
-class QAAction(enum.Enum):
-    BanDeleteOneDay = "ban"
+class QAInteractions(enum.Enum):
+    Ban = "ban"
+    Kick = "kick"
+    Softban = "softban"
+    Punish = "punish"
+    BanAndDelete24 = "b24"
 
 class AutoModules(enum.Enum):
     RaiderDetection = "Raider detection"

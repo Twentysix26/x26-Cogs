@@ -22,8 +22,8 @@ from redbot.core.bot import Red
 from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
 from .core.warden.rule import WardenRule
-from .core.utils import QuickAction
-from typing import List, Dict
+from .core.utils import QAView
+from typing import List
 import datetime
 import discord
 import asyncio
@@ -50,7 +50,6 @@ class MixinMeta(ABC):
         self.joined_users: dict
         self.monitor: dict
         self.loop: asyncio.AbstractEventLoop
-        self.quick_actions: Dict[int, Dict[int, QuickAction]]
 
     @abstractmethod
     async def rank_user(self, member: discord.Member) -> Rank:
@@ -122,7 +121,7 @@ class MixinMeta(ABC):
                                 jump_to: discord.Message=None,
                                 allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
                                 no_repeat_for: datetime.timedelta=None,
-                                quick_action: QuickAction=None)->Optional[discord.Message]:
+                                quick_action: QAView=None)->Optional[discord.Message]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -147,6 +146,10 @@ class MixinMeta(ABC):
 
     @abstractmethod
     async def make_identify_embed(self, message, user, rank=True, link=True):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def make_qa_interaction(self, target_id: int, reason: str)->QAView:
         raise NotImplementedError()
 
     @abstractmethod

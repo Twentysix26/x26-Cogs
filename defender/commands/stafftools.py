@@ -26,11 +26,11 @@ from ..core.warden import heat
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..core.utils import utcnow
-from ..exceptions import ExecutionError, InvalidRule
+from ..exceptions import InvalidRule
 from ..core.announcements import get_announcements_embed
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
-from redbot.core.utils.chat_formatting import error, pagify, box, inline
+from redbot.core.utils.chat_formatting import pagify, box, inline
 from redbot.core import commands
 from io import BytesIO
 import logging

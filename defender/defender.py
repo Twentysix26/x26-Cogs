@@ -25,14 +25,14 @@ from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
 from .commands import Commands
 from .core.events import Events
-from .enums import Rank, Action, EmergencyModules, PerspectiveAttributes
+from .enums import QAInteractions, Rank, Action, EmergencyModules, PerspectiveAttributes
 from .exceptions import InvalidRule
 from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
 from .core.warden import heat
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
-from .core.utils import QuickAction, utcnow, timestamp
+from .core.utils import utcnow, timestamp, QAView, QASelect
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
@@ -138,7 +138,6 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         self.wd_periodic_task = self.loop.create_task(self.wd_periodic_rules())
         self.monitor = defaultdict(lambda: Deque(maxlen=500))
         self.wd_pool = Pool(maxtasksperchild=1000)
-        self.quick_actions = defaultdict(lambda: dict())
 
     async def rank_user(self, member: discord.Member):
         """Returns the user's rank"""
@@ -510,7 +509,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                                 ping=False, file: discord.File=None, react: str=None,
                                 jump_to: discord.Message=None,
                                 allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
-                                no_repeat_for: datetime.timedelta=None, quick_action: QuickAction=None)->Optional[discord.Message]:
+                                no_repeat_for: datetime.timedelta=None, quick_action: QAView=None)->Optional[discord.Message]:
         """Sends a notification to the staff channel if a guild is passed. Embed preference is respected."""
         if no_repeat_for:
             if isinstance(destination, discord.Guild):
@@ -566,12 +565,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
         allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
         msg = await destination.send(message_content, file=file, embed=embed,
-                                     allowed_mentions=allowed_mentions)
+                                     allowed_mentions=allowed_mentions, view=quick_action)
         if react:
             await msg.add_reaction(react)
-
-        if quick_action and is_staff_notification:
-            self.quick_actions[guild.id][msg.id] = quick_action
 
         return msg
 
@@ -665,3 +661,14 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         # Technically it isn't going to end up in config
         # but we'll scrub the cache too because we're nice
         await df_cache.discard_messages_from_user(user_id)
+
+    def make_qa_interaction(self, target_id, reason)->QAView:
+        view = QAView(cog=self, reason=reason, timeout=None)
+        sel = QASelect(custom_id=str(target_id), placeholder="Quick action")
+        sel.add_option(value=QAInteractions.Ban.value, label="Ban", emoji="🔨")
+        sel.add_option(value=QAInteractions.Kick.value, label="Kick", emoji="👢")
+        sel.add_option(value=QAInteractions.Softban.value, label="Softban", emoji="💨")
+        sel.add_option(value=QAInteractions.Punish.value, label="Punish", emoji="👊")
+        sel.add_option(value=QAInteractions.BanAndDelete24.value, label="Ban + 24h deletion", emoji="🔂")
+        view.add_item(sel)
+        return view
