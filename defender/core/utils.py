@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from typing import Tuple, List
-from ..enums import Action, QAInteractions
+from ..enums import Action, QAInteractions, PerspectiveAttributes as PAttr
 from ..exceptions import MisconfigurationError
 import datetime
 import discord
@@ -27,6 +27,15 @@ ACTIONS_VERBS = {
     Action.Kick: "kicked",
     Action.Punish: "punished",
     Action.NoAction: "",
+}
+
+PERSPECTIVE_ATTRS = {
+    PAttr.Toxicity: ("Toxicity", "Rude or generally disrespectful comments"),
+    PAttr.SevereToxicity: ("Severe toxicity", "Hateful, aggressive comments"),
+    PAttr.IdentityAttack: ("Identity attack", "Hateful comments attacking one's identity"),
+    PAttr.Insult: ("Insult", "Insulting, inflammatory or negative comments"),
+    PAttr.Profanity: ("Profanity", "Comments containing swear words, curse words or profanities"),
+    PAttr.Threat: ("Threat", "Comments perceived as an intention to inflict violence against others")
 }
 
 async def get_external_invite(guild: discord.Guild, invites: List[Tuple]):
@@ -170,5 +179,35 @@ class EmergencyView(discord.ui.View):
     async def interaction_check(self, inter: discord.Interaction):
         if not await self.cog.bot.is_mod(inter.user):
             await inter.response.send_message("Only staff members are allowed to press this button. You sure don't look like one.", ephemeral=True)
+            return False
+        return True
+
+class EMSettingsSelect(discord.ui.Select):
+    def __init__(self, current_settings):
+        super().__init__(min_values=1, max_values=len(PERSPECTIVE_ATTRS))
+        for k, v in PERSPECTIVE_ATTRS.items():
+            self.add_option(
+                value=k.value,
+                label=v[0],
+                description=v[1],
+                default=True if k.value in current_settings else False
+            )
+
+    async def callback(self, inter: discord.Interaction):
+        await self.view.cog.config.guild(inter.guild).ca_attributes.set(self.values)
+
+class EMSettingsView(discord.ui.View):
+    def __init__(self, cog, issuer_id):
+        super().__init__()
+        self.cog = cog
+        self.issuer_id = issuer_id
+
+    async def initialize(self, guild):
+        current_settings = await self.cog.config.guild(guild).ca_attributes()
+        self.add_item(EMSettingsSelect(current_settings))
+
+    async def interaction_check(self, inter: discord.Interaction):
+        if inter.user.id != self.issuer_id:
+            await inter.response.send_message("Only the issuer of the command can change these options.", ephemeral=True)
             return False
         return True

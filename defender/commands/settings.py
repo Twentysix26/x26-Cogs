@@ -20,11 +20,13 @@ from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import EmergencyModules, Action, Rank, PerspectiveAttributes
 from redbot.core import commands
 from ..core import cache as df_cache
+from ..core.utils import EMSettingsView
 from redbot.core.commands import GuildConverter
 from discord import VerificationLevel
 import discord
 import asyncio
 
+P_ATTRS_URL = "https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages"
 
 class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
@@ -652,22 +654,12 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.tick()
 
     @caset.command(name="attributes")
-    async def casetattributes(self, ctx: commands.Context, *attributes: str):
-        """Sets the attributes that CA will check
-
-        See the full list here:
-        https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages"""
-        if not attributes:
-            return await ctx.send_help()
-        for attribute in attributes:
-            try:
-                PerspectiveAttributes(attribute)
-            except ValueError:
-                attributes_list = "\n".join([a.value for a in PerspectiveAttributes])
-                return await ctx.send("Invalid attribute(s). You must insert one or more of "
-                                      f"the following attributes:\n{attributes_list}")
-        await self.config.guild(ctx.guild).ca_attributes.set(attributes)
-        await ctx.tick()
+    async def casetattributes(self, ctx: commands.Context):
+        """Setup the attributes that CA will check"""
+        view = EMSettingsView(self, ctx.author.id)
+        await view.initialize(ctx.guild)
+        await ctx.send("Select the attributes that Comment Analysis will check. You can find more "
+                       f"information here:\n{P_ATTRS_URL}", view=view)
 
     @caset.command(name="threshold")
     async def casetthreshold(self, ctx: commands.Context, threshold: int):
