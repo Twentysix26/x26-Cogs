@@ -18,10 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from discord import ui
 from typing import NamedTuple, Optional, List, Tuple, Union
 from ..enums import PerspectiveAttributes as PAttr, EmergencyModules as EModules
+from collections.abc import Iterable
 import discord
 
 class SelectEntry(NamedTuple):
-    value: str
+    value: Union[str, int]
     label: str
     description: Optional[str]
     emoji: Optional[str]
@@ -41,16 +42,27 @@ EM_ENTRIES = (
     SelectEntry(value=EModules.Voteout.value, label="Voteout", description="Start a vote to expel misbehaving users", emoji="👎"),
 )
 
+VERIF_LEVEL_ENTRIES = (
+    SelectEntry(value=0, label="No action", description="Are you sure?", emoji="🤠"),
+    SelectEntry(value=1, label="Low", description="Must have a verified email address on their Discord", emoji="🟢"),
+    SelectEntry(value=2, label="Medium", description="Must also be registered on Discord for >= 5 minutes", emoji="🟡"),
+    SelectEntry(value=3, label="High", description="Must also be a member here for more than 10 minutes", emoji="🟠"),
+    SelectEntry(value=4, label="Highest", description="Must also have a verified phone on their Discord", emoji="🔴"),
+)
+
 class SettingSelect(ui.Select):
-    def __init__(self, config_value, current_settings: List[Union[str, int]], all_settings: Tuple[SelectEntry], min_values=0, max_values=None, cast_to=None, **kwargs):
+    def __init__(self, config_value, current_settings: Union[int, str, List[Union[str, int]]], all_settings: Tuple[SelectEntry], max_values=None, cast_to=None, **kwargs):
         self.cast_to = cast_to
         self.config_value = config_value
+        iterable = isinstance(current_settings, Iterable)
         if max_values is None:
             max_values = len(all_settings)
-        super().__init__(min_values=min_values, max_values=max_values, **kwargs)
+        if not iterable:
+            current_settings = [current_settings]
+        super().__init__(max_values=max_values, **kwargs)
         for s in all_settings:
             self.add_option(
-                value=s.value,
+                value=str(s.value),
                 label=s.label,
                 description=s.description,
                 emoji=s.emoji,
@@ -66,7 +78,7 @@ class SettingSelect(ui.Select):
         else:
             await self.config_value.set(values)
 
-class RestrictedMenu(ui.View):
+class RestrictedView(ui.View):
     def __init__(self, cog, issuer_id, timeout=180, **kwargs):
         super().__init__(timeout=timeout, **kwargs)
         self.cog = cog

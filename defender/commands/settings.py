@@ -20,9 +20,8 @@ from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import Action, Rank
 from redbot.core import commands
 from ..core import cache as df_cache
-from ..core.menus import RestrictedMenu, SettingSelect, PERSPECTIVE_ATTRS_ENTRIES, EM_ENTRIES
+from ..core.menus import RestrictedView, SettingSelect, PERSPECTIVE_ATTRS_ENTRIES, EM_ENTRIES, VERIF_LEVEL_ENTRIES
 from redbot.core.commands import GuildConverter
-from discord import VerificationLevel
 import discord
 import asyncio
 
@@ -454,7 +453,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.tick()
 
     @joinmonitorgroup.command(name="verificationlevel")
-    async def joinmonitorvlevel(self, ctx: commands.Context, verification_level: str):
+    async def joinmonitorvlevel(self, ctx: commands.Context):
         """Raises the server's verification level on raids
 
         You can find a full description of Discord's verification levels in
@@ -466,22 +465,22 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         2 - Medium: must be registered for longer than 5 minutes
         3 - High: must be a member of this server for longer than 10 minutes
         4 - Highest: must have a verified phone on their Discord account"""
-        try:
-            lvl = VerificationLevel(int(verification_level))
-        except ValueError:
-            return await ctx.send_help()
-
         if not ctx.me.guild_permissions.manage_guild:
             return await ctx.send("I cannot do this without `Manage server` permissions. "
                                   "Please fix this and try again.")
 
-        await self.config.guild(ctx.guild).join_monitor_v_level.set(lvl.value)
+        view = RestrictedView(self, ctx.author.id)
+        view.add_item(
+            SettingSelect(
+                config_value=self.config.guild(ctx.guild).join_monitor_v_level,
+                current_settings=await self.config.guild(ctx.guild).join_monitor_v_level(),
+                all_settings=VERIF_LEVEL_ENTRIES,
+                max_values=1,
+                cast_to=int
+            )
+        )
 
-        if lvl.value:
-            await ctx.send(f"I will raise the server's verification level up to `{lvl}` "
-                           "if I detect many users joining at the same time.")
-        else:
-            await ctx.send("Got it. I won't raise the server's verification level.")
+        await ctx.send("Select the verification level that will be set when a raid is detected", view=view)
 
     @dset.group(name="raiderdetection", aliases=["rd"])
     @commands.admin()
@@ -656,7 +655,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @caset.command(name="attributes")
     async def casetattributes(self, ctx: commands.Context):
         """Setup the attributes that CA will check"""
-        view = RestrictedMenu(self, ctx.author.id)
+        view = RestrictedView(self, ctx.author.id)
         view.add_item(
             SettingSelect(
                 config_value=self.config.guild(ctx.guild).ca_attributes,
@@ -810,13 +809,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         during emergency mode. Selecting no modules to this command will
         disable emergency mode.
         Available emergency modules: voteout, vaporize, silence"""
-        view = RestrictedMenu(self, ctx.author.id)
+        view = RestrictedView(self, ctx.author.id)
         view.add_item(
             SettingSelect(
                 config_value=self.config.guild(ctx.guild).emergency_modules,
                 current_settings=await self.config.guild(ctx.guild).emergency_modules(),
                 all_settings=EM_ENTRIES,
                 placeholder="Select 0 or more modules",
+                min_values=0,
             )
         )
         await ctx.send("Select the modules that you want available to helpers during an emergency. "
