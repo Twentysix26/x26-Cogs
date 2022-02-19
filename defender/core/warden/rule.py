@@ -146,12 +146,26 @@ class WDRuntime:
                 "channel_category": channel.category.name if channel.category else "None",
                 "channel_category_id": channel.category.id if channel.category else "0",
                 "channel_heat": heat.get_channel_heat(channel, debug=self.debug),
+                "parent": "",
+                "parent_name": "",
+                "parent_id": "",
+                "parent_mention": "",
+                "parent_heat": "",
             })
             if message.attachments:
                 attachment = message.attachments[0]
                 self.state.update({
                     "attachment_filename": attachment.filename,
                     "attachment_url": attachment.url
+                })
+
+            if isinstance(channel, discord.Thread):
+                self.state.update({
+                    "parent": f"#{channel.parent}",
+                    "parent_name": channel.parent.name,
+                    "parent_id": channel.parent.id,
+                    "parent_mention": channel.parent.mention,
+                    "parent_heat": heat.get_channel_heat(channel.parent, debug=self.debug),
                 })
 
         if self.role:
@@ -477,6 +491,11 @@ class WardenRule:
             user = message.author
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
+        parent = None
+
+        if channel is not None:
+            if type(channel) is discord.Thread:
+                parent = channel.parent
 
         checkers = {}
 
@@ -601,31 +620,37 @@ class WardenRule:
         async def channel_matches_any(params: models.NonEmptyList):
             if channel.id in params.value:
                 return True
-            for channel_str in params.value:
-                channel_str = str(channel_str)
-                channel_obj = discord.utils.get(guild.text_channels, name=channel_str)
-                if channel_obj is not None and channel_obj == channel:
-                    return True
+            if parent is None: # Name matching for channels only
+                for channel_str in params.value:
+                    channel_str = str(channel_str)
+                    channel_obj = discord.utils.get(guild.text_channels, name=channel_str)
+                    if channel_obj is not None and channel_obj == channel:
+                        return True
             return False
 
         @checker(Condition.CategoryMatchesAny)
         async def category_matches_any(params: models.NonEmptyList):
-            if channel.category is None:
+            chan = channel if parent is None else parent
+            if chan.category is None:
                 return False
-            if channel.category.id in params.value:
+            if chan.category.id in params.value:
                 return True
             for category_str in params.value:
                 category_str = str(category_str)
                 category_obj = discord.utils.get(guild.categories, name=category_str)
-                if category_obj is not None and category_obj == channel.category:
+                if category_obj is not None and category_obj == chan.category:
                     return True
             return False
 
         @checker(Condition.ChannelIsPublic)
         async def channel_is_public(params: models.IsBool):
-            everyone = guild.default_role
-            public = everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None)
-            return params.value is public
+            if parent is None:
+                everyone = guild.default_role
+                public = everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None)
+                return params.value is public
+            else:
+                is_public_thread = channel.type is discord.ChannelType.public_thread
+                return params.value is is_public_thread
 
         @checker(Condition.UserCreatedLessThan)
         async def user_created_less_than(params: models.UserJoinedCreated):
@@ -853,6 +878,11 @@ class WardenRule:
             user = message.author
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
+        parent = None
+
+        if channel is not None:
+            if type(channel) is discord.Thread:
+                parent = channel.parent
 
         def safe_sub(string):
             if string == discord.Embed.Empty:
@@ -1013,8 +1043,9 @@ class WardenRule:
         @processor(Action.SendToChannel, suggest=Action.SendMessage)
         async def send_to_channel(params: models.SendMessageToChannel):
             channel_dest = guild.get_channel(params.id_or_name)
+            pool = guild.text_channels if parent is None else guild.threads
             if not channel_dest:
-                channel_dest = discord.utils.get(guild.text_channels, name=params.id_or_name)
+                channel_dest = discord.utils.get(pool, name=params.id_or_name)
             if not channel_dest:
                 raise ExecutionError(f"Channel '{params.id_or_name}' not found.")
             content = Template(params.content).safe_substitute(runtime.state)
@@ -1246,9 +1277,10 @@ class WardenRule:
                     setattr(params, key, safe_sub(attr))
 
             is_user = False
+            pool = guild.text_channels if parent is None else guild.threads
             if params.id.isdigit():
                 params.id = int(params.id)
-                destination = discord.utils.get(guild.text_channels, id=params.id)
+                destination = discord.utils.get(pool, id=params.id)
                 if destination is None:
                     destination = guild.get_member(params.id)
                     if destination is None:
@@ -1258,7 +1290,7 @@ class WardenRule:
                     else:
                         is_user = True
             else:
-                destination = discord.utils.get(guild.text_channels, name=params.id)
+                destination = discord.utils.get(pool, name=params.id)
                 if destination is None:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to send message, "
                                         f"'{params.id}' is not a valid channel name.")
