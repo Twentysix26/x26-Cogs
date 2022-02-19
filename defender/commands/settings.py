@@ -17,10 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from defender.core.warden.rule import WardenRule
 from ..abc import MixinMeta, CompositeMetaClass
-from ..enums import EmergencyModules, Action, Rank, PerspectiveAttributes
+from ..enums import Action, Rank
 from redbot.core import commands
 from ..core import cache as df_cache
-from ..core.utils import EMSettingsView
+from ..core.menus import RestrictedMenu, SettingSelect, PERSPECTIVE_ATTRS_ENTRIES, EM_ENTRIES
 from redbot.core.commands import GuildConverter
 from discord import VerificationLevel
 import discord
@@ -656,8 +656,15 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @caset.command(name="attributes")
     async def casetattributes(self, ctx: commands.Context):
         """Setup the attributes that CA will check"""
-        view = EMSettingsView(self, ctx.author.id)
-        await view.initialize(ctx.guild)
+        view = RestrictedMenu(self, ctx.author.id)
+        view.add_item(
+            SettingSelect(
+                config_value=self.config.guild(ctx.guild).ca_attributes,
+                current_settings=await self.config.guild(ctx.guild).ca_attributes(),
+                all_settings=PERSPECTIVE_ATTRS_ENTRIES,
+                min_values=1,
+            )
+        )
         await ctx.send("Select the attributes that Comment Analysis will check. You can find more "
                        f"information here:\n{P_ATTRS_URL}", view=view)
 
@@ -796,27 +803,24 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         See [p]defender status for more information about emergency mode"""
 
     @emergencygroup.command(name="modules")
-    async def emergencygroupmodules(self, ctx: commands.Context, *modules: str):
+    async def emergencygroupmodules(self, ctx: commands.Context):
         """Sets emergency modules
 
         Emergency modules will be rendered available to helper roles
-        during emergency mode. Passing no modules to this command will
+        during emergency mode. Selecting no modules to this command will
         disable emergency mode.
         Available emergency modules: voteout, vaporize, silence"""
-        modules = [m.lower() for m in modules] # type: ignore
-        for m in modules:
-            try:
-                EmergencyModules(m)
-            except:
-                return await ctx.send_help()
-        await self.config.guild(ctx.guild).emergency_modules.set(modules)
-        if modules:
-            await ctx.send("Emergency modules set. They will now be available to helper "
-                           "roles during emergency mode.")
-        else:
-            await ctx.send("Emergency mode is now disabled. If you wish to enable it see "
-                           f"`{ctx.prefix}help dset emergency modules`")
-
+        view = RestrictedMenu(self, ctx.author.id)
+        view.add_item(
+            SettingSelect(
+                config_value=self.config.guild(ctx.guild).emergency_modules,
+                current_settings=await self.config.guild(ctx.guild).emergency_modules(),
+                all_settings=EM_ENTRIES,
+                placeholder="Select 0 or more modules",
+            )
+        )
+        await ctx.send("Select the modules that you want available to helpers during an emergency. "
+                       "Deselecting all of them will disable emergency mode.", view=view)
 
     @emergencygroup.command(name="minutes")
     async def emergencygroupminutes(self, ctx: commands.Context, minutes: int):
