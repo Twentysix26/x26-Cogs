@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from ..enums import EmergencyMode
 from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import EmergencyModules, Action, Rank
-from ..core.utils import EmergencyView
+from ..core.menus import EmergencyView
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import box
 import discord

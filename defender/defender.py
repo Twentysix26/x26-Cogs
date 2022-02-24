@@ -25,14 +25,14 @@ from .abc import CompositeMetaClass
 from .core.automodules import AutoModules
 from .commands import Commands
 from .core.events import Events
-from .enums import QAInteractions, Rank, Action, EmergencyModules, PerspectiveAttributes
+from .enums import Rank, Action, EmergencyModules, PerspectiveAttributes
 from .exceptions import InvalidRule
 from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
 from .core.warden import heat
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
-from .core.utils import utcnow, timestamp, QAView, QASelect
+from .core.utils import utcnow, timestamp
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
@@ -662,14 +662,3 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         # Technically it isn't going to end up in config
         # but we'll scrub the cache too because we're nice
         await df_cache.discard_messages_from_user(user_id)
-
-    def make_qa_interaction(self, target_id, reason)->QAView:
-        view = QAView(cog=self, reason=reason, timeout=None)
-        sel = QASelect(custom_id=str(target_id), placeholder="Quick action")
-        sel.add_option(value=QAInteractions.Ban.value, label="Ban", emoji="🔨")
-        sel.add_option(value=QAInteractions.Kick.value, label="Kick", emoji="👢")
-        sel.add_option(value=QAInteractions.Softban.value, label="Softban", emoji="💨")
-        sel.add_option(value=QAInteractions.Punish.value, label="Punish", emoji="👊")
-        sel.add_option(value=QAInteractions.BanAndDelete24.value, label="Ban + 24h deletion", emoji="🔂")
-        view.add_item(sel)
-        return view

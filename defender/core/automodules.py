@@ -22,6 +22,7 @@ from redbot.core.utils.chat_formatting import box, humanize_list
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from ..abc import CompositeMetaClass
 from ..enums import Action
+from ..core.menus import QAView
 from ..core import cache as df_cache
 from ..core.utils import get_external_invite, ACTIONS_VERBS, utcnow, timestamp
 from ..core.warden import heat
@@ -139,10 +140,10 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         else:
             notif_text = f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}\n{invite_data}"
 
-        quick_action = self.make_qa_interaction(author.id, "Posting an invite link")
+        quick_action = QAView(self, author.id, "Posting an invite link")
         heat_key = f"core-if-{author.id}-{message.channel.id}"
         await self.send_notification(guild, notif_text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message,
-                                     no_repeat_for=timedelta(minutes=1), heat_key=heat_key,  view=quick_action)
+                                     no_repeat_for=timedelta(minutes=1), heat_key=heat_key, view=quick_action)
 
         await self.create_modlog_case(
             self.bot,
@@ -183,7 +184,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if recent != max_messages:
             return
 
-        quick_action = self.make_qa_interaction(author.id, "Message spammer")
+        quick_action =  QAView(self, author.id, "Message spammer")
         action = Action(await self.config.guild(guild).raider_detection_action())
 
         if action == Action.Ban:
@@ -315,7 +316,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             x_hours_ago = member.joined_at - timedelta(hours=hours)
             if member.created_at > x_hours_ago:
                 footer = "To turn off these notifications do `[p]dset joinmonitor notifynew 0` (admin only)"
-                quick_action = self.make_qa_interaction(member.id, "New account")
+                quick_action =  QAView(self, member.id, "New account")
                 try:
                     await self.send_notification(guild, description, title=EMBED_TITLE, fields=EMBED_FIELDS,
                                                  thumbnail=member.avatar, footer=footer, no_repeat_for=timedelta(minutes=1),
@@ -427,7 +428,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         elif action == Action.NoAction:
             heat_key = f"core-ca-{author.id}-{message.channel.id}-{len(message.content)}"
 
-        quick_action = self.make_qa_interaction(author.id, reason)
+        quick_action =  QAView(self, author.id, reason)
         await self.send_notification(guild, text, title=EMBED_TITLE, fields=EMBED_FIELDS, jump_to=message, heat_key=heat_key,
                                      no_repeat_for=timedelta(minutes=1), view=quick_action)
 

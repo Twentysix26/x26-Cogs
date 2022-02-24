@@ -22,7 +22,6 @@ from redbot.core.bot import Red
 from .enums import Rank, EmergencyModules
 from .core.warden.enums import Event as WardenEvent
 from .core.warden.rule import WardenRule
-from .core.utils import QAView
 from typing import List
 import datetime
 import discord
@@ -146,10 +145,6 @@ class MixinMeta(ABC):
 
     @abstractmethod
     async def make_identify_embed(self, message, user, rank=True, link=True):
-        raise NotImplementedError()
-
-    @abstractmethod
-    def make_qa_interaction(self, target_id: int, reason: str)->QAView:
         raise NotImplementedError()
 
     @abstractmethod

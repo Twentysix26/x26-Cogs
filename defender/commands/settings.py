@@ -15,13 +15,14 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from defender.core.warden.rule import WardenRule
+from ..core.warden.rule import WardenRule
 from ..abc import MixinMeta, CompositeMetaClass
-from ..enums import Action, Rank
+from ..enums import Action, Rank, PerspectiveAttributes as PAttr, EmergencyModules as EModules
 from redbot.core import commands
 from ..core import cache as df_cache
-from ..core.menus import RestrictedView, SettingSelect, PERSPECTIVE_ATTRS_ENTRIES, EM_ENTRIES, VERIF_LEVEL_ENTRIES
+from ..core.menus import RestrictedView, SettingSetSelect
 from redbot.core.commands import GuildConverter
+from discord import SelectOption
 import discord
 import asyncio
 
@@ -469,12 +470,20 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return await ctx.send("I cannot do this without `Manage server` permissions. "
                                   "Please fix this and try again.")
 
+        select_options = (
+            SelectOption(value="0", label="No action", description="Are you sure?", emoji="🤠"),
+            SelectOption(value="1", label="Low", description="Must have a verified email address on their Discord", emoji="🟢"),
+            SelectOption(value="2", label="Medium", description="Must also be registered on Discord for >= 5 minutes", emoji="🟡"),
+            SelectOption(value="3", label="High", description="Must also be a member here for more than 10 minutes", emoji="🟠"),
+            SelectOption(value="4", label="Highest", description="Must also have a verified phone on their Discord", emoji="🔴"),
+        )
+
         view = RestrictedView(self, ctx.author.id)
         view.add_item(
-            SettingSelect(
+            SettingSetSelect(
                 config_value=self.config.guild(ctx.guild).join_monitor_v_level,
                 current_settings=await self.config.guild(ctx.guild).join_monitor_v_level(),
-                all_settings=VERIF_LEVEL_ENTRIES,
+                select_options=select_options,
                 max_values=1,
                 cast_to=int
             )
@@ -655,12 +664,21 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @caset.command(name="attributes")
     async def casetattributes(self, ctx: commands.Context):
         """Setup the attributes that CA will check"""
+        select_options = (
+            SelectOption(value=PAttr.Toxicity.value, label="Toxicity", description="Rude or generally disrespectful comments"),
+            SelectOption(value=PAttr.SevereToxicity.value, label="Severe toxicity", description="Hateful, aggressive comments"),
+            SelectOption(value=PAttr.IdentityAttack.value, label="Identity attack", description="Hateful comments attacking one's identity"),
+            SelectOption(value=PAttr.Insult.value, label="Insult", description="Insulting, inflammatory or negative comments"),
+            SelectOption(value=PAttr.Profanity.value, label="Profanity", description="Comments containing swear words, curse words or profanities"),
+            SelectOption(value=PAttr.Threat.value, label="Threat", description="Comments perceived as an intention to inflict violence against others"),
+        )
+
         view = RestrictedView(self, ctx.author.id)
         view.add_item(
-            SettingSelect(
+            SettingSetSelect(
                 config_value=self.config.guild(ctx.guild).ca_attributes,
                 current_settings=await self.config.guild(ctx.guild).ca_attributes(),
-                all_settings=PERSPECTIVE_ATTRS_ENTRIES,
+                select_options=select_options,
                 min_values=1,
             )
         )
@@ -809,12 +827,18 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         during emergency mode. Selecting no modules to this command will
         disable emergency mode.
         Available emergency modules: voteout, vaporize, silence"""
+        select_options = (
+            SelectOption(value=EModules.Silence.value, label="Silence", description="Apply a server wide mute on ranks", emoji="🔇"),
+            SelectOption(value=EModules.Vaporize.value, label="Vaporize", description="Silently get rid of multiple new users at once", emoji="☁️"),
+            SelectOption(value=EModules.Voteout.value, label="Voteout", description="Start a vote to expel misbehaving users", emoji="👎"),
+        )
+
         view = RestrictedView(self, ctx.author.id)
         view.add_item(
-            SettingSelect(
+            SettingSetSelect(
                 config_value=self.config.guild(ctx.guild).emergency_modules,
                 current_settings=await self.config.guild(ctx.guild).emergency_modules(),
-                all_settings=EM_ENTRIES,
+                select_options=select_options,
                 placeholder="Select 0 or more modules",
                 min_values=0,
             )
