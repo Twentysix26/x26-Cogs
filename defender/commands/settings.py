@@ -574,6 +574,21 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send("The creation of Warden rules with user defined regex has been disabled for "
                            "all servers. Existing rules with regex conditions will not work anymore.")
 
+    @wardenset.command(name="regexsafetychecks")
+    @commands.is_owner()
+    async def wardenregexsafetychecks(self, ctx: commands.Context, on_or_off: bool):
+        """Globally toggles the safety checks for user defined regex
+
+        These checks disable Warden rules with regex that takes too long to be evaluated. It is
+        recommended to keep this feature enabled."""
+        await self.config.wd_regex_safety_checks.set(on_or_off)
+        if on_or_off:
+            await ctx.send("Global safety checks for user defined regex are now enabled.")
+        else:
+            await ctx.send("Global safety checks for user defined regex are now disabled. Please note "
+                           "that badly designed regex can affect bot performances. Keep this in mind if "
+                           "at any point you experience high resource usage on the host.")
+
     @wardenset.command(name="periodicallowed")
     @commands.is_owner()
     async def wardensetperiodic(self, ctx: commands.Context, on_or_off: bool):

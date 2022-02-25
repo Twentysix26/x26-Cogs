@@ -106,6 +106,7 @@ default_owner_settings = {
     "wd_regex_allowed": False, # Allows the creation of Warden rules with user defined regex
     "wd_periodic_allowed": True, # Allows the creation of periodic Warden rules
     "wd_upload_max_size": 3, # Max size for Warden rule upload (in kilobytes)
+    "wd_regex_safety_checks": True, # Performance safety checks for user defined regex
 }
 
 class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeMetaClass):

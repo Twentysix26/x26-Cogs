@@ -31,35 +31,43 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
     # This implementation is similar to what reTrigger does for safe-ish user regex. Thanks Trusty!
     # https://github.com/TrustyJAID/Trusty-cogs/blob/4d690f6ce51c1c5ebf98a2e05ff504ea26eac30b/retrigger/triggerhandler.py
     allowed = await cog.config.wd_regex_allowed()
+    safety_checks_enabled = await cog.config.wd_regex_safety_checks()
 
     if not allowed:
         return False
 
     # TODO This section might benefit from locks in case of faulty rules?
 
-    try:
-        regex_obj = re.compile(regex) # type: ignore
-        process = cog.wd_pool.apply_async(regex_obj.findall, (text,))
-        task = functools.partial(process.get, timeout=3)
-        new_task = cog.bot.loop.run_in_executor(None, task)
-        result = await asyncio.wait_for(new_task, timeout=5)
-    except (multiprocessing.TimeoutError, asyncio.TimeoutError):
-        log.warning(f"Warden - User defined regex timed out. This rule has been disabled."
-                    f"\nGuild: {guild.id}\nRegex: {regex}")
-        cog.active_warden_rules[guild.id].pop(rule_obj.name, None)
-        cog.invalid_warden_rules[guild.id][rule_obj.name] = rule_obj
-        async with cog.config.guild(guild).wd_rules() as warden_rules:
-            # There's no way to disable rules for now. So, let's just break it :D
-            rule_obj.raw_rule = ":!!! Regex in this rule perform poorly. Fix the issue and remove this line !!!:\n" + rule_obj.raw_rule
-            warden_rules[rule_obj.name] = rule_obj.raw_rule
-        await cog.send_notification(guild, f"The Warden rule `{rule_obj.name}` has been disabled for poor regex performances. "
-                                           f"Please fix it to prevent this from happening again in the future.", title="👮 • Warden")
-        return False
-    except Exception as e:
-        log.error("Warden - Unexpected error while running user defined regex", exc_info=e)
-        return False
+    if safety_checks_enabled:
+        try:
+            regex_obj = re.compile(regex) # type: ignore
+            process = cog.wd_pool.apply_async(regex_obj.findall, (text,))
+            task = functools.partial(process.get, timeout=3)
+            new_task = cog.bot.loop.run_in_executor(None, task)
+            result = await asyncio.wait_for(new_task, timeout=5)
+        except (multiprocessing.TimeoutError, asyncio.TimeoutError):
+            log.warning(f"Warden - User defined regex timed out. This rule has been disabled."
+                        f"\nGuild: {guild.id}\nRegex: {regex}")
+            cog.active_warden_rules[guild.id].pop(rule_obj.name, None)
+            cog.invalid_warden_rules[guild.id][rule_obj.name] = rule_obj
+            async with cog.config.guild(guild).wd_rules() as warden_rules:
+                # There's no way to disable rules for now. So, let's just break it :D
+                rule_obj.raw_rule = ":!!! Regex in this rule perform poorly. Fix the issue and remove this line !!!:\n" + rule_obj.raw_rule
+                warden_rules[rule_obj.name] = rule_obj.raw_rule
+            await cog.send_notification(guild, f"The Warden rule `{rule_obj.name}` has been disabled for poor regex performances. "
+                                            f"Please fix it to prevent this from happening again in the future.", title="👮 • Warden")
+            return False
+        except Exception as e:
+            log.error("Warden - Unexpected error while running user defined regex", exc_info=e)
+            return False
+        else:
+            return bool(result)
     else:
-        return bool(result)
+        try:
+            return bool(re.search(regex, text))
+        except Exception as e:
+            log.error(f"Warden - Unexpected error while running user defined regex with no safety checks", exc_info=e)
+            return False
 
 def make_fuzzy_suggestion(term, _list):
     result = process.extract(term, _list, limit=1, scorer=fuzz.QRatio)
