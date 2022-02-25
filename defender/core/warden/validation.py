@@ -421,6 +421,7 @@ CONDITIONS_VALIDATORS = {
     Condition.NicknameMatchesRegex: IsRegex,
     Condition.MessageMatchesAny: NonEmptyListStr,
     Condition.MessageMatchesRegex: IsRegex,
+    Condition.MessageMatchesWords: NonEmptyListStr,
     Condition.UserCreatedLessThan: UserJoinedCreated,
     Condition.UserJoinedLessThan: UserJoinedCreated,
     Condition.UserActivityMatchesAny: NonEmptyListStr,
@@ -527,6 +528,7 @@ CONDITIONS_USER_CONTEXT = [
 CONDITIONS_MESSAGE_CONTEXT = [
     Condition.MessageMatchesAny,
     Condition.MessageMatchesRegex,
+    Condition.MessageMatchesWords,
     Condition.ChannelMatchesAny,
     Condition.CategoryMatchesAny,
     Condition.ChannelIsPublic,
