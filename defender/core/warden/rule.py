@@ -1053,11 +1053,11 @@ class WardenRule:
         @processor(Action.PunishUserWithMessage)
         async def punish_user_with_message(params: models.IsNone):
             punish_role = guild.get_role(await cog.config.guild(guild).punish_role())
-            punish_message = await cog.config.guild(guild).punish_message()
+            punish_message = await cog.format_punish_message(user)
             if punish_role and not cog.is_role_privileged(punish_role):
                 await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
                 if punish_message:
-                    await channel.send(f"{user.mention} {punish_message}")
+                    await channel.send(punish_message)
             else:
                 cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")
@@ -1523,6 +1523,7 @@ async def populate_ctx_vars(*, t_vars: dict, rule: WardenRule, cog, guild, messa
         t_vars.update({
             "user": str(user),
             "user_name": user.name,
+            "user_display": user.display_name,
             "user_id": user.id,
             "user_mention": user.mention,
             "user_nickname": str(user.nick),

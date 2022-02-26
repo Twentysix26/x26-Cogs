@@ -216,7 +216,15 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
     @generalgroup.command(name="punishmessage")
     async def generalgrouppunishmessage(self, ctx: commands.Context, *, message: str):
-        """Sets the messages that I will send after assigning the punish role"""
+        """Sets the messages that I will send after assigning the punish role
+
+        Supports context variables. You can add the following to your message:
+        $user -> User's name + tag
+        $user_name -> User's name
+        $user_display -> User's nickname if set or user's name
+        $user_id -> User's id
+        $user_mention -> User's mention
+        $user_nickname -> User's nickname if set or 'None'"""
         if len(message) > 1950: # Since 4k messages might soon be a thing let's check for this
             return await ctx.send("The message is too long.")
         await self.config.guild(ctx.guild).punish_message.set(message)

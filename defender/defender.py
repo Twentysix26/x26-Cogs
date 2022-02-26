@@ -36,6 +36,7 @@ from .core.utils import QuickAction, utcnow, timestamp
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
+from string import Template
 import datetime
 import discord
 import asyncio
@@ -595,6 +596,22 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         rules = self.active_warden_rules.get(guild.id, {}).values()
         rules = [r for r in rules if event in r.events]
         return sorted(rules, key=lambda k: k.priority)
+
+    async def format_punish_message(self, member: discord.Member):
+        text = await self.config.guild(member.guild).punish_message()
+        if not text:
+            return ""
+
+        ctx_vars = {
+            "user": str(member),
+            "user_name": member.name,
+            "user_display": member.display_name,
+            "user_id": member.id,
+            "user_mention": member.mention,
+            "user_nickname": str(member.nick),
+        }
+
+        return Template(text).safe_substitute(ctx_vars)
 
     def dispatch_event(self, event_name, *args):
         event_name = "x26_defender_" + event_name

@@ -85,11 +85,11 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             self.dispatch_event("member_remove", author, Action.Softban.value, reason)
         elif action == Action.Punish:
             punish_role = guild.get_role(await self.config.guild(guild).punish_role())
-            punish_message = await self.config.guild(guild).punish_message()
+            punish_message = await self.format_punish_message(author)
             if punish_role and not self.is_role_privileged(punish_role):
                 await author.add_roles(punish_role, reason="Defender: punish role assignation")
                 if punish_message:
-                    await message.channel.send(f"{author.mention} {punish_message}")
+                    await message.channel.send(punish_message)
             else:
                 self.send_to_monitor(guild, "[InviteFilter] Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")
@@ -215,11 +215,11 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         elif action == Action.Punish:
             punish_role = guild.get_role(await self.config.guild(guild).punish_role())
-            punish_message = await self.config.guild(guild).punish_message()
+            punish_message = await self.format_punish_message(author)
             if punish_role and not self.is_role_privileged(punish_role):
                 await author.add_roles(punish_role, reason="Defender: punish role assignation")
                 if punish_message:
-                    await message.channel.send(f"{author.mention} {punish_message}")
+                    await message.channel.send(punish_message)
             else:
                 self.send_to_monitor(guild, "[RaiderDetection] Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")
@@ -418,11 +418,11 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             self.dispatch_event("member_remove", author, Action.Softban.value, reason)
         elif action == Action.Punish:
             punish_role = guild.get_role(await self.config.guild(guild).punish_role())
-            punish_message = await self.config.guild(guild).punish_message()
+            punish_message = await self.format_punish_message(author)
             if punish_role and not self.is_role_privileged(punish_role):
                 await author.add_roles(punish_role, reason="Defender: punish role assignation")
                 if punish_message:
-                    await message.channel.send(f"{author.mention} {punish_message}")
+                    await message.channel.send(punish_message)
             else:
                 self.send_to_monitor(guild, "[CommentAnalysis] Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")

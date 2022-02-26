@@ -160,3 +160,7 @@ class MixinMeta(ABC):
     @abstractmethod
     def dispatch_event(self, event_name, *args):
         raise NotImplementedError()
+
+    @abstractmethod
+    async def format_punish_message(self, member: discord.Member) -> str:
+        raise NotImplementedError()

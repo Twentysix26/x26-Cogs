@@ -48,6 +48,7 @@ FAKE_CHANNEL = FakeChannel()
 
 class FakeUser:
     nick = None
+    display_name = "Twentysix"
     name = "Twentysix"
     id = 852499907842801726
     guild = FAKE_GUILD
