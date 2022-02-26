@@ -462,11 +462,11 @@ class WardenRule:
 
         @checker(Condition.MessageContainsWord)
         async def message_contains_word(params: models.NonEmptyListStr):
-            to_check = [w.lower() for w in params.value]
             message_words = message.content.lower().split()
             for word in message_words:
-                if word in to_check:
-                    return True
+                for pattern in params.value:
+                    if fnmatch.fnmatch(word, pattern.lower()):
+                        return True
             return False
 
         @checker(Condition.UserActivityMatchesAny)
