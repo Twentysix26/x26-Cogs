@@ -397,8 +397,8 @@ async def test_conditions():
     FAKE_MESSAGE.content = "aaa 2626 aaa"
     await eval_cond(Condition.MessageMatchesAny, ["abcd", "*hello*"], False)
     await eval_cond(Condition.MessageMatchesAny, ["*2626*", "hi", 12345], True)
-    await eval_cond(Condition.MessageMatchesWords, [6, "aa", "2"], False)
-    await eval_cond(Condition.MessageMatchesWords, [111, "111", "AAA"], True)
+    await eval_cond(Condition.MessageContainsWord, [6, "aa", "2"], False)
+    await eval_cond(Condition.MessageContainsWord, [111, "111", "AAA"], True)
 
     FAKE_MESSAGE.attachments = []
     await eval_cond(Condition.MessageHasAttachment, "true", False)
