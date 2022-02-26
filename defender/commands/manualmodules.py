@@ -26,7 +26,7 @@ import asyncio
 
 
 class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
-    #@commands.cooldown(1, 120, commands.BucketType.channel)
+    @commands.cooldown(1, 120, commands.BucketType.channel)
     @commands.command(aliases=["staff"])
     @commands.guild_only()
     async def alert(self, ctx):
