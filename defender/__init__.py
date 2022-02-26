@@ -1,5 +1,6 @@
 import json
 from .defender import Defender
+from redbot.core import VersionInfo, version_info
 from pathlib import Path
 
 with open(Path(__file__).parent / "info.json") as fp:
@@ -7,4 +8,7 @@ with open(Path(__file__).parent / "info.json") as fp:
 
 
 def setup(bot):
+    if version_info >= VersionInfo.from_str("3.5.0"):
+        raise RuntimeError("Defender needs to be updated to run on Red 3.5.0")
+
     bot.add_cog(Defender(bot))
