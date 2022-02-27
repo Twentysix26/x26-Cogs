@@ -70,9 +70,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if await self.config.guild(guild).warden_enabled():
             rules = self.get_warden_rules_by_event(guild, WardenEvent.OnMessage)
             for rule in rules:
-                if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=message.guild, message=message, user=message.author):
                     try:
-                        wd_expelled = await rule.do_actions(cog=self, message=message)
+                        wd_expelled = await rule.do_actions(cog=self, guild=message.guild, message=message, user=message.author)
                         if wd_expelled:
                             expelled = True
                             await asyncio.sleep(0.1)
@@ -176,9 +176,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if await self.config.guild(guild).warden_enabled():
             rules = self.get_warden_rules_by_event(guild, WardenEvent.OnMessageEdit)
             for rule in rules:
-                if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=guild, message=message, user=message.author):
                     try:
-                        wd_expelled = await rule.do_actions(cog=self, message=message)
+                        wd_expelled = await rule.do_actions(cog=self, guild=guild, message=message, user=message.author)
                         if wd_expelled:
                             expelled = True
                             await asyncio.sleep(0.1)
@@ -244,9 +244,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         if await self.config.guild(guild).warden_enabled():
             rules = self.get_warden_rules_by_event(guild, WardenEvent.OnMessageDelete)
             for rule in rules:
-                if await rule.satisfies_conditions(cog=self, rank=rank, message=message):
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=guild, message=message, user=message.author):
                     try:
-                        await rule.do_actions(cog=self, message=message)
+                        await rule.do_actions(cog=self, guild=guild, message=message, user=message.author)
                     except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
@@ -271,9 +271,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             rules = self.get_warden_rules_by_event(guild, WardenEvent.OnUserJoin)
             for rule in rules:
                 rank = await self.rank_user(member)
-                if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=guild, user=member):
                     try:
-                        await rule.do_actions(cog=self, user=member)
+                        await rule.do_actions(cog=self, guild=guild, user=member)
                     except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")
@@ -302,9 +302,9 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             rules = self.get_warden_rules_by_event(guild, WardenEvent.OnUserLeave)
             for rule in rules:
                 rank = await self.rank_user(member)
-                if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=guild, user=member):
                     try:
-                        await rule.do_actions(cog=self, user=member)
+                        await rule.do_actions(cog=self, guild=guild, user=member)
                     except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")

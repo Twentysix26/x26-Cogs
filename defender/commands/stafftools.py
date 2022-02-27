@@ -611,7 +611,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 if m.joined_at is None:
                     continue
                 rank = await self.rank_user(m)
-                if await rule.satisfies_conditions(rank=rank, user=m, cog=self):
+                if await rule.satisfies_conditions(rank=rank, user=m, cog=self, guild=m.guild):
                     targets.append(m)
 
         if len(targets) == 0:
@@ -633,7 +633,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         async with ctx.typing():
             async for m in AsyncIter(targets, steps=2):
                 try:
-                    await rule.do_actions(user=m, cog=self)
+                    await rule.do_actions(user=m, guild=m.guild, cog=self)
                 except Exception as e:
                     errors += 1
                     self.send_to_monitor(ctx.guild, f"[Warden] ({rule.name}): {e}")
@@ -773,22 +773,15 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         text = ""
         for i, result in enumerate(results):
             i += 1
-            text += f"**{i}. {result.rule_name}**\n"
-            if result.result is True:
-                text += "Passed\n"
-            elif result.result is False and not result.conditions:
-                text += "Failed rank check.\n"
+            text += f"**{i}. {result.rule_name}** "
+            if result.last_result is True:
+                text += "(Passed)\n"
+            elif not result.trace:
+                text += "(Failed rank check)\n"
             else:
-                text += "Failed:\n"
-                rule_results = ""
-                for c in result.conditions:
-                    if isinstance(c[0], ConditionBlock):
-                        rule_results += f"- {c[0].value}:\n"
-                        for inner_c in c[1]:
-                            rule_results += f"  - {inner_c[0]}: {inner_c[1]}\n"
-                    else:
-                        rule_results += f"- {c[0].value}: {c[1]}\n"
-                text += f"{box(rule_results, lang='yaml')}"
+                text += "(Failed)\n"
+                trace = "\n".join(result.trace)
+                text += f"{box(trace)}"
         text += "\nIf you want to empty Warden's sandbox memory, say `free` in the next 10 seconds."
 
         for p in pagify(text):
