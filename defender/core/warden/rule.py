@@ -16,8 +16,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from __future__ import annotations
-from ...core.warden.validation import (ALLOWED_CONDITIONS, ALLOWED_ACTIONS, ALLOWED_DEBUG_ACTIONS, model_validator,
-                                       DEPRECATED)
+from ...core.warden.validation import (ALLOWED_STATEMENTS, ALLOWED_DEBUG_ACTIONS, model_validator,
+                                       DEPRECATED, BaseModel)
 from ...core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock
@@ -30,10 +30,9 @@ from redbot.core.utils.chat_formatting import box
 from redbot.core.commands.converter import parse_timedelta
 from discord.ext.commands import BadArgument
 from string import Template
-from redbot.core import modlog
 from typing import Optional
 from pydantic import ValidationError
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, List, Dict
 from . import heat
 import random
 import yaml
@@ -54,29 +53,130 @@ RULE_FACULTATIVE_KEYS = ("priority", "run-every")
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
 URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I)
+MAX_NESTED = 10
 
-class ConditionResult:
-    """This is used to store the condition evaluations at runtime
-    It is designed to aid the user in debugging the rules"""
-    def __init__(self, rule_name, debug):
-        self.rule_name = rule_name
-        self.conditions = []
-        self.result = False
-        self.debug = debug
+class WDStatement:
+    __slots__ = ('enum',)
+    def __repr__(self):
+        return f"<{self.__class__.__name__} '{self.enum.value}'>"
 
-    def add_condition(self, condition: Condition, result: bool):
-        if self.debug:
-            self.conditions.append((condition, result))
+class WDCondition(WDStatement):
+    def __init__(self, enum: Condition):
+        self.enum = enum
 
-    def add_condition_block(self, condition_block: ConditionBlock, inner_conditions: list, results: list):
-        if self.debug:
-            block = (condition_block, [])
-            for i, c in enumerate(inner_conditions):
-                block[1].append((next(iter(c)), results[i]))
-            self.conditions.append(block)
+class WDAction(WDStatement):
+    def __init__(self, enum: Action):
+        self.enum = enum
+
+class WDConditionBlock(WDStatement):
+    def __init__(self, enum: ConditionBlock):
+        self.enum = enum
+
+class WDConditionalActionBlock(WDStatement):
+    def __init__(self, enum: ConditionalActionBlock):
+        self.enum = enum
+
+class WDRuntime:
+    def __init__(self):
+        self.rule_name = "" # Debugging purpose
+        self.cog: MixinMeta
+        self.user: discord.Member
+        self.guild: discord.Guild
+        self.message: discord.Message
+        self.evaluations: List[List[bool]] = []
+        self.last_result: Optional[bool] = None
+        self.state = {}
+        self.trace = []
+        self.last_expel_action: Optional[Union[Action, ModAction]]=None
+        self.last_sent_message: Optional[discord.Message]=None
+        self.debug = True
+
+    async def populate_ctx_vars(self, rule: WardenRule):
+        guild_icon_url = self.guild.icon_url_as()
+        guild_banner_url = self.guild.banner_url_as()
+
+        cog = self.cog
+        guild = self.guild
+        self.state.update({
+            "rule_name": rule.name,
+            "guild": str(guild),
+            "guild_id": guild.id,
+            "guild_icon_url": guild_icon_url if guild_icon_url else "",
+            "guild_banner_url": guild_banner_url if guild_banner_url else "",
+            "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
+        })
+
+        if self.user:
+            user = self.user
+            self.state.update({
+                "user": str(user),
+                "user_name": user.name,
+                "user_display": user.display_name,
+                "user_id": user.id,
+                "user_mention": user.mention,
+                "user_nickname": str(user.nick),
+                "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
+                "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
+                "user_heat": heat.get_user_heat(user, debug=self.debug),
+                "user_avatar_url": user.avatar_url
+            })
+
+        if self.message:
+            message = self.message
+            channel = message.channel
+            self.state.update({
+                "message": message.content.replace("@", "@\u200b"),
+                "message_clean": message.clean_content,
+                "message_id": message.id,
+                "message_created_at": message.created_at,
+                "message_link": message.jump_url,
+                "channel": f"#{channel}",
+                "channel_name": channel.name,
+                "channel_id": channel.id,
+                "channel_mention": channel.mention,
+                "channel_category": channel.category.name if channel.category else "None",
+                "channel_category_id": channel.category.id if channel.category else "0",
+                "channel_heat": heat.get_channel_heat(channel, debug=self.debug),
+            })
+            if message.attachments:
+                attachment = message.attachments[0]
+                self.state.update({
+                    "attachment_filename": attachment.filename,
+                    "attachment_url": attachment.url
+                })
+
+
+    def add_trace_enter(self, stack, enum, ignore=None):
+        if enum == ignore:
+            return
+        stack += 1
+        stack = "".join([" " for i in range(stack)])
+
+        if isinstance(enum, Condition):
+            self.trace.append(f"{stack}[=] {enum.value}")
+        elif isinstance(enum, Action):
+            self.trace.append(f"{stack}[=] {enum.value}")
+        elif isinstance(enum, (ConditionBlock, ConditionalActionBlock)):
+            self.trace.append(f"{stack}[>] {enum.value} block")
+
+    def add_trace_exit(self, stack, enum):
+        stack += 1
+        stack = "".join([" " for i in range(stack)])
+        if isinstance(enum, Condition):
+            last_trace = self.trace.pop()
+            last_trace += f" ({self.last_result})"
+            self.trace.append(last_trace)
+        elif isinstance(enum, Action):
+            last_trace = self.trace.pop()
+            last_trace += f" (Done)"
+            self.trace.append(last_trace)
+        elif isinstance(enum, ConditionBlock):
+            self.trace.append(f"{stack}[<] {enum.value} block ({self.last_result})")
+        elif isinstance(enum, ConditionalActionBlock):
+            self.trace.append(f"{stack}[<] {enum.value} block")
 
     def __bool__(self):
-        return self.result
+        return self.last_result
 
 class WardenRule:
     def __init__(self):
@@ -85,8 +185,6 @@ class WardenRule:
         self.name = None
         self.events = []
         self.rank = Rank.Rank4
-        self.conditions = []
-        self.actions = {}
         self.raw_rule = ""
         self.priority = 2666
         self.next_run = None
@@ -177,10 +275,14 @@ class WardenRule:
         else:
             raise InvalidRule("Rule must have at least one condition.")
 
-        self.conditions = rule["if"]
-
         if not rule["if"]:
             raise InvalidRule("Rule must have at least one condition.")
+
+        self.cond_tree = await self.parse_tree(rule["if"],
+                                               cog=cog,
+                                               author=author,
+                                               events=self.events,
+                                               conditions_only=True)
 
         if not isinstance(rule["do"], list):
             raise InvalidRule("Invalid 'do' category. Must be a list of maps.")
@@ -188,154 +290,128 @@ class WardenRule:
         if not rule["do"]:
             raise InvalidRule("Rule must have at least one action.")
 
-        self.actions = rule["do"]
+        self.action_tree = await self.parse_tree(rule["do"],
+                                                 cog=cog,
+                                                 author=author,
+                                                 events=self.events)
 
-        def is_condition_allowed_in_events(condition):
-            for event in self.events:
-                if not condition in ALLOWED_CONDITIONS[event]:
-                    return False
-            return True
-
-        def is_action_allowed_in_events(action):
-            for event in self.events:
-                if not action in ALLOWED_ACTIONS[event]:
-                    return False
-            return True
-
-        async def validate_condition(cond):
-            condition = parameter = None
-            for r, p in cond.items():
-                condition, parameter = r, p
-
+    async def parse_tree(self, raw_tree, *, events, author, cog: MixinMeta, conditions_only=False, stack=-1):
+        def get_enum(statement):
             try:
-                condition = Condition(condition)
+                enum = Condition(statement)
             except ValueError:
                 try:
-                    condition = ConditionBlock(condition)
-                    raise InvalidRule(f"Invalid: `{condition.value}` can only be at root level.")
+                    enum = ConditionBlock(statement)
                 except ValueError:
-                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition
-                                                                   if c not in DEPRECATED])
-                    raise InvalidRule(f"Invalid condition: `{condition}`.{suggestion}")
+                    try:
+                        enum = ConditionalActionBlock(statement)
+                    except ValueError:
+                        enum = Action(statement)
 
-            # Checking author prevents old rules from raising at load
-            if author and condition in DEPRECATED:
-                raise InvalidRule(f"Condition `{condition.value}` is deprecated: check the documentation "
-                                  "for a supported alternative.")
+            return enum
 
-            if not is_condition_allowed_in_events(condition):
-                raise InvalidRule(f"Condition `{condition.value}` not allowed in the event(s) you have defined.")
+        stack += 1
+        if stack > MAX_NESTED:
+            raise InvalidRule(f"Exceeded maximum nesting level ({MAX_NESTED})")
 
-            try:
-                model = model_validator(condition, parameter)
-            except ValidationError as e:
-                raise InvalidRule(f"Condition `{condition.value}` invalid:\n{box(str(e))}")
+        tree = {}
 
-            if author:
-                try:
-                    await model._runtime_check(cog=cog, author=author, action_or_cond=condition)
-                except NotImplementedError:
-                    pass
+        for _dict in raw_tree:
+            if not isinstance(_dict, dict):
+                raise InvalidRule(f"Invalid statement: `{_dict}`. Expected map. Did you forget the colon?")
 
-        for raw_condition in self.conditions:
-            condition = parameter = None
-
-            if not isinstance(raw_condition, dict):
-                raise InvalidRule(f"Invalid condition: `{raw_condition}`. Expected map. Did you forget the colon?")
-
-            for r, p in raw_condition.items():
-                condition, parameter = r, p
-
-            if len(raw_condition) != 1:
-                raise InvalidRule(f"Invalid format in the conditions. Make sure you've got the dashes right!")
+            statement, value = next(iter(_dict.items()))
 
             try:
-                condition = Condition(condition)
+                enum = get_enum(statement)
             except ValueError:
-                try:
-                    condition = ConditionBlock(condition)
-                except ValueError:
-                    suggestion = make_fuzzy_suggestion(condition, [c.value for c in Condition
-                                                                   if c not in DEPRECATED])
-                    raise InvalidRule(f"Invalid condition: `{condition}`.{suggestion}")
+                suggestions = [c.value for c in Condition if c not in DEPRECATED]
+                if conditions_only is False:
+                    suggestions.extend([a.value for a in Action if a not in DEPRECATED])
+                suggestion = make_fuzzy_suggestion(statement, suggestions)
+                raise InvalidRule(f"Invalid statement: `{statement}`.{suggestion}")
 
-            if isinstance(condition, ConditionBlock):
-                if parameter is None:
-                    raise InvalidRule("Condition blocks cannot be empty.")
-                for p in parameter:
-                    await validate_condition(p)
-            else:
-                await validate_condition(raw_condition)
+            if conditions_only and isinstance(enum, (Action, ConditionalActionBlock)):
+                raise InvalidRule("Actions and conditional action blocks are not allowed in the condition section of a rule.")
 
-        async def validate_action(action, parameter):
-            # Checking author prevents old rules from raising at load
-            if author and action in DEPRECATED:
-                raise InvalidRule(f"Action `{action.value}` is deprecated: check the documentation "
-                                "for a supported alternative.")
-
-            if not is_action_allowed_in_events(action):
-                raise InvalidRule(f"Action `{action.value}` not allowed in the event(s) you have defined.")
+            model = None
 
             try:
-                model = model_validator(action, parameter)
-            except ValidationError as e:
-                raise InvalidRule(f"Action `{action.value}` invalid:\n{box(str(e))}")
-
-            if author:
-                try:
-                    await model._runtime_check(cog=cog, author=author, action_or_cond=action)
-                except NotImplementedError:
-                    pass
-
-        # Basically a list of one-key dicts
-        # We need to preserve order of actions
-        for entry in self.actions:
-            # This will be a single loop
-            if not isinstance(entry, dict):
-                raise InvalidRule(f"Invalid action: `{entry}`. Expected map.")
-
-            if len(entry) != 1:
-                raise InvalidRule(f"Invalid format in the actions. Make sure you've got the dashes right!")
-
-            for enum, parameter in entry.items():
-                try:
-                    enum = self._get_actions_enum(enum)
-                except ValueError:
-                    suggestion = make_fuzzy_suggestion(enum, [a.value for a in Action
-                                                                if a not in DEPRECATED])
-                    raise InvalidRule(f"Invalid action: `{enum}`.{suggestion}")
-
-                if isinstance(enum, Action):
-                    await validate_action(enum, parameter)
-                elif isinstance(enum, Condition):
-                    await validate_condition({enum.value: parameter})
+                if isinstance(enum, Condition):
+                    model = model_validator(enum, value)
+                    tree[WDCondition(enum=enum)] = model
+                elif isinstance(enum, Action):
+                    model = model_validator(enum, value)
+                    tree[WDAction(enum=enum)] = model
                 elif isinstance(enum, ConditionBlock):
-                    if parameter is None:
-                        raise InvalidRule("Condition blocks cannot be empty.")
-                    for p in parameter:
-                        await validate_condition(p)
+                    tree[WDConditionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only, stack=stack)
                 elif isinstance(enum, ConditionalActionBlock):
-                    if parameter is None:
-                        raise InvalidRule("Conditional action blocks cannot be empty.")
-                    for raw_action in parameter:
-                        if not isinstance(raw_action, dict):
-                            raise InvalidRule(f"`{enum.value}` contains a non-map. Did you forget the colon?")
-                        for action, subparameter in raw_action.items():
-                            try:
-                                action = self._get_actions_enum(action)
-                            except ValueError:
-                                suggestion = make_fuzzy_suggestion(action, [a.value for a in Action
-                                                                            if a not in DEPRECATED])
-                                raise InvalidRule(f"Invalid action: `{action}`.{suggestion}")
-                            await validate_action(action, subparameter)
+                    tree[WDConditionalActionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only, stack=stack)
+            except ValidationError as e:
+                raise InvalidRule(f"Statement `{enum.value}` invalid:\n{box(str(e))}")
 
+            if model and author:
+                try:
+                    await model._runtime_check(cog=cog, author=author, action_or_cond=enum)
+                except NotImplementedError:
+                    pass
 
-    async def satisfies_conditions(self, *, rank: Rank, cog: MixinMeta, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None, debug=False)->ConditionResult:
-        cr = ConditionResult(rule_name=self.name, debug=debug)
-        if rank < self.rank:
-            return cr
+            if model:
+                for event in events:
+                    if not enum in ALLOWED_STATEMENTS[event]:
+                        raise InvalidRule(f"Statement `{enum.value}` not allowed in the event(s) you have defined.")
 
+            if author and model:
+            # Checking author prevents old rules from raising at load
+                if enum in DEPRECATED:
+                    raise InvalidRule(f"Statement `{enum.value}` is deprecated: check the documentation "
+                                      "for a supported alternative.")
+
+        if not tree:
+            raise InvalidRule("Empty block.")
+
+        return tree
+
+    async def eval_tree(self, tree: Dict[WDStatement, Union[BaseModel, List]], *, runtime: WDRuntime, bool_stop=None, stack=-1, outer_block=None)->WDRuntime:
+        stack += 1
+
+        for statement, value in tree.items():
+            if runtime.debug:
+                runtime.add_trace_enter(stack, statement.enum, ignore=WDConditionalActionBlock if runtime.last_result else None)
+
+            if isinstance(statement, WDCondition):
+                await self._evaluate_condition(condition=statement.enum, model=value, runtime=runtime)
+            elif isinstance(statement, WDAction):
+                await self._do_action(action=statement.enum, model=value, runtime=runtime)
+            elif isinstance(statement, WDConditionBlock):
+                block_bool_stop = statement.enum in (ConditionBlock.IfNot, ConditionBlock.IfAny)
+                await self.eval_tree(value, runtime=runtime, bool_stop=block_bool_stop, stack=stack, outer_block=statement.enum)
+            elif isinstance(statement, WDConditionalActionBlock):
+                can_run_true = statement.enum is ConditionalActionBlock.IfTrue and runtime.last_result is True
+                can_run_false = statement.enum is ConditionalActionBlock.IfFalse and runtime.last_result is False
+                if can_run_true or can_run_false:
+                    if runtime.debug:
+                        runtime.add_trace_enter(stack, statement.enum)
+                    await self.eval_tree(value, runtime=runtime, stack=stack)
+                else:
+                    continue # We don't want a trace exit for non-executing CondActionBlocks
+
+            if runtime.debug:
+                runtime.add_trace_exit(stack, statement.enum)
+
+            # Condition blocks stop evaluating at their first failed eval, depending on their type
+            if bool_stop in (True, False) and runtime.last_result is bool_stop:
+                runtime.last_result = outer_block is ConditionBlock.IfAny
+                return runtime
+
+        # The block did not exit early and can be considered successsful
+        if outer_block is not ConditionBlock.IfAny:
+            runtime.last_result = True
+
+        return runtime
+
+    async def satisfies_conditions(self, *, rank: Rank, cog: MixinMeta, user: Optional[discord.Member]=None, message: Optional[discord.Message]=None,
+                                   guild: discord.Guild, debug=False)->WDRuntime:
         # Due to the strict checking done during parsing we can
         # expect to always have available the variables that we need for
         # the different type of events and conditions
@@ -343,84 +419,38 @@ class WardenRule:
         if message and not user:
             user = message.author
 
-        # For the rule's conditions to pass, every "root level" condition (or block of conditions)
-        # must equal to True
+        runtime = WDRuntime()
+        runtime.rule_name = self.name
+        runtime.cog = cog
+        runtime.guild = guild or message.guild
+        runtime.user = user
+        runtime.message = message
+        runtime.debug = debug
+        await runtime.populate_ctx_vars(self)
+
+        if rank < self.rank:
+            return runtime
+        if not self.cond_tree:
+            return runtime
+
         try:
-            return await self._evaluate_conditions_block(block=self.conditions, cog=cog, user=user, message=message, guild=guild,
-                                                        debug=debug)
-        except ExecutionError:
-            return cr # Ensure the rule doesn't pass if a condition errored
+            await self.eval_tree(self.cond_tree, runtime=runtime, bool_stop=False)
+        except (StopExecution, ExecutionError):
+            runtime.last_result = False
 
-    async def _evaluate_conditions_block(self, *, block, cog, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None, templates_vars=None, debug)->ConditionResult:
-        # This is used during condition processing AND action processing for conditional actions
-        cr = ConditionResult(rule_name=self.name, debug=debug)
+        return runtime
 
-        for raw_condition in block:
-            condition = None
-            value = []
-
-            for r, v in raw_condition.items():
-                condition, value = r, v
-            try:
-                condition = ConditionBlock(condition)
-            except:
-                condition = Condition(condition)
-
-            if condition == ConditionBlock.IfAll:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message,
-                                                          guild=guild, templates_vars=templates_vars, debug=debug)
-                if len(results) != len(value):
-                    raise RuntimeError("Mismatching number of conditions and evaluations")
-                cr.add_condition_block(condition, value, results) # type: ignore
-                cond_result = all(results)
-            elif condition == ConditionBlock.IfAny:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message,
-                                                          guild=guild, templates_vars=templates_vars, debug=debug)
-                if len(results) != len(value):
-                    raise RuntimeError("Mismatching number of conditions and evaluations")
-                cr.add_condition_block(condition, value, results) # type: ignore
-                cond_result = any(results)
-            elif condition == ConditionBlock.IfNot:
-                results = await self._evaluate_conditions(value, cog=cog, user=user, message=message,
-                                                          guild=guild, templates_vars=templates_vars, debug=debug)
-                if len(results) != len(value):
-                    raise RuntimeError("Mismatching number of conditions and evaluations")
-                cr.add_condition_block(condition, value, results) # type: ignore
-                results = [not r for r in results] # Bools are flipped
-                cond_result = all(results)
-            else:
-                results = await self._evaluate_conditions([{condition: value}], cog=cog, user=user, message=message,
-                                                          guild=guild, templates_vars=templates_vars, debug=debug)
-                if len(results) != 1:
-                    raise RuntimeError(f"A single condition evaluation returned {len(results)} evaluations!")
-                cr.add_condition(condition, results[0]) # type: ignore
-                cond_result = results[0]
-
-            if cond_result is False:
-                return cr # If one root condition is False there's no need to continue
-
-        cr.result = True
-        return cr
-
-    async def _evaluate_conditions(self, conditions, *, cog: MixinMeta, user: discord.Member=None, message: discord.Message=None,
-                                   guild: discord.Guild=None, templates_vars=None, debug):
+    async def _evaluate_condition(self, condition: Condition, *, model: BaseModel, runtime: WDRuntime):
+        cog = runtime.cog
+        message = runtime.message
+        user = runtime.user
+        guild = runtime.guild
+        debug = runtime.debug
 
         if message and not user:
             user = message.author
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
-
-        if templates_vars is None:
-            templates_vars = {}
-            await populate_ctx_vars(t_vars=templates_vars,
-                                    rule=self,
-                                    cog=cog,
-                                    guild=guild,
-                                    message=message,
-                                    user=user,
-                                    channel=channel,
-                                    debug=debug)
 
         checkers = {}
 
@@ -439,7 +469,7 @@ class WardenRule:
         def safe_sub(string):
             if string == discord.Embed.Empty:
                 return string
-            return Template(string).safe_substitute(templates_vars)
+            return Template(string).safe_substitute(runtime.state)
 
         @checker(Condition.MessageMatchesAny)
         async def message_matches_any(params: models.NonEmptyListStr):
@@ -700,7 +730,7 @@ class WardenRule:
 
         @checker(Condition.CustomHeatIs)
         async def custom_heat_is(params: models.CheckCustomHeatpoint):
-            heat_key = Template(params.label).safe_substitute(templates_vars)
+            heat_key = Template(params.label).safe_substitute(runtime.state)
             return heat.get_custom_heat(guild, heat_key, debug=debug) == params.points
 
         @checker(Condition.UserHeatMoreThan)
@@ -713,7 +743,7 @@ class WardenRule:
 
         @checker(Condition.CustomHeatMoreThan)
         async def custom_heat_more_than(params: models.CheckCustomHeatpoint):
-            heat_key = Template(params.label).safe_substitute(templates_vars)
+            heat_key = Template(params.label).safe_substitute(runtime.state)
             return heat.get_custom_heat(guild, heat_key, debug=debug) > params.points
 
         @checker(Condition.Compare)
@@ -746,66 +776,67 @@ class WardenRule:
                 return value1 >= value2
 
         if debug:
-            for condition in Condition:
-                if condition not in checkers:
+            for c in Condition:
+                if c not in checkers:
                     raise ExecutionError(f"{condition.value} does not have a checker.")
 
-        bools = []
+        try:
+            processor_func = checkers[condition]
+        except KeyError:
+            raise ExecutionError(f"Unhandled condition '{condition.value}'.")
 
-        for raw_condition in conditions:
+        try:
+            result = await processor_func(model)
+        except ExecutionError as e:
+            if cog: # is None in unit tests
+                cog.send_to_monitor(guild, f"[Warden] ({self.name}): {e}")
+            runtime.last_result = False
+            raise e
+        if result in (True, False):
+            runtime.last_result = result
+            return runtime
+        else:
+            raise ExecutionError(f"Unexpected condition evaluation result for '{condition.value}'.")
 
-            condition = value = None
-            for c, v in raw_condition.items():
-                condition, value = c, v
+    async def do_actions(self, *, cog: MixinMeta, user: Optional[discord.Member]=None, message:  Optional[discord.Message]=None,
+                         guild: discord.Guild, debug=False):
 
-            condition = Condition(condition)
+        if message and not user:
+            user = message.author
 
-            params = model_validator(condition, value)
-            try:
-                processor_func = checkers[condition]
-            except KeyError:
-                raise ExecutionError(f"Unhandled condition '{condition.value}'.")
+        runtime = WDRuntime()
+        runtime.rule_name = self.name
+        runtime.cog = cog
+        runtime.guild = guild
+        runtime.user = user
+        runtime.message = message
+        runtime.debug = debug
+        await runtime.populate_ctx_vars(self)
 
-            try:
-                result = await processor_func(params)
-            except ExecutionError as e:
-                if cog: # is None in unit tests
-                    cog.send_to_monitor(guild, f"[Warden] ({self.name}): {e}")
-                raise e
-            if result in (True, False):
-                bools.append(result)
-            else:
-                raise ExecutionError(f"Unexpected condition evaluation result for '{condition.value}'.")
+        try:
+            await self.eval_tree(self.action_tree, runtime=runtime)
+        except (StopExecution, ExecutionError):
+            return
 
-        return bools
+    async def _do_action(self, action: Action, *, model: BaseModel, runtime: WDRuntime):
+        cog = runtime.cog
+        message = runtime.message
+        user = runtime.user
+        guild = runtime.guild
+        debug = runtime.debug
 
-    async def do_actions(self, *, cog: MixinMeta, user: discord.Member=None, message: discord.Message=None,
-                         guild: discord.Guild=None, debug=False):
         if message and not user:
             user = message.author
         guild = guild if guild else user.guild
         channel: discord.Channel = message.channel if message else None
 
-        templates_vars = {}
-        await populate_ctx_vars(t_vars=templates_vars,
-                                rule=self,
-                                cog=cog,
-                                guild=guild,
-                                message=message,
-                                user=user,
-                                channel=channel,
-                                debug=debug)
-
         def safe_sub(string):
             if string == discord.Embed.Empty:
                 return string
-            return Template(string).safe_substitute(templates_vars)
+            return Template(string).safe_substitute(runtime.state)
 
         #for heat_key in heat.get_custom_heat_keys(guild):
-        #    templates_vars[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
-
-        last_sent_message: Optional[discord.Message] = None
-        last_expel_action = None
+        #    runtime.state[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
 
         processors = {}
 
@@ -827,34 +858,31 @@ class WardenRule:
 
         @processor(Action.Dm, suggest=Action.SendMessage)
         async def send_dm(params: models.SendMessageToUser):
-            nonlocal last_sent_message
             user_to_dm = guild.get_member(params.id)
             if not user_to_dm:
                 user_to_dm = discord.utils.get(guild.members, name=params.id)
             if not user_to_dm:
                 return
-            content = Template(params.content).safe_substitute(templates_vars)
+            content = Template(params.content).safe_substitute(runtime.state)
             try:
-                last_sent_message = await user_to_dm.send(content)
+                runtime.last_sent_message = await user_to_dm.send(content)
             except:
                 cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
                                     f"{user_to_dm} ({user_to_dm.id})")
-                last_sent_message = None
+                runtime.last_sent_message = None
 
         @processor(Action.DmUser, suggest=Action.SendMessage)
         async def send_user_dm(params: models.IsStr):
-            nonlocal last_sent_message
-            text = Template(params.value).safe_substitute(templates_vars)
+            text = Template(params.value).safe_substitute(runtime.state)
             try:
-                last_sent_message = await user.send(text)
+                runtime.last_sent_message = await user.send(text)
             except:
                 cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
                                     f"{user} ({user.id})")
-                last_sent_message = None
+                runtime.last_sent_message = None
 
         @processor(Action.NotifyStaff)
         async def notify_staff(params: models.NotifyStaff):
-            nonlocal last_sent_message
             # Checks if only "content" has been passed
             text_only = params.__fields_set__ == {"content"}
 
@@ -863,13 +891,13 @@ class WardenRule:
                 if params.qa_reason is None:
                     params.qa_reason = ""
 
-                params.qa_target = safe_sub(params.qa_target)
-                params.qa_reason = safe_sub(params.qa_reason)
+                qa_target = safe_sub(params.qa_target)
+                qa_reason = safe_sub(params.qa_reason)
 
                 try:
-                    quick_action = QuickAction(int(params.qa_target), params.qa_reason)
+                    quick_action = QuickAction(int(qa_target), qa_reason)
                 except ValueError:
-                    raise ExecutionError(f"{params.qa_target} is not a valid ID for a Quick Action target.")
+                    raise ExecutionError(f"{qa_target} is not a valid ID for a Quick Action target.")
 
             jump_to_msg = None
 
@@ -877,16 +905,16 @@ class WardenRule:
                 jump_to_msg = message
 
             if params.jump_to:
-                params.jump_to.channel_id = safe_sub(params.jump_to.channel_id)
-                params.jump_to.message_id = safe_sub(params.jump_to.message_id)
+                jump_to_channel_id = safe_sub(params.jump_to.channel_id)
+                jump_to_message_id = safe_sub(params.jump_to.message_id)
                 try:
-                    jump_to_ch = discord.utils.get(guild.text_channels, id=int(params.jump_to.channel_id))
+                    jump_to_ch = discord.utils.get(guild.text_channels, id=int(jump_to_channel_id))
                 except ValueError:
-                    raise ExecutionError(f"{params.jump_to.channel_id} is not a valid channel ID for a \"jump to\" message.")
-                if not params.jump_to.message_id.isdigit():
-                    raise ExecutionError(f"{params.jump_to.message_id} is not a valid message ID for a \"jump to\" message.")
+                    raise ExecutionError(f"{jump_to_channel_id} is not a valid channel ID for a \"jump to\" message.")
+                if not jump_to_message_id.isdigit():
+                    raise ExecutionError(f"{jump_to_message_id} is not a valid message ID for a \"jump to\" message.")
                 if jump_to_ch:
-                    jump_to_msg = jump_to_ch.get_partial_message(params.jump_to.message_id)
+                    jump_to_msg = jump_to_ch.get_partial_message(jump_to_message_id)
                 else:
                     raise ExecutionError(f"I could not find the destination channel for the \"jump to\" message.")
 
@@ -922,41 +950,38 @@ class WardenRule:
                 else:
                     footer = safe_sub(params.footer_text)
 
-            last_sent_message = await cog.send_notification(guild,
-                                                            safe_sub(params.content),
-                                                            title=title,
-                                                            ping=params.ping,
-                                                            fields=fields,
-                                                            footer=footer,
-                                                            thumbnail=safe_sub(params.thumbnail) if params.thumbnail else None,
-                                                            jump_to=jump_to_msg,
-                                                            no_repeat_for=params.no_repeat_for,
-                                                            heat_key=heat_key,
-                                                            quick_action=quick_action,
-                                                            force_text_only=text_only,
-                                                            allow_everyone_ping=params.allow_everyone_ping)
+            runtime.last_sent_message = await cog.send_notification(guild,
+                                                                    safe_sub(params.content),
+                                                                    title=title,
+                                                                    ping=params.ping,
+                                                                    fields=fields,
+                                                                    footer=footer,
+                                                                    thumbnail=safe_sub(params.thumbnail) if params.thumbnail else None,
+                                                                    jump_to=jump_to_msg,
+                                                                    no_repeat_for=params.no_repeat_for,
+                                                                    heat_key=heat_key,
+                                                                    quick_action=quick_action,
+                                                                    force_text_only=text_only,
+                                                                    allow_everyone_ping=params.allow_everyone_ping)
 
         @processor(Action.NotifyStaffAndPing, suggest=Action.NotifyStaff)
         async def notify_staff_and_ping(params: models.IsStr):
-            nonlocal last_sent_message
-            text = Template(params.value).safe_substitute(templates_vars)
-            last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
+            text = Template(params.value).safe_substitute(runtime.state)
+            runtime.last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
                                                             force_text_only=True)
 
         @processor(Action.NotifyStaffWithEmbed, suggest=Action.NotifyStaff)
         async def notify_staff_with_embed(params: models.NotifyStaffWithEmbed):
-            nonlocal last_sent_message
-            title = Template(params.title).safe_substitute(templates_vars)
-            content = Template(params.content).safe_substitute(templates_vars)
-            last_sent_message = await cog.send_notification(guild, content,
+            title = Template(params.title).safe_substitute(runtime.state)
+            content = Template(params.content).safe_substitute(runtime.state)
+            runtime.last_sent_message = await cog.send_notification(guild, content,
                                                             title=title, footer=f"Warden rule `{self.name}`",
                                                             allow_everyone_ping=True)
 
         @processor(Action.SendInChannel, suggest=Action.SendMessage)
         async def send_in_channel(params: models.IsStr):
-            nonlocal last_sent_message
-            text = Template(params.value).safe_substitute(templates_vars)
-            last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
+            text = Template(params.value).safe_substitute(runtime.state)
+            runtime.last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
 
         @processor(Action.SetChannelSlowmode)
         async def set_channel_slowmode(params: models.IsTimedelta):
@@ -965,14 +990,13 @@ class WardenRule:
 
         @processor(Action.SendToChannel, suggest=Action.SendMessage)
         async def send_to_channel(params: models.SendMessageToChannel):
-            nonlocal last_sent_message
             channel_dest = guild.get_channel(params.id_or_name)
             if not channel_dest:
                 channel_dest = discord.utils.get(guild.text_channels, name=params.id_or_name)
             if not channel_dest:
                 raise ExecutionError(f"Channel '{params.id_or_name}' not found.")
-            content = Template(params.content).safe_substitute(templates_vars)
-            last_sent_message = await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
+            content = Template(params.content).safe_substitute(runtime.state)
+            runtime.last_sent_message = await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
 
         @processor(Action.AddRolesToUser)
         async def add_roles_to_user(params: models.NonEmptyList):
@@ -1007,38 +1031,35 @@ class WardenRule:
             if params.value == "":
                 value = None
             else:
-                value = Template(params.value).safe_substitute(templates_vars)
+                value = Template(params.value).safe_substitute(runtime.state)
             await user.edit(nick=value, reason=f"Changed nickname by Warden rule '{self.name}'")
 
         @processor(Action.BanAndDelete)
         async def ban_and_delete(params: models.IsInt):
-            nonlocal last_expel_action
             if user not in guild.members:
                 raise ExecutionError(f"User {user} ({user.id}) not in the server.")
             reason = f"Banned by Warden rule '{self.name}'"
             await guild.ban(user, delete_message_days=params.value, reason=reason)
-            last_expel_action = ModAction.Ban
+            runtime.last_expel_action = ModAction.Ban
             cog.dispatch_event("member_remove", user, ModAction.Ban.value, reason)
 
         @processor(Action.Kick)
         async def kick(params: models.IsNone):
-            nonlocal last_expel_action
             if user not in guild.members:
                 raise ExecutionError(f"User {user} ({user.id}) not in the server.")
             reason = f"Kicked by Warden action '{self.name}'"
             await guild.kick(user, reason=reason)
-            last_expel_action = ModAction.Kick
+            runtime.last_expel_action = ModAction.Kick
             cog.dispatch_event("member_remove", user, ModAction.Kick.value, reason)
 
         @processor(Action.Softban)
         async def softban(params: models.IsNone):
-            nonlocal last_expel_action
             if user not in guild.members:
                 raise ExecutionError(f"User {user} ({user.id}) not in the server.")
             reason = f"Softbanned by Warden rule '{self.name}'"
             await guild.ban(user, delete_message_days=1, reason=reason)
             await guild.unban(user)
-            last_expel_action = Action.Softban
+            runtime.last_expel_action = Action.Softban
             cog.dispatch_event("member_remove", user, ModAction.Softban.value, reason)
 
         @processor(Action.PunishUser)
@@ -1064,14 +1085,14 @@ class WardenRule:
 
         @processor(Action.Modlog)
         async def send_mod_log(params: models.IsStr):
-            if last_expel_action is None:
+            if runtime.last_expel_action is None:
                 return
-            reason = Template(params.value).safe_substitute(templates_vars)
+            reason = Template(params.value).safe_substitute(runtime.state)
             await cog.create_modlog_case(
                 cog.bot,
                 guild,
                 utcnow(),
-                last_expel_action.value,
+                runtime.last_expel_action.value,
                 user,
                 guild.me,
                 reason,
@@ -1091,39 +1112,39 @@ class WardenRule:
 
         @processor(Action.SendToMonitor)
         async def send_to_monitor(params: models.IsStr):
-            value = Template(params.value).safe_substitute(templates_vars)
+            value = Template(params.value).safe_substitute(runtime.state)
             cog.send_to_monitor(guild, f"[Warden] ({self.name}): {value}")
 
         @processor(Action.AddUserHeatpoint)
         async def add_user_heatpoint(params: models.IsTimedelta):
             heat.increase_user_heat(user, params.value, debug=debug) # type: ignore
-            templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
+            runtime.state["user_heat"] = heat.get_user_heat(user, debug=debug)
 
         @processor(Action.AddUserHeatpoints)
         async def add_user_heatpoints(params: models.AddHeatpoints):
             for _ in range(params.points):
                 heat.increase_user_heat(user, params.delta, debug=debug) # type: ignore
-            templates_vars["user_heat"] = heat.get_user_heat(user, debug=debug)
+            runtime.state["user_heat"] = heat.get_user_heat(user, debug=debug)
 
         @processor(Action.AddChannelHeatpoint)
         async def add_channel_heatpoint(params: models.IsTimedelta):
             heat.increase_channel_heat(channel, params.value, debug=debug) # type: ignore
-            templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
+            runtime.state["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
 
         @processor(Action.AddChannelHeatpoints)
         async def add_channel_heatpoints(params: models.AddHeatpoints):
             for _ in range(params.points):
                 heat.increase_channel_heat(channel, params.delta, debug=debug) # type: ignore
-            templates_vars["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
+            runtime.state["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
 
         @processor(Action.AddCustomHeatpoint)
         async def add_custom_heatpoint(params: models.AddCustomHeatpoint):
-            heat_key = Template(params.label).safe_substitute(templates_vars)
+            heat_key = Template(params.label).safe_substitute(runtime.state)
             heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug) # type: ignore
 
         @processor(Action.AddCustomHeatpoints)
         async def add_custom_heatpoints(params: models.AddCustomHeatpoints):
-            heat_key = Template(params.label).safe_substitute(templates_vars)
+            heat_key = Template(params.label).safe_substitute(runtime.state)
             for _ in range(params.points):
                 heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug) # type: ignore
 
@@ -1137,7 +1158,7 @@ class WardenRule:
 
         @processor(Action.EmptyCustomHeat)
         async def empty_custom_heat(params: models.IsStr):
-            heat_key = Template(params.value).safe_substitute(templates_vars)
+            heat_key = Template(params.value).safe_substitute(runtime.state)
             heat.empty_custom_heat(guild, heat_key, debug=debug)
 
         @processor(Action.IssueCommand)
@@ -1179,14 +1200,15 @@ class WardenRule:
 
         @processor(Action.DeleteLastMessageSentAfter)
         async def delete_last_message_sent_after(params: models.IsTimedelta):
-            nonlocal last_sent_message
-            if last_sent_message is not None:
-                cog.loop.create_task(delete_message_after(last_sent_message, params.value.seconds))
-                last_sent_message = None
+            if runtime.last_sent_message is not None:
+                cog.loop.create_task(delete_message_after(runtime.last_sent_message, params.value.seconds))
+                runtime.last_sent_message = None
 
         @processor(Action.SendMessage)
         async def send_message(params: models.SendMessage):
-            nonlocal last_sent_message
+
+            params = params.copy() # This model is mutable for easier handling
+
             send_embed = False
 
             for key in params.__fields_set__:
@@ -1267,8 +1289,8 @@ class WardenRule:
 
             if not params.edit_message_id:
                 try:
-                    last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions,
-                                                               reference=reference)
+                    runtime.last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions,
+                                                                       reference=reference)
                 except (discord.HTTPException, discord.Forbidden) as e:
                     # A user could just have DMs disabled
                     if is_user is False:
@@ -1288,13 +1310,13 @@ class WardenRule:
 
         @processor(Action.GetUserInfo)
         async def get_user_info(params: models.GetUserInfo):
-            params.id = safe_sub(params.id)
+            _id = safe_sub(params.id)
             if not params.id.isdigit():
-                raise ExecutionError(f"{params.id} is not a valid ID.")
+                raise ExecutionError(f"{_id} is not a valid ID.")
 
-            member = guild.get_member(int(params.id))
+            member = guild.get_member(int(_id))
             if not member:
-                raise ExecutionError(f"Member {params.id} not found.")
+                raise ExecutionError(f"Member {_id} not found.")
 
             for target, attr in params.mapping.items():
                 if attr.startswith("_") or "." in attr:
@@ -1329,7 +1351,7 @@ class WardenRule:
                 else:
                     raise ExecutionError(f"Attribute \"{attr}\" not supported.")
 
-                templates_vars[safe_sub(target)] = value
+                runtime.state[safe_sub(target)] = value
 
         @processor(Action.Exit)
         async def exit(params: models.IsNone):
@@ -1337,10 +1359,8 @@ class WardenRule:
 
         @processor(Action.VarAssign)
         async def assign(params: models.VarAssign):
-            if params.evaluate:
-                params.value = safe_sub(params.value)
-
-            templates_vars[safe_sub(params.var_name)] = params.value
+            value = safe_sub(params.value) if params.evaluate else params.value
+            runtime.state[safe_sub(params.var_name)] = value
 
         @processor(Action.VarAssignRandom)
         async def assign_random(params: models.VarAssignRandom):
@@ -1358,12 +1378,12 @@ class WardenRule:
             if params.evaluate:
                 choice = safe_sub(choice)
 
-            templates_vars[safe_sub(params.var_name)] = choice
+            runtime.state[safe_sub(params.var_name)] = choice
 
         @processor(Action.VarReplace)
         async def var_replace(params: models.VarReplace):
             var_name = safe_sub(params.var_name)
-            var = templates_vars.get(var_name, None)
+            var = runtime.state.get(var_name, None)
             if var is None:
                 raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
@@ -1377,12 +1397,12 @@ class WardenRule:
             for sub in to_sub:
                 var = var.replace(sub, params.substring)
 
-            templates_vars[var_name] = var
+            runtime.state[var_name] = var
 
         @processor(Action.VarSplit)
         async def var_split(params: models.VarSplit):
             var_name = safe_sub(params.var_name)
-            var = templates_vars.get(var_name, None)
+            var = runtime.state.get(var_name, None)
             if var is None:
                 raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
@@ -1390,14 +1410,14 @@ class WardenRule:
 
             for i, var in enumerate(params.split_into):
                 try:
-                    templates_vars[var] = sequences[i]
+                    runtime.state[var] = sequences[i]
                 except IndexError:
-                    templates_vars[var] = ""
+                    runtime.state[var] = ""
 
         @processor(Action.VarTransform)
         async def var_transform(params: models.VarTransform):
             var_name = safe_sub(params.var_name)
-            var = templates_vars.get(var_name, None)
+            var = runtime.state.get(var_name, None)
             if var is None:
                 raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
@@ -1414,147 +1434,43 @@ class WardenRule:
             elif operation == "title":
                 var = var.title()
 
-            templates_vars[var_name] = var
+            runtime.state[var_name] = var
 
         @processor(Action.VarSlice)
         async def var_slice(params: models.VarSlice):
             var_name = safe_sub(params.var_name)
-            var = templates_vars.get(var_name, None)
+            var = runtime.state.get(var_name, None)
             if var is None:
                 raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
 
             var = var[params.index:params.end_index:params.step]
 
             if params.slice_into:
-                templates_vars[safe_sub(params.slice_into)] = var
+                runtime.state[safe_sub(params.slice_into)] = var
             else:
-                templates_vars[var_name] = var
+                runtime.state[var_name] = var
 
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):
             pass
 
         if debug:
-            for action in Action:
-                if action not in processors:
+            for a in Action:
+                if a not in processors:
                     raise ExecutionError(f"{action.value} does not have a processor.")
 
-        async def process_action(action, value):
-            self.last_action = action
-            if debug and action not in ALLOWED_DEBUG_ACTIONS:
-                return
+        self.last_action = action
+        if debug and action not in ALLOWED_DEBUG_ACTIONS:
+            return
 
-            params = model_validator(action, value)
-
-            try:
-                processor_func = processors[action]
-            except KeyError:
-                raise ExecutionError(f"Unhandled action '{action.value}'.")
-
-            await processor_func(params)
-
-
-        last_cond_action_result = None
-
-        for entry in self.actions:
-            for enum, value in entry.items():
-                enum = self._get_actions_enum(enum)
-                if isinstance(enum, Action):
-                    try:
-                        await process_action(enum, value)
-                    except StopExecution:
-                        return bool(last_expel_action)
-                elif isinstance(enum, Condition):
-                    _eval = await self._evaluate_conditions([{enum.value: value}],
-                                                            cog=cog, user=user, message=message,
-                                                            guild=guild, templates_vars=templates_vars,
-                                                            debug=debug)
-                    last_cond_action_result = _eval[0]
-                elif isinstance(enum, ConditionBlock):
-                    _eval = await self._evaluate_conditions_block(block=[{enum.value: value}],
-                                                                  cog=cog, user=user, message=message,
-                                                                  guild=guild, templates_vars=templates_vars,
-                                                                  debug=debug)
-                    last_cond_action_result = bool(_eval)
-                elif isinstance(enum, ConditionalActionBlock):
-                    is_true = enum == ConditionalActionBlock.IfTrue and last_cond_action_result is True
-                    is_false = enum == ConditionalActionBlock.IfFalse and last_cond_action_result is False
-                    if is_true or is_false:
-                        for raw_action in value:
-                            for action, subvalue in raw_action.items():
-                                action = self._get_actions_enum(action)
-                                try:
-                                    await process_action(action, subvalue)
-                                except StopExecution:
-                                    return bool(last_expel_action)
-
-        return bool(last_expel_action)
-
-    def _get_actions_enum(self, enum):
         try:
-            enum = Action(enum)
-        except ValueError:
-            try:
-                enum = Condition(enum)
-            except ValueError:
-                try:
-                    enum = ConditionBlock(enum)
-                except ValueError:
-                    enum = ConditionalActionBlock(enum)
+            processor_func = processors[action]
+        except KeyError:
+            raise ExecutionError(f"Unhandled action '{action.value}'.")
 
-        return enum
+        await processor_func(model)
+
+        return runtime
 
     def __repr__(self):
         return f"<WardenRule '{self.name}'>"
-
-async def populate_ctx_vars(*, t_vars: dict, rule: WardenRule, cog, guild, message, user, channel, debug):
-    guild_icon_url = guild.icon_url_as()
-    guild_banner_url = guild.banner_url_as()
-    t_vars.update({
-        "rule_name": rule.name,
-        "guild": str(guild),
-        "guild_id": guild.id,
-        "guild_icon_url": guild_icon_url if guild_icon_url else "",
-        "guild_banner_url": guild_banner_url if guild_banner_url else "",
-        "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
-    })
-
-    if user:
-        t_vars.update({
-            "user": str(user),
-            "user_name": user.name,
-            "user_display": user.display_name,
-            "user_id": user.id,
-            "user_mention": user.mention,
-            "user_nickname": str(user.nick),
-            "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
-            "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
-            "user_heat": heat.get_user_heat(user, debug=debug),
-            "user_avatar_url": user.avatar_url
-        })
-
-    if message:
-        t_vars.update({
-            "message": message.content.replace("@", "@\u200b"),
-            "message_clean": message.clean_content,
-            "message_id": message.id,
-            "message_created_at": message.created_at,
-            "message_link": message.jump_url
-        })
-        if message.attachments:
-            attachment = message.attachments[0]
-            t_vars.update({
-                "attachment_filename": attachment.filename,
-                "attachment_url": attachment.url
-            })
-
-    if channel:
-        t_vars.update({
-            "channel": f"#{channel}",
-            "channel_name": channel.name,
-            "channel_id": channel.id,
-            "channel_mention": channel.mention,
-            "channel_category": channel.category.name if channel.category else "None",
-            "channel_category_id": channel.category.id if channel.category else "0",
-            "channel_heat": heat.get_channel_heat(channel, debug=debug),
-        })

@@ -37,6 +37,7 @@ class BaseModel(PydanticBaseModel):
     class Config:
         extra = "forbid"
         allow_reuse = True
+        allow_mutation = False
 
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
         raise NotImplementedError
@@ -233,6 +234,8 @@ class IssueCommand(BaseModel):
                                "you're not allowed to issue commands as other users.")
 
 class SendMessage(BaseModel):
+    class Config(PydanticBaseModel.Config):
+        allow_mutation = True # This being immutable is such a pita that I'd rather take the performance hit of a .copy() :-)
     _short_form = ("id", "content")
     # Used internally to determine whether an embed has to be sent
     # If any key other than these ones is passed an embed will be sent
@@ -595,26 +598,15 @@ ACTIONS_MESSAGE_CONTEXT = [
     Action.PunishUserWithMessage,
 ]
 
-ALLOWED_CONDITIONS = {
-    Event.OnMessage: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT],
-    Event.OnMessageEdit: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT],
-    Event.OnMessageDelete: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT],
-    Event.OnUserJoin: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT],
-    Event.OnUserLeave: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT],
-    Event.OnEmergency: [*CONDITIONS_ANY_CONTEXT],
-    Event.Manual: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT],
-    Event.Periodic: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT],
-}
-
-ALLOWED_ACTIONS = {
-    Event.OnMessage: [*ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnMessageEdit: [*ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnMessageDelete: [*ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnUserJoin: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnUserLeave: [*ACTIONS_ANY_CONTEXT],
-    Event.OnEmergency: [*ACTIONS_ANY_CONTEXT],
-    Event.Manual: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.Periodic: [*ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+ALLOWED_STATEMENTS = {
+    Event.OnMessage: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnMessageEdit: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnMessageDelete: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnUserJoin: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnUserLeave: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT],
+    Event.OnEmergency: [*CONDITIONS_ANY_CONTEXT, *ACTIONS_ANY_CONTEXT],
+    Event.Manual: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.Periodic: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
 }
 
 ALLOWED_DEBUG_ACTIONS = [

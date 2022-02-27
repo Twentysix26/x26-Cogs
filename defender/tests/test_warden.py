@@ -1,6 +1,6 @@
 from ..core.warden.enums import Action, Condition, Event
 from ..enums import Rank
-from ..core.warden.validation import ALLOWED_ACTIONS, ALLOWED_CONDITIONS, CONDITIONS_VALIDATORS, ACTIONS_VALIDATORS
+from ..core.warden.validation import CONDITIONS_VALIDATORS, ACTIONS_VALIDATORS
 from ..core.warden.validation import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
 from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, BaseModel
 from ..core.warden.rule import WardenRule
@@ -154,9 +154,9 @@ async def test_rule_parsing():
         await WardenRule().parse(rl.INVALID_PERIODIC_MISSING_RUN_EVERY, cog=None)
     with pytest.raises(InvalidRule, match=r".*'periodic' event must be specified.*"):
         await WardenRule().parse(rl.INVALID_PERIODIC_MISSING_EVENT, cog=None)
-    with pytest.raises(InvalidRule, match=r".*Condition `message-matches-any` not allowed*"):
+    with pytest.raises(InvalidRule, match=r".*Statement `message-matches-any` not allowed*"):
         await WardenRule().parse(rl.INVALID_MIXED_RULE_CONDITION, cog=None)
-    with pytest.raises(InvalidRule, match=r".*Action `delete-user-message` not allowed*"):
+    with pytest.raises(InvalidRule, match=r".*Statement `delete-user-message` not allowed*"):
         await WardenRule().parse(rl.INVALID_MIXED_RULE_ACTION, cog=None)
     with pytest.raises(InvalidRule, match=r".*ensure this value is*"):
         await WardenRule().parse(rl.OOB_USER_HEATPOINTS, cog=None)
@@ -185,8 +185,8 @@ async def test_rule_parsing():
     assert rule.name and isinstance(rule.name, str)
     assert rule.raw_rule and isinstance(rule.raw_rule, str)
     assert rule.events and isinstance(rule.events, list)
-    assert rule.conditions and isinstance(rule.conditions, list)
-    assert rule.actions and isinstance(rule.actions, list)
+    assert rule.cond_tree and isinstance(rule.cond_tree, dict)
+    assert rule.action_tree and isinstance(rule.action_tree, dict)
 
     # TODO Add rules to check for invalid types, non-empty lists, etc
     # Restore allowed events tests
@@ -236,7 +236,6 @@ async def test_rule_cond_eval():
     expected_result = (True, False)
     for i, comparison_list in enumerate((positive_comparisons, negative_comparisons)):
         for comp in comparison_list:
-            print(comp)
             rule = WardenRule()
             await rule.parse(rl.DYNAMIC_RULE.format(
                 rank="1",

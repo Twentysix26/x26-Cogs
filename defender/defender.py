@@ -384,9 +384,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 if member.joined_at is None:
                     continue
                 rank = await self.rank_user(member)
-                if await rule.satisfies_conditions(cog=self, rank=rank, user=member):
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=member.guild, user=member):
                     try:
-                        await rule.do_actions(cog=self, user=member)
+                        await rule.do_actions(cog=self, guild=member.guild, user=member)
                     except Exception as e:
                         self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
                                                     f"({rule.last_action.value}) - {str(e)}")

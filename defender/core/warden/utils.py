@@ -101,7 +101,7 @@ async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
             if m.joined_at is None:
                 continue
             rank = await cog.rank_user(m)
-            if await new_rule.satisfies_conditions(rank=rank, user=m, cog=cog):
+            if await new_rule.satisfies_conditions(rank=rank, user=m, guild=guild, cog=cog):
                 affected += 1
 
     if affected >= 10 or affected >= len(guild.members) / 2:
