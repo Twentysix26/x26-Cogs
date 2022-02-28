@@ -176,7 +176,7 @@ class WDRuntime:
             self.trace.append(f"{stack}[<] {enum.value} block")
 
     def __bool__(self):
-        return self.last_result
+        return bool(self.last_result)
 
 class WardenRule:
     def __init__(self):
