@@ -776,7 +776,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             text += f"**{i}. {result.rule_name}** "
             if result.last_result is True:
                 text += "(Passed)\n"
-            elif result.last_result is False and not result.trace:
+            elif not result.trace:
                 text += "(Failed rank check)\n"
             else:
                 text += "(Failed)\n"
