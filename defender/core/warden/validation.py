@@ -415,6 +415,9 @@ class IsRank(BaseModel):
     _single_value = True
     value: conint(ge=1, le=4)
 
+class WDLabel(BaseModel):
+    ...
+
 # The accepted types of each condition for basic sanity checking
 CONDITIONS_VALIDATORS = {
     Condition.UserIdMatchesAny: NonEmptyListInt,

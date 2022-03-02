@@ -20,16 +20,16 @@ from ...core.warden.validation import (ALLOWED_STATEMENTS, ALLOWED_DEBUG_ACTIONS
                                        DEPRECATED, BaseModel)
 from ...core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
-from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock
+from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock, Label, Jump
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
-from ...exceptions import InvalidRule, ExecutionError, StopExecution, MisconfigurationError
+from ...exceptions import InvalidRule, ExecutionError, StopExecution, MisconfigurationError, Jumping
 from ...core import cache as df_cache
 from ...core.utils import get_external_invite, QuickAction, utcnow
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.utils.chat_formatting import box
 from redbot.core.commands.converter import parse_timedelta
 from discord.ext.commands import BadArgument
-from string import Template
+from string import Template, ascii_letters
 from typing import Optional
 from pydantic import ValidationError
 from typing import TYPE_CHECKING, Union, List, Dict
@@ -48,8 +48,11 @@ if TYPE_CHECKING:
 log = logging.getLogger("red.x26cogs.defender")
 
 ALLOW_ALL_MENTIONS = discord.AllowedMentions(everyone=True, roles=True, users=True)
+ALLOWED_CHARS_LABEL = ascii_letters + "-"
 RULE_REQUIRED_KEYS = ("name", "event", "rank", "if", "do")
 RULE_FACULTATIVE_KEYS = ("priority", "run-every")
+WD_ENUMS = (Action, Condition, Event, ConditionBlock, ConditionalActionBlock, Label, Jump)
+MAX_CYCLES = 9999
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
 URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I)
@@ -76,6 +79,15 @@ class WDConditionalActionBlock(WDStatement):
     def __init__(self, enum: ConditionalActionBlock):
         self.enum = enum
 
+class WDLabel(WDStatement):
+    def __init__(self, enum: Label):
+        self.enum = enum
+
+class WDJump(WDStatement):
+    def __init__(self, enum: Jump, name):
+        self.name = name
+        self.enum = enum
+
 class WDRuntime:
     def __init__(self):
         self.rule_name = "" # Debugging purpose
@@ -87,8 +99,10 @@ class WDRuntime:
         self.last_result: Optional[bool] = None
         self.state = {}
         self.trace = []
+        self.cycles = 0
         self.last_expel_action: Optional[Union[Action, ModAction]]=None
         self.last_sent_message: Optional[discord.Message]=None
+        self.jumping_to: Optional[WDJump]=None
         self.debug = True
 
     async def populate_ctx_vars(self, rule: WardenRule):
@@ -158,6 +172,8 @@ class WDRuntime:
             self.trace.append(f"{stack}[=] {enum.value}")
         elif isinstance(enum, (ConditionBlock, ConditionalActionBlock)):
             self.trace.append(f"{stack}[>] {enum.value} block")
+        elif isinstance(enum, Jump):
+            ... #TODO
 
     def add_trace_exit(self, stack, enum):
         stack += 1
@@ -295,24 +311,35 @@ class WardenRule:
                                                  author=author,
                                                  events=self.events)
 
-    async def parse_tree(self, raw_tree, *, events, author, cog: MixinMeta, conditions_only=False, stack=-1):
+    async def parse_tree(self, raw_tree, *, events, author, cog: MixinMeta, conditions_only=False, stack=-1, jumps=None):
         def get_enum(statement):
-            try:
-                enum = Condition(statement)
-            except ValueError:
+            for e in WD_ENUMS:
                 try:
-                    enum = ConditionBlock(statement)
+                    return e(statement)
                 except ValueError:
-                    try:
-                        enum = ConditionalActionBlock(statement)
-                    except ValueError:
-                        enum = Action(statement)
+                    pass
+            raise ValueError()
 
-            return enum
+        labels = []
+
+        def process_label(label):
+            if len(label) < 1 or len(label) > 20:
+                raise InvalidRule("A label must be between 1 and 20 characters long")
+            for c in label:
+                if c not in ALLOWED_CHARS_LABEL:
+                    raise InvalidRule("A label can only contains letters (a-Z, 0-9 and dash only)")
+            label = label.lower()
+            if label in labels:
+                raise InvalidRule("You can't use the same label more than once.")
+            labels.append(label)
+            return label
 
         stack += 1
         if stack > MAX_NESTED:
             raise InvalidRule(f"Exceeded maximum nesting level ({MAX_NESTED})")
+
+        if jumps is None:
+            jumps = []
 
         tree = {}
 
@@ -331,8 +358,8 @@ class WardenRule:
                 suggestion = make_fuzzy_suggestion(statement, suggestions)
                 raise InvalidRule(f"Invalid statement: `{statement}`.{suggestion}")
 
-            if conditions_only and isinstance(enum, (Action, ConditionalActionBlock)):
-                raise InvalidRule("Actions and conditional action blocks are not allowed in the condition section of a rule.")
+            if conditions_only and isinstance(enum, (Action, ConditionalActionBlock, Jump, Label)):
+                raise InvalidRule("In the conditional section of a rule only condition and condition blocks are allowed.")
 
             model = None
 
@@ -344,9 +371,20 @@ class WardenRule:
                     model = model_validator(enum, value)
                     tree[WDAction(enum=enum)] = model
                 elif isinstance(enum, ConditionBlock):
-                    tree[WDConditionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only, stack=stack)
+                    tree[WDConditionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only,
+                                                                              stack=stack, jumps=jumps)
                 elif isinstance(enum, ConditionalActionBlock):
-                    tree[WDConditionalActionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only, stack=stack)
+                    tree[WDConditionalActionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only,
+                                                                                      stack=stack, jumps=jumps)
+                elif isinstance(enum, Jump):
+                    jump_str = str(value).lower()
+                    tree[WDJump(enum=enum, name=jump_str)] = None
+                    jumps.append(jump_str)
+                elif isinstance(enum, Label):
+                    if stack != 0:
+                        raise InvalidRule("Labels are only allowed at the root level of a rule.")
+                    label = process_label(str(value))
+                    tree[WDLabel(enum=enum)] = label
             except ValidationError as e:
                 raise InvalidRule(f"Statement `{enum.value}` invalid:\n{box(str(e))}")
 
@@ -370,12 +408,34 @@ class WardenRule:
         if not tree:
             raise InvalidRule("Empty block.")
 
+        if stack == 0:
+            for label in jumps:
+                for statement, value in tree.items():
+                    if isinstance(statement, WDLabel):
+                        if label == value:
+                            break
+                else:
+                    raise InvalidRule(f"Invalid jump: label `{label}` not found")
+
         return tree
 
     async def eval_tree(self, tree: Dict[WDStatement, Union[BaseModel, List]], *, runtime: WDRuntime, bool_stop=None, stack=-1, outer_block=None)->WDRuntime:
         stack += 1
 
         for statement, value in tree.items():
+            runtime.cycles += 1
+            if runtime.cycles > MAX_CYCLES:
+                raise ExecutionError(f"Exceeded maximum cycles ({MAX_CYCLES})")
+
+            if runtime.jumping_to:
+                if isinstance(statement, WDLabel):
+                    if runtime.jumping_to.name == value:
+                        runtime.jumping_to = None # Destination reached
+                    else:
+                        continue
+                else:
+                    continue
+
             if runtime.debug:
                 runtime.add_trace_enter(stack, statement.enum, ignore=WDConditionalActionBlock if runtime.last_result else None)
 
@@ -395,6 +455,17 @@ class WardenRule:
                     await self.eval_tree(value, runtime=runtime, stack=stack)
                 else:
                     continue # We don't want a trace exit for non-executing CondActionBlocks
+            elif isinstance(statement, WDJump):
+                if statement.enum is Jump.Jump:
+                    runtime.jumping_to = statement
+                else:
+                    can_jump_true = statement.enum is Jump.TJump and runtime.last_result is True
+                    can_jump_false = statement.enum is Jump.FJump and runtime.last_result is False
+                    if can_jump_true or can_jump_false:
+                        runtime.jumping_to = statement
+
+                if runtime.jumping_to:
+                    raise Jumping() # And down the stack we go
 
             if runtime.debug:
                 runtime.add_trace_exit(stack, statement.enum)
@@ -813,10 +884,16 @@ class WardenRule:
         runtime.debug = debug
         await runtime.populate_ctx_vars(self)
 
-        try:
-            await self.eval_tree(self.action_tree, runtime=runtime)
-        except (StopExecution, ExecutionError):
-            return
+        first_run = True
+        while first_run or runtime.jumping_to is not None:
+            first_run = False
+            try:
+                await self.eval_tree(self.action_tree, runtime=runtime)
+                return
+            except StopExecution:
+                return
+            except Jumping:
+                continue
 
     async def _do_action(self, action: Action, *, model: BaseModel, runtime: WDRuntime):
         cog = runtime.cog

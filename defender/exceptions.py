@@ -32,3 +32,6 @@ class ExecutionError(WardenException):
 
 class StopExecution(WardenException):
     pass
+
+class Jumping(WardenException):
+    pass

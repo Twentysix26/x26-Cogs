@@ -119,3 +119,11 @@ class ConditionBlock(enum.Enum):
 class ConditionalActionBlock(enum.Enum):
     IfTrue = "if-true"
     IfFalse = "if-false"
+
+class Jump(enum.Enum):
+    Jump = "jump"
+    TJump = "t-jump"
+    FJump = "f-jump"
+
+class Label(enum.Enum):
+    Label = "label"
