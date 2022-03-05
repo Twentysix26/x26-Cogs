@@ -174,10 +174,19 @@ async def test_rule_parsing():
         await WardenRule().parse(rl.INVALID_RANK, cog=None)
     with pytest.raises(InvalidRule, match=r".*amount of time is too large*"):
         await WardenRule().parse(rl.OOB_DELETE_AFTER, cog=None)
+    with pytest.raises(InvalidRule, match=r".*conditional action blocks are not allowed in the condition section of a rule.*"):
+        await WardenRule().parse(rl.INVALID_COND_ACTION_BLOCK_IN_CONDITION_SECTION, cog=None)
+    with pytest.raises(InvalidRule, match=r".*Actions .* are not allowed in the condition section of a rule*"):
+        await WardenRule().parse(rl.INVALID_ACTION_IN_CONDITION_SECTION, cog=None)
+    with pytest.raises(InvalidRule, match=r".*Actions are not allowed inside condition blocks*"):
+        await WardenRule().parse(rl.INVALID_NESTING_ACTION_IN_COND_BLOCK, cog=None)
+    with pytest.raises(InvalidRule, match=r".*Conditional action blocks are not allowed inside condition blocks*"):
+        await WardenRule().parse(rl.INVALID_NESTING_COND_ACTION_BLOCK_IN_COND_BLOCK, cog=None)
 
     await WardenRule().parse(rl.TUTORIAL_SIMPLE_RULE, cog=None)
     await WardenRule().parse(rl.TUTORIAL_PRIORITY_RULE, cog=None)
     await WardenRule().parse(rl.VALID_MIXED_RULE, cog=None)
+    await WardenRule().parse(rl.NESTED_COMPLEX_RULE, cog=None)
 
     rule = WardenRule()
     await rule.parse(rl.TUTORIAL_COMPLEX_RULE, cog=None)
@@ -360,6 +369,44 @@ async def test_rule_cond_eval():
         rank=Rank.Rank1,
         guild=FAKE_GUILD,
         message=FAKE_MESSAGE)) is True
+
+    ## Testing .last_result passing between stacks
+    rule = WardenRule()
+    await rule.parse(rl.NESTED_HEATPOINTS, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is True
+    await rule.do_actions(cog=None,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)
+
+    rule = WardenRule()
+    await rule.parse(rl.NESTED_HEATPOINTS2, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is True
+    await rule.do_actions(cog=None,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)
+
+    rule = WardenRule()
+    await rule.parse(rl.NESTED_HEATPOINTS_CHECK, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        message=FAKE_MESSAGE,
+        debug=True)) is True
+
+    ######################
 
     rule = WardenRule()
     await rule.parse(rl.CONDITIONAL_ACTION_TEST_ASSIGN, cog=None)

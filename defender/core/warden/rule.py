@@ -145,6 +145,8 @@ class WDRuntime:
                     "attachment_url": attachment.url
                 })
 
+    def __repr__(self):
+        return f"<WDRuntime '{self.rule_name}'>"
 
     def add_trace_enter(self, stack, enum, ignore=None):
         if enum == ignore:
@@ -295,7 +297,7 @@ class WardenRule:
                                                  author=author,
                                                  events=self.events)
 
-    async def parse_tree(self, raw_tree, *, events, author, cog: MixinMeta, conditions_only=False, stack=-1):
+    async def parse_tree(self, raw_tree, *, events, author, cog: MixinMeta, conditions_only=False, stack=-1, outer_block=None):
         def get_enum(statement):
             try:
                 enum = Condition(statement)
@@ -341,12 +343,18 @@ class WardenRule:
                     model = model_validator(enum, value)
                     tree[WDCondition(enum=enum)] = model
                 elif isinstance(enum, Action):
+                    if outer_block is ConditionBlock:
+                        raise InvalidRule("Actions are not allowed inside condition blocks")
                     model = model_validator(enum, value)
                     tree[WDAction(enum=enum)] = model
                 elif isinstance(enum, ConditionBlock):
-                    tree[WDConditionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only, stack=stack)
+                    tree[WDConditionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog,
+                                                                              conditions_only=conditions_only, stack=stack, outer_block=ConditionBlock)
                 elif isinstance(enum, ConditionalActionBlock):
-                    tree[WDConditionalActionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog, conditions_only=conditions_only, stack=stack)
+                    if outer_block is ConditionBlock:
+                        raise InvalidRule("Conditional action blocks are not allowed inside condition blocks")
+                    tree[WDConditionalActionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog,
+                                                                                      conditions_only=conditions_only, stack=stack, outer_block=ConditionalActionBlock)
             except ValidationError as e:
                 raise InvalidRule(f"Statement `{enum.value}` invalid:\n{box(str(e))}")
 
@@ -392,7 +400,9 @@ class WardenRule:
                 if can_run_true or can_run_false:
                     if runtime.debug:
                         runtime.add_trace_enter(stack, statement.enum)
+                    last_stack_result = runtime.last_result # ConditionalActionBlocks leaking inner last_results leads to unintuitive behaviour
                     await self.eval_tree(value, runtime=runtime, stack=stack)
+                    runtime.last_result = last_stack_result
                 else:
                     continue # We don't want a trace exit for non-executing CondActionBlocks
 
@@ -405,7 +415,7 @@ class WardenRule:
                 return runtime
 
         # The block did not exit early and can be considered successsful
-        if outer_block is not ConditionBlock.IfAny:
+        if outer_block and outer_block is not ConditionBlock.IfAny:
             runtime.last_result = True
 
         return runtime
@@ -815,7 +825,7 @@ class WardenRule:
 
         try:
             await self.eval_tree(self.action_tree, runtime=runtime)
-        except (StopExecution, ExecutionError):
+        except StopExecution:
             return
 
     async def _do_action(self, action: Action, *, model: BaseModel, runtime: WDRuntime):
@@ -888,11 +898,9 @@ class WardenRule:
 
             quick_action = None
             if params.qa_target:
-                if params.qa_reason is None:
-                    params.qa_reason = ""
-
                 qa_target = safe_sub(params.qa_target)
-                qa_reason = safe_sub(params.qa_reason)
+                qa_reason = "" if params.qa_reason is None else params.qa_reason
+                qa_reason = safe_sub(qa_reason)
 
                 try:
                     quick_action = QuickAction(int(qa_target), qa_reason)
@@ -1181,11 +1189,11 @@ class WardenRule:
                 if params.destination is None: # User id + command in a message context
                     msg_obj.channel = message.channel
                 else: # User id + command + arbitrary destination
-                    params.destination = safe_sub(params.destination)
+                    destination = safe_sub(params.destination)
                     try:
-                        msg_obj.channel = guild.get_channel(int(params.destination))
+                        msg_obj.channel = guild.get_channel(int(destination))
                     except ValueError:
-                        raise ExecutionError(f"{params.destination} is not a valid ID.")
+                        raise ExecutionError(f"{destination} is not a valid ID.")
                     if msg_obj.channel is None:
                         raise ExecutionError(f"Failed to issue command. I could not find the "
                                             "notification channel.")
@@ -1311,7 +1319,7 @@ class WardenRule:
         @processor(Action.GetUserInfo)
         async def get_user_info(params: models.GetUserInfo):
             _id = safe_sub(params.id)
-            if not params.id.isdigit():
+            if not _id.isdigit():
                 raise ExecutionError(f"{_id} is not a valid ID.")
 
             member = guild.get_member(int(_id))

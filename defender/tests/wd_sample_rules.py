@@ -88,6 +88,93 @@ INVALID_PERIODIC_MISSING_EVENT = """
         - no-op:
 """
 
+INVALID_ACTION_IN_CONDITION_SECTION = """
+    name: cond-section
+    rank: 1
+    event: on-user-join
+    if:
+        - send-to-monitor: "hi"
+    do:
+        - no-op:
+"""
+
+INVALID_COND_ACTION_BLOCK_IN_CONDITION_SECTION = """
+    name: cond-section2
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1]
+        - if-true:
+            - compare: [1, ==, 1]
+    do:
+        - no-op:
+"""
+
+INVALID_NESTING_ACTION_IN_COND_BLOCK = """
+    name: nesting
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1]
+    do:
+        - if-all:
+            - compare: [1, ==, 1]
+            - if-any:
+                - send-message: [hi, hi]
+            - if-not:
+                - compare: [1, ==, 1]
+            - if-not:
+                - compare: [1, ==, 1]
+"""
+
+INVALID_NESTING_COND_ACTION_BLOCK_IN_COND_BLOCK = """
+    name: nesting2
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1]
+    do:
+        - if-all:
+            - compare: [1, ==, 1]
+            - if-true:
+                - compare: [1, ==, 1]
+            - if-not:
+                - compare: [1, ==, 1]
+            - if-not:
+                - compare: [1, ==, 1]
+"""
+
+NESTED_COMPLEX_RULE = """
+    name: nesting2
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1]
+        - if-all:
+            - if-not:
+                - compare: [1, ==, 1]
+            - if-not:
+                - compare: [1, ==, 1]
+        - if-all:
+            - compare: [1, ==, 1]
+            - compare: [1, ==, 1]
+            - compare: [1, ==, 1]
+    do:
+        - no-op:
+        - compare: [1, ==, 1]
+        - if-any:
+            - compare: [1, ==, 1]
+            - compare: [1, ==, 1]
+        - if-true:
+            - compare: [1, ==, 2]
+            - if-true:
+                - send-message: [hello, there]
+            - no-op:
+            - send-to-monitor: "."
+        - if-false:
+            - no-op:
+"""
+
 OOB_USER_HEATPOINTS = """
     name: heat
     rank: 2
@@ -307,6 +394,55 @@ CHECK_EMPTY_HEATPOINTS = """
         - user-heat-is: 0
         - channel-heat-is: 0
         - custom-heat-is: ["test", 0]
+    do:
+        - no-op:
+"""
+
+NESTED_HEATPOINTS = """
+    name: nested-heat
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1]
+    do:
+        - no-op:
+        - compare: [1, ==, 1]
+        - if-any:
+            - compare: [1, ==, 1]
+            - compare: [1, ==, 1]
+        - if-true:
+            - add-custom-heatpoint: ["this-should-be-two", 1 minute]
+            - compare: [1, ==, 2]
+        - if-false: # This should NOT happen!
+            - add-custom-heatpoint: ["this-should-be-two", 1 minute]
+"""
+
+NESTED_HEATPOINTS2 = """
+    name: nested-heat2
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1]
+    do:
+        - no-op:
+        - compare: [1, ==, 1]
+        - if-any:
+            - compare: [1, ==, 2]
+            - compare: [1, ==, 2]
+        - if-false:
+            - add-custom-heatpoint: ["this-should-be-two", 1 minute]
+            - compare: [1, ==, 1]
+        - if-true: # This should NOT happen!
+            - add-custom-heatpoint: ["this-should-be-two", 1 minute]
+            - compare: [1, ==, 2]
+"""
+
+NESTED_HEATPOINTS_CHECK = """
+    name: nested-heat-check
+    rank: 1
+    event: on-user-join
+    if:
+        - custom-heat-is: ["this-should-be-two", 2]
     do:
         - no-op:
 """
