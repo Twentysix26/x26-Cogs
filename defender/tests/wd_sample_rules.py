@@ -144,6 +144,16 @@ INVALID_NESTING_COND_ACTION_BLOCK_IN_COND_BLOCK = """
                 - compare: [1, ==, 1]
 """
 
+CHECK_RANK_SAFEGUARD = """
+    name: rank-check
+    rank: 3
+    event: on-message
+    if:
+        - compare: [1, ==, 1]
+    do:
+        - no-op:
+"""
+
 NESTED_COMPLEX_RULE = """
     name: nesting2
     rank: 1

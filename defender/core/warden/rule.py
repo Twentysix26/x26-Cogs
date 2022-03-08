@@ -182,7 +182,6 @@ class WDRuntime:
 
 class WardenRule:
     def __init__(self):
-        self.parse_exception = None
         self.last_action = Action.NoOp
         self.name = None
         self.events = []

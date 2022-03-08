@@ -203,6 +203,22 @@ async def test_rule_parsing():
 @pytest.mark.asyncio
 async def test_rule_cond_eval():
     rule = WardenRule()
+    await rule.parse(rl.CHECK_RANK_SAFEGUARD, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        user=FAKE_USER)) is False
+
+    rule = WardenRule()
+    await rule.parse(rl.CHECK_RANK_SAFEGUARD, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank3,
+        guild=FAKE_GUILD,
+        user=FAKE_USER)) is True
+
+    rule = WardenRule()
     await rule.parse(rl.CONDITION_TEST_POSITIVE, cog=None)
     assert bool(await rule.satisfies_conditions(
         cog=None,
