@@ -352,6 +352,20 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             reason = f"{action_text} Voters: {voters_list}"
             await guild.kick(user, reason=reason)
             self.dispatch_event("member_remove", user, Action.Kick.value, reason)
+        elif Action(action) == Action.Punish:
+            action_text = ""
+            punish_role = guild.get_role(await self.config.guild(guild).punish_role())
+            punish_message = await self.format_punish_message(user)
+            if punish_role and not self.is_role_privileged(punish_role):
+                await user.add_roles(punish_role, reason="Defender: punish role assignation")
+                if punish_message:
+                    await ctx.channel.send(punish_message)
+            else:
+                self.send_to_monitor(guild, "[Voteout] Failed to punish user. Is the punish role "
+                                            "still present and with *no* privileges?")
+                await ctx.channel.send("The voting session passed but I was not able to punish the "
+                                       "user due to a misconfiguration.")
+                return
         else:
             raise ValueError("Invalid action set for voteout.")
 
