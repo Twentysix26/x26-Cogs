@@ -449,12 +449,16 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         except KeyError:
             return await ctx.send("There is no rule with that name.")
 
-        no_box = "```" in rule.raw_rule
+
+        raw_rule = rule.raw_rule
+        no_box = "```" in raw_rule
+
+        if no_box:
+            for symbol in ("|", "~", ">", "*", "`"):
+                raw_rule = raw_rule.replace(symbol, f"\\{symbol}")
 
         for p in pagify(rule.raw_rule, page_length=1950, escape_mass_mentions=False):
             if no_box:
-                for symbol in ("|", "~", ">", "*", "`"):
-                    p = p.replace(symbol, f"\\{symbol}")
                 await ctx.send(p)
             else:
                 await ctx.send(box(p, lang="yaml"))
