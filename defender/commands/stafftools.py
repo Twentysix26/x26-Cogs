@@ -102,9 +102,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                         f"of user {user} ({user.id})")
 
         if len(pages) == 1:
-            await ctx.send(box(pages[0], lang="rust"))
+            await ctx.send(box(pages[0], lang="md"))
         else:
-            pages = [box(p, lang="rust") for p in pages]
+            pages = [box(p, lang="md") for p in pages]
             await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defmessagesgroup.command(name="channel")
@@ -126,9 +126,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                         f"of channel #{channel.name}")
 
         if len(pages) == 1:
-            await ctx.send(box(pages[0], lang="rust"))
+            await ctx.send(box(pages[0], lang="md"))
         else:
-            pages = [box(p, lang="rust") for p in pages]
+            pages = [box(p, lang="md") for p in pages]
             await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defmessagesgroup.command(name="exportuser")
