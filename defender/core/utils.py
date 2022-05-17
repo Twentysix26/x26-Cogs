@@ -74,8 +74,11 @@ def utcnow():
     else:
         return datetime.datetime.utcnow()
 
-def timestamp(datetime: datetime.datetime, relative=False):
+def timestamp(ts: datetime.datetime, relative=False):
+    # Discord assumes UTC timestamps
+    timestamp = int(ts.replace(tzinfo=datetime.timezone.utc).timestamp())
+
     if relative:
-        return f"<t:{int(datetime.timestamp())}:R>"
+        return f"<t:{timestamp}:R>"
     else:
-        return f"<t:{int(datetime.timestamp())}>"
+        return f"<t:{timestamp}>"
