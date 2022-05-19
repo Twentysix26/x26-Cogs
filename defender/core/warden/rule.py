@@ -1387,6 +1387,19 @@ class WardenRule:
 
             runtime.state[safe_sub(params.var_name)] = choice
 
+        @processor(Action.VarAssignHeat)
+        async def assign_heat(params: models.VarAssignHeat):
+            heat_key = safe_sub(params.heat_label)
+
+            if heat_key == "user_heat" and user:
+                value = heat.get_user_heat(user, debug=debug)
+            elif heat_key == "channel_heat" and channel:
+                value = heat.get_channel_heat(channel, debug=debug)
+            else:
+                value = heat.get_custom_heat(guild, heat_key, debug=debug)
+
+            runtime.state[params.var_name] = value
+
         @processor(Action.VarReplace)
         async def var_replace(params: models.VarReplace):
             var_name = safe_sub(params.var_name)

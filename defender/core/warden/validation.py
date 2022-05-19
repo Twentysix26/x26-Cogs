@@ -281,6 +281,10 @@ class VarAssignRandom(BaseModel):
             raise ValueError("Choices cannot be empty")
         return v
 
+class VarAssignHeat(BaseModel):
+    var_name: AlphaNumeric
+    heat_label: str
+
 class VarReplace(BaseModel):
     var_name: str
     strings: Union[List[str], str]
@@ -495,6 +499,7 @@ ACTIONS_VALIDATORS = {
     Action.Exit: IsNone,
     Action.VarAssign: VarAssign,
     Action.VarAssignRandom: VarAssignRandom,
+    Action.VarAssignHeat: VarAssignHeat,
     Action.VarReplace: VarReplace,
     Action.VarSlice: VarSlice,
     Action.VarSplit: VarSplit,
@@ -567,6 +572,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.Exit,
     Action.VarAssign,
     Action.VarAssignRandom,
+    Action.VarAssignHeat,
     Action.VarReplace,
     Action.VarSlice,
     Action.VarSplit,

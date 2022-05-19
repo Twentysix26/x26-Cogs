@@ -59,6 +59,7 @@ class Action(enum.Enum):
     Exit = "exit" # Stops processing the rule
     VarAssign = "var-assign" # Assigns a string to a variable
     VarAssignRandom = "var-assign-random" # Assigns a random string to a variable
+    VarAssignHeat = "var-assign-heat" # Assign heat values to a variable
     VarReplace = "var-replace" # Replace var's str with substr
     VarSlice = "var-slice" # Slice a var
     VarSplit = "var-split" # Splits a string into substrings
