@@ -84,6 +84,7 @@ class WDRuntime:
         self.guild: discord.Guild
         self.message: discord.Message
         self.reaction: discord.Reaction
+        self.role: discord.Role
         self.evaluations: List[List[bool]] = []
         self.last_result: Optional[bool] = None
         self.state = {}
@@ -147,6 +148,14 @@ class WDRuntime:
                     "attachment_filename": attachment.filename,
                     "attachment_url": attachment.url
                 })
+
+        if self.role:
+            self.state.update({
+                "role_id": self.role.id,
+                "role_name": self.role.name,
+                "role_mention": self.role.mention,
+                "role_added": "true" if self.role in self.user.roles else "false",
+            })
 
     def __repr__(self):
         return f"<WDRuntime '{self.rule_name}'>"
@@ -423,7 +432,7 @@ class WardenRule:
         return runtime
 
     async def satisfies_conditions(self, *, rank: Rank, cog: MixinMeta, user: Optional[discord.Member]=None, message: Optional[discord.Message]=None,
-                                   guild: discord.Guild, reaction: Optional[discord.Reaction]=None, debug=False)->WDRuntime:
+                                   guild: discord.Guild, reaction: Optional[discord.Reaction]=None, role: Optional[discord.Role]=None, debug=False)->WDRuntime:
         runtime = WDRuntime()
         runtime.rule_name = self.name
         runtime.cog = cog
@@ -431,6 +440,7 @@ class WardenRule:
         runtime.user = user
         runtime.message = message
         runtime.reaction = reaction
+        runtime.role = role
         runtime.debug = debug
         await runtime.populate_ctx_vars(self)
 
@@ -805,7 +815,7 @@ class WardenRule:
             raise ExecutionError(f"Unexpected condition evaluation result for '{condition.value}'.")
 
     async def do_actions(self, *, cog: MixinMeta, user: Optional[discord.Member]=None, message:  Optional[discord.Message]=None,
-                         reaction: Optional[discord.Reaction]=None, guild: discord.Guild, debug=False):
+                         reaction: Optional[discord.Reaction]=None, guild: discord.Guild, role: Optional[discord.Role]=None, debug=False):
         runtime = WDRuntime()
         runtime.rule_name = self.name
         runtime.cog = cog
@@ -813,6 +823,7 @@ class WardenRule:
         runtime.user = user
         runtime.message = message
         runtime.reaction = reaction
+        runtime.role = role
         runtime.debug = debug
         await runtime.populate_ctx_vars(self)
 

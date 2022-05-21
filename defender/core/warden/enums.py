@@ -25,6 +25,8 @@ class Event(enum.Enum):
     OnReactionRemove = "on-reaction-remove"
     OnUserJoin = "on-user-join"
     OnUserLeave = "on-user-leave"
+    OnRoleAdd = "on-role-add"
+    OnRoleRemove = "on-role-remove"
     OnEmergency = "on-emergency"
     Manual = "manual"
     Periodic = "periodic"

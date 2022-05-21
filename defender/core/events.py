@@ -339,6 +339,41 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     @commands.Cog.listener()
+    async def on_member_update(self, before: discord.Member, after: discord.Member):
+        guild = after.guild
+        if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            return
+        if not await self.config.guild(guild).enabled():
+            return
+        if not await self.config.guild(guild).warden_enabled():
+            return
+
+        if len(before.roles) < len(after.roles):
+            removed = False
+            role = [r for r in after.roles if r not in before.roles][0]
+        elif len(before.roles) > len(after.roles):
+            removed = True
+            role = [r for r in before.roles if r not in after.roles][0]
+        else:
+            return
+
+        rule: WardenRule
+        event = WardenEvent.OnRoleRemove if removed else WardenEvent.OnRoleAdd
+        rules = self.get_warden_rules_by_event(guild, event)
+        for rule in rules:
+            rank = await self.rank_user(after)
+            if await rule.satisfies_conditions(cog=self, rank=rank, guild=guild, user=after, role=role):
+                try:
+                    await rule.do_actions(cog=self, guild=guild, user=after, role=role)
+                except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
+                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                f"({rule.last_action.value}) - {str(e)}")
+                except Exception as e:
+                    self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                f"({rule.last_action.value}) - {str(e)}")
+                    log.error("Warden - unexpected error during actions execution", exc_info=e)
+
+    @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent):
         user = payload.member
         if not user or not hasattr(user, "guild") or not user.guild or user.bot:
