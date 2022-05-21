@@ -21,6 +21,8 @@ class Event(enum.Enum):
     OnMessage = "on-message"
     OnMessageEdit = "on-message-edit"
     OnMessageDelete = "on-message-delete"
+    OnReactionAdd = "on-reaction-add"
+    OnReactionRemove = "on-reaction-remove"
     OnUserJoin = "on-user-join"
     OnUserLeave = "on-user-leave"
     OnEmergency = "on-emergency"

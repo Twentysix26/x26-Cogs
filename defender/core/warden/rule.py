@@ -83,6 +83,7 @@ class WDRuntime:
         self.user: discord.Member
         self.guild: discord.Guild
         self.message: discord.Message
+        self.reaction: discord.Reaction
         self.evaluations: List[List[bool]] = []
         self.last_result: Optional[bool] = None
         self.state = {}
@@ -130,6 +131,8 @@ class WDRuntime:
                 "message_id": message.id,
                 "message_created_at": message.created_at,
                 "message_link": message.jump_url,
+                "message_reaction": str(self.reaction) if self.reaction else "",
+                "message_author_id": message.author.id,
                 "channel": f"#{channel}",
                 "channel_name": channel.name,
                 "channel_id": channel.id,
@@ -420,20 +423,14 @@ class WardenRule:
         return runtime
 
     async def satisfies_conditions(self, *, rank: Rank, cog: MixinMeta, user: Optional[discord.Member]=None, message: Optional[discord.Message]=None,
-                                   guild: discord.Guild, debug=False)->WDRuntime:
-        # Due to the strict checking done during parsing we can
-        # expect to always have available the variables that we need for
-        # the different type of events and conditions
-        # Unless I fucked up somewhere, then we're in trouble!
-        if message and not user:
-            user = message.author
-
+                                   guild: discord.Guild, reaction: Optional[discord.Reaction]=None, debug=False)->WDRuntime:
         runtime = WDRuntime()
         runtime.rule_name = self.name
         runtime.cog = cog
         runtime.guild = guild or message.guild
         runtime.user = user
         runtime.message = message
+        runtime.reaction = reaction
         runtime.debug = debug
         await runtime.populate_ctx_vars(self)
 
@@ -808,17 +805,14 @@ class WardenRule:
             raise ExecutionError(f"Unexpected condition evaluation result for '{condition.value}'.")
 
     async def do_actions(self, *, cog: MixinMeta, user: Optional[discord.Member]=None, message:  Optional[discord.Message]=None,
-                         guild: discord.Guild, debug=False):
-
-        if message and not user:
-            user = message.author
-
+                         reaction: Optional[discord.Reaction]=None, guild: discord.Guild, debug=False):
         runtime = WDRuntime()
         runtime.rule_name = self.name
         runtime.cog = cog
         runtime.guild = guild
         runtime.user = user
         runtime.message = message
+        runtime.reaction = reaction
         runtime.debug = debug
         await runtime.populate_ctx_vars(self)
 

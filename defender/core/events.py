@@ -256,6 +256,31 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     @commands.Cog.listener()
+    async def on_reaction_add(self, reaction: discord.Reaction, user: discord.Member):
+        if not hasattr(user, "guild") or not user.guild or user.bot:
+            return
+        if await self.bot.cog_disabled_in_guild(self, user.guild): # type: ignore
+            return
+
+        message = reaction.message
+        guild = user.guild
+        rule: WardenRule
+        if await self.config.guild(guild).warden_enabled():
+            rank = await self.rank_user(user)
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.OnReactionAdd)
+            for rule in rules:
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=guild, message=message, user=user, reaction=reaction):
+                    try:
+                        await rule.do_actions(cog=self, guild=guild, message=message, user=user, reaction=reaction)
+                    except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                    except Exception as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                        log.error("Warden - unexpected error during actions execution", exc_info=e)
+
+    @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
         if member.bot:
             return
@@ -406,13 +431,31 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
 
     @commands.Cog.listener()
-    async def on_reaction_remove(self, _, user: discord.Member):
+    async def on_reaction_remove(self, reaction: discord.Reaction, user: discord.Member):
         if not hasattr(user, "guild") or not user.guild or user.bot:
             return
         if await self.bot.cog_disabled_in_guild(self, user.guild): # type: ignore
             return
         if await self.bot.is_mod(user): # Is staff?
             await self.refresh_staff_activity(user.guild)
+
+        message = reaction.message
+        guild = user.guild
+        rule: WardenRule
+        if await self.config.guild(guild).warden_enabled():
+            rank = await self.rank_user(user)
+            rules = self.get_warden_rules_by_event(guild, WardenEvent.OnReactionRemove)
+            for rule in rules:
+                if await rule.satisfies_conditions(cog=self, rank=rank, guild=guild, message=message, user=user, reaction=reaction):
+                    try:
+                        await rule.do_actions(cog=self, guild=guild, message=message, user=user, reaction=reaction)
+                    except (discord.Forbidden, discord.HTTPException, ExecutionError) as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                    except Exception as e:
+                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
+                                                    f"({rule.last_action.value}) - {str(e)}")
+                        log.error("Warden - unexpected error during actions execution", exc_info=e)
 
     @commands.Cog.listener()
     async def on_x26_defender_emergency(self, guild: discord.Guild):
