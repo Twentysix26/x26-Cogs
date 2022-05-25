@@ -516,3 +516,28 @@ CONDITIONAL_ACTION_TEST_CHECK = """
     do:
         - no-op:
 """
+
+TEST_MATH = """
+    name: math-test1
+    rank: 1
+    event: on-emergency
+    if:
+        - compare: [1, ==, 1]
+    do:
+        - var-assign: [test_var1, 20]
+        - var-assign: [test_var2, 6]
+        - var-math: {operation}
+        - compare: [$result, ==, {result}]
+        - if-true:
+            - add-custom-heatpoint: ["test-passed", 1m]
+"""
+
+TEST_MATH_HEAT = """
+    name: math-test2
+    rank: 1
+    event: on-emergency
+    if:
+        - custom-heat-is: ["test-passed", 1]
+    do:
+        - no-op:
+"""

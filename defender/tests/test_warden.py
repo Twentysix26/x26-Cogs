@@ -4,12 +4,12 @@ from ..core.warden.validation import CONDITIONS_VALIDATORS, ACTIONS_VALIDATORS
 from ..core.warden.validation import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
 from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, BaseModel
 from ..core.warden.rule import WardenRule
+from ..core.warden import heat
 from ..exceptions import InvalidRule
 from . import wd_sample_rules as rl
 from datetime import datetime, timedelta
 from discord import Activity
 import pytest
-
 
 class FakeGuildPerms:
     manage_guild = False
@@ -273,6 +273,36 @@ async def test_rule_cond_eval():
                 rank=Rank.Rank1,
                 guild=FAKE_GUILD,
                 user=FAKE_USER)) is expected_result[i]
+
+    operations = (
+        ('[result, 1, "+", 1]', 2),
+        ('[result, 10, "-", 5]', 5),
+        ('[result, 2, "*", 2]', 4),
+        ('[result, 4, "/", 2]', 2.0),
+        ('[result, $test_var1, "+", $test_var2]', 26),
+        ('[result, -15, "abs"]', 15),
+        ('[result, 4, "pow", 2]', 16.0),
+        ('[result, 4.2, "floor"]', 4),
+        ('[result, 4.2, "ceil"]', 5),
+        ('[result, 26.5, "trunc"]', 26),
+    )
+
+    test_math_rule = WardenRule()
+    await test_math_rule.parse(rl.TEST_MATH_HEAT, cog=None)
+
+    for op in operations:
+        heat.empty_custom_heat(FAKE_GUILD, "test-passed")
+        rule = WardenRule()
+        await rule.parse(rl.TEST_MATH.format(
+            operation=op[0],
+            result=op[1]
+            ), cog=None)
+        await rule.do_actions(cog=None,
+            guild=FAKE_GUILD)
+
+        assert bool(await test_math_rule.satisfies_conditions(guild=FAKE_GUILD,
+                                                              rank=Rank.Rank1,
+                                                              cog=None)) is True
 
     ##### Prod store
     rule = WardenRule()

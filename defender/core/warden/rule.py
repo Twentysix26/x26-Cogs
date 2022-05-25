@@ -41,6 +41,7 @@ import discord
 import datetime
 import logging
 import regex as re
+import math
 
 if TYPE_CHECKING:
     from ...abc import MixinMeta
@@ -1404,6 +1405,59 @@ class WardenRule:
                 value = heat.get_custom_heat(guild, heat_key, debug=debug)
 
             runtime.state[params.var_name] = value
+
+        @processor(Action.VarMath)
+        async def var_math(params: models.VarMath):
+            ops = ("+", "-", "*", "/", "pow")
+            single_ops = ("abs", "floor", "ceil", "trunc")
+
+            op = safe_sub(params.operator).lower()
+
+            if op not in ops and op not in single_ops:
+                raise ExecutionError(f"{op} is not a valid operator.")
+            elif op in ops and params.operand2 is None:
+                raise ExecutionError("Missing second operand.")
+            elif op in single_ops and params.operand2 is not None:
+                raise ExecutionError(f"A second operand is not needed with operator {op}")
+
+            num1, num2 = safe_sub(params.operand1), safe_sub(params.operand2) if params.operand2 is not None else 0
+
+            def cast_to_number(n):
+                try:
+                    return int(n)
+                except:
+                    try:
+                        return float(n)
+                    except:
+                        raise ExecutionError(f"{n} is not a number.")
+
+            num1, num2 = cast_to_number(num1), cast_to_number(num2)
+
+            try:
+                if op == "+":
+                    result = num1 + num2
+                elif op == "-":
+                    result = num1 - num2
+                elif op == "*":
+                    result = num1 * num2
+                elif op == "/":
+                    result = num1 / num2
+                elif op == "abs":
+                    result = abs(num1)
+                elif op == "pow":
+                    result = math.pow(num1, num2)
+                elif op == "floor":
+                    result = math.floor(num1)
+                elif op == "ceil":
+                    result = math.ceil(num1)
+                elif op == "trunc":
+                    result = math.trunc(num1)
+                else:
+                    raise ExecutionError(f"Unhandled operator: {op}.")
+            except Exception as e:
+                raise ExecutionError(f"Calculation error: {e}")
+
+            runtime.state[params.result_var] = str(result)
 
         @processor(Action.VarReplace)
         async def var_replace(params: models.VarReplace):

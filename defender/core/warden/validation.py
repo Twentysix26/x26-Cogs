@@ -290,6 +290,12 @@ class VarReplace(BaseModel):
     strings: Union[List[str], str]
     substring: str
 
+class VarMath(BaseModel):
+    result_var: str
+    operand1: str
+    operator: str
+    operand2: Optional[str]=None
+
 class VarSplit(BaseModel):
     var_name: str
     separator: str
@@ -501,6 +507,7 @@ ACTIONS_VALIDATORS = {
     Action.VarAssignRandom: VarAssignRandom,
     Action.VarAssignHeat: VarAssignHeat,
     Action.VarReplace: VarReplace,
+    Action.VarMath: VarMath,
     Action.VarSlice: VarSlice,
     Action.VarSplit: VarSplit,
     Action.VarTransform: VarTransform,
@@ -509,6 +516,8 @@ ACTIONS_VALIDATORS = {
 CONDITIONS_ANY_CONTEXT = [
     Condition.InEmergencyMode,
     Condition.Compare,
+    Condition.CustomHeatIs,
+    Condition.CustomHeatMoreThan,
 ]
 
 CONDITIONS_USER_CONTEXT = [
@@ -529,8 +538,6 @@ CONDITIONS_USER_CONTEXT = [
     Condition.UserIsRank,
     Condition.UserHeatIs,
     Condition.UserHeatMoreThan,
-    Condition.CustomHeatIs,
-    Condition.CustomHeatMoreThan,
 ]
 
 CONDITIONS_MESSAGE_CONTEXT = [
@@ -573,6 +580,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.VarAssign,
     Action.VarAssignRandom,
     Action.VarAssignHeat,
+    Action.VarMath,
     Action.VarReplace,
     Action.VarSlice,
     Action.VarSplit,
