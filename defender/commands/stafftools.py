@@ -33,6 +33,8 @@ from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
 from redbot.core.utils.chat_formatting import error, pagify, box, inline
 from redbot.core import commands
 from io import BytesIO
+from inspect import cleandoc
+import emoji, pydantic, regex, yaml, sys # Debug info purpose
 import logging
 import asyncio
 import fnmatch
@@ -305,6 +307,49 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await menu(ctx, announcements, DEFAULT_CONTROLS)
         else:
             await ctx.send("Nothing to show.")
+
+    @defender.command(name="debuginfo", hidden=True)
+    @commands.is_owner()
+    async def defenderdebuginfo(self, ctx: commands.Context):
+        """Debug info about Defender and its dependencies"""
+        admin_roles = await ctx.bot._config.guild(ctx.guild).admin_role()
+        mod_roles = await ctx.bot._config.guild(ctx.guild).mod_role()
+        conf = self.config.guild(ctx.guild)
+        notif_channel_set = bool(await conf.notify_channel())
+        notify_role_set = bool(await conf.notify_role())
+        punish_role_set = bool(await conf.punish_role())
+        py_ver = sys.version_info
+        try:
+            pydantic_version = pydantic.__version__
+        except AttributeError:
+            pydantic_version = pydantic.version.VERSION
+
+        await ctx.send(box(cleandoc(
+            f"""
+             Defender {self.__version__}
+            -- Deps --
+             python {py_ver.major}.{py_ver.minor}.{py_ver.micro}
+             emoji {emoji.__version__}
+             pydantic {pydantic_version}
+             pyyaml {yaml.__version__}
+             regex {regex.__version__}
+            -- General settings --
+             Notif channel set: {notif_channel_set}
+             Notif role set: {notify_role_set}
+             Punish role set: {punish_role_set}
+             Roles: {len(admin_roles)} admin / {len(mod_roles)} mod
+            -- Enabled modules --
+             Defender: {await conf.enabled()}
+             IF: {await conf.invite_filter_enabled()}
+             RD: {await conf.raider_detection_enabled()}
+             JM: {await conf.join_monitor_enabled()}
+             WD: {await conf.warden_enabled()}
+             CA: {await conf.ca_enabled()}
+             Alert: {await conf.alert_enabled()}
+             Vaporize: {await conf.vaporize_enabled()}
+             Silence: {await conf.silence_enabled()}
+             Voteout: {await conf.voteout_enabled()}"""
+            ), lang="py"))
 
     @defender.group(name="warden", aliases=["wd"])
     @commands.admin()
