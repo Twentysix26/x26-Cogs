@@ -342,8 +342,8 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
         await self.config.guild(ctx.guild).invite_filter_action.set(action)
         if Action(action) == Action.NoAction:
-            await ctx.send("Action set. Since you've chosen 'none' I will only delete "
-                           "the invite link and notify the staff about it.")
+            await ctx.send("Action set. Since you've chosen 'none' I may only delete "
+                           "the invite link (`[p]dset if deletemessage`) and notify the staff about it.")
         await ctx.tick()
 
     @invitefiltergroup.command(name="excludeowninvites")
@@ -357,6 +357,15 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send(f"Got it. I will not take action on invites that belong to this server. {perms}")
         else:
             await ctx.send("Got it. I will take action on any invite, even ours.")
+
+    @invitefiltergroup.command(name="deletemessage")
+    async def invitefilterdeletemessage(self, ctx: commands.Context, on_or_off: bool):
+        """Toggles whether to delete the invite's message"""
+        await self.config.guild(ctx.guild).invite_filter_delete_message.set(on_or_off)
+        if on_or_off:
+            await ctx.send("I will delete the message containing the invite.")
+        else:
+            await ctx.send("I will not delete the message containing the invite.")
 
     @dset.group(name="alert")
     @commands.admin()

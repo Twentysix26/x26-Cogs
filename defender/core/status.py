@@ -192,10 +192,20 @@ async def make_status(ctx, cog):
             oi_text += " However I lack the 'Manage guild' permission. I need that to see our own invites."
     else:
         oi_text = "I will take action on **any invite**, even when they belong to this server."
-    action = f"**{action}** any user" if action != "none" else "**delete the message** of any user"
+
+    if action == "none":
+        action = "**target** any user"
+    else:
+        action = f"**{action}** any user"
+
+    if await cog.config.guild(guild).invite_filter_delete_message():
+        action_msg = "I will also **delete** the invite's message."
+    else:
+        action_msg = "I will **not delete** the invite's message."
+
     msg += ("**Invite filter   🔥📧**\nThis auto-module is designed to take care of advertisers. It can detect "
             f"a standard Discord invite and take action on the user.\nIt is set so that I will {action} "
-            f"who is **Rank {rank}** or below. {oi_text}\n")
+            f"who is **Rank {rank}** or below. {action_msg} {oi_text}\n")
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 

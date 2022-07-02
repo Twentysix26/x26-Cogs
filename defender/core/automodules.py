@@ -95,15 +95,20 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                                             "still present and with *no* privileges?")
                 return
 
-        try:
-            await message.delete()
-        except discord.Forbidden:
-            self.send_to_monitor(guild, "[InviteFilter] Failed to delete message: "
-                                        f"no permissions in #{message.channel}")
-        except discord.NotFound:
-            pass
-        except Exception as e:
-            log.error("Unexpected error in invite filter's message deletion", exc_info=e)
+        msg_action = "detected"
+        if await self.config.guild(guild).invite_filter_delete_message():
+            msg_action = "attempted to delete"
+            try:
+                await message.delete()
+            except discord.Forbidden:
+                self.send_to_monitor(guild, "[InviteFilter] Failed to delete message: "
+                                            f"no permissions in #{message.channel}")
+            except discord.NotFound:
+                pass
+            except Exception as e:
+                log.error("Unexpected error in invite filter's message deletion", exc_info=e)
+            else:
+                msg_action = "deleted"
 
         invite_data = f"**About [discord.gg/{external_invite}](https://discord.gg/{external_invite})**\n"
 
@@ -138,7 +143,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                 invite_data += f"I have failed to retrieve the server's data. Possibly a group DM invite?\n"
 
         if action == Action.NoAction:
-            notif_text = f"I have deleted a message with this content:\n{content}\n{invite_data}"
+            notif_text = f"I have {msg_action} a message with this content:\n{content}\n{invite_data}"
         else:
             notif_text = f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}\n{invite_data}"
 

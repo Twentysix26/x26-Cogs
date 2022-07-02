@@ -60,6 +60,7 @@ default_guild_settings = {
     "invite_filter_rank": Rank.Rank4.value,
     "invite_filter_action": Action.NoAction.value, # Type of action to take on users that posted filtered invites
     "invite_filter_exclude_own_invites": True, # Check against the server's own invites before taking action
+    "invite_filter_delete_message": True, # Whether to delete the invite's message or not
     "raider_detection_enabled": False,
     "raider_detection_rank": Rank.Rank3.value, # Users misconfigurating this module can fuck up a server so Rank 3 it is
     "raider_detection_messages": 15, # Take action on users that send more than X messages in...
