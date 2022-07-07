@@ -1529,6 +1529,46 @@ class WardenRule:
             else:
                 runtime.state[var_name] = var
 
+        @processor(Action.WarnSystemWarn)
+        async def warnsystem_warn(params: models.WarnSystemWarn):
+            ws = cog.bot.get_cog("WarnSystem")
+            if ws is None:
+                raise ExecutionError("WarnSystem is not loaded. Integration not available.")
+
+            if isinstance(params.members, list):
+                raw_targets = [safe_sub(m) for m in params.members]
+            else:
+                raw_targets = [safe_sub(params.members)]
+
+            targets = []
+            for rt in raw_targets:
+                try:
+                    member = guild.get_member(int(rt))
+                except ValueError:
+                    raise ExecutionError(f"'{rt}' is not a valid ID.")
+                if member is None:
+                    if rt.isnumeric():
+                        raise ExecutionError("The hackban feature is not yet available.") # TODO
+                        #targets.append(ws.api.UnavailableMember(rt)) # hackban
+                    else:
+                        raise ExecutionError(f"'{rt}' is not a valid ID.")
+                else:
+                    targets.append(member)
+
+            if params.author:
+                ws_author = guild.get_member(int(safe_sub(params.author)))
+                if ws_author is None:
+                    raise ExecutionError(f"I could not find the author to issue the warning ({ws_author}).")
+            else:
+                ws_author = guild.me
+
+            try:
+                await ws.api.warn(guild=guild, members=targets, author=ws_author, level=params.level, reason=params.reason,
+                                time=params.time, date=params.date, ban_days=params.ban_days, log_modlog=params.log_modlog,
+                                log_dm=params.log_dm, take_action=params.take_action, automod=params.automod)
+            except Exception as e:
+                raise ExecutionError(f"WarnSystem error: {e}")
+
         @processor(Action.NoOp)
         async def no_op(params: models.IsNone):
             pass

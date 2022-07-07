@@ -21,7 +21,7 @@ from redbot.core.commands.converter import parse_timedelta, BadArgument
 from pydantic import BaseModel as PydanticBaseModel, conlist, validator, root_validator, conint
 from pydantic import ValidationError, ExtraError
 from pydantic.error_wrappers import ErrorWrapper
-from datetime import timedelta
+from datetime import timedelta, datetime
 from ...exceptions import InvalidRule
 import logging
 import string
@@ -265,6 +265,20 @@ class GetUserInfo(BaseModel):
     id: str # or context variable
     mapping: Dict[str, str]
 
+class WarnSystemWarn(BaseModel):
+    _short_form = ("members", "level", "reason", "time")
+    members: Union[str, conlist(str, min_items=1)]
+    author: Optional[str]
+    level: conint(ge=1, le=5)
+    reason: Optional[str]
+    time: Optional[TimeDelta]
+    date: Optional[datetime]
+    ban_days: Optional[int]
+    log_modlog: Optional[bool]=True
+    log_dm: Optional[bool]=True
+    take_action: Optional[bool]=True
+    automod: Optional[bool]=True
+
 class VarAssign(BaseModel):
     var_name: AlphaNumeric
     value: str
@@ -503,6 +517,7 @@ ACTIONS_VALIDATORS = {
     Action.SendMessage: SendMessage,
     Action.GetUserInfo: GetUserInfo,
     Action.Exit: IsNone,
+    Action.WarnSystemWarn: WarnSystemWarn,
     Action.VarAssign: VarAssign,
     Action.VarAssignRandom: VarAssignRandom,
     Action.VarAssignHeat: VarAssignHeat,
@@ -577,6 +592,7 @@ ACTIONS_ANY_CONTEXT = [
     Action.SendMessage,
     Action.GetUserInfo,
     Action.Exit,
+    Action.WarnSystemWarn,
     Action.VarAssign,
     Action.VarAssignRandom,
     Action.VarAssignHeat,

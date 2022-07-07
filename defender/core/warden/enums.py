@@ -61,6 +61,7 @@ class Action(enum.Enum):
     SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
     GetUserInfo = "get-user-info" # Get info of an arbitrary user
     Exit = "exit" # Stops processing the rule
+    WarnSystemWarn = "warnsystem-warn" ## Warnsystem integration
     VarAssign = "var-assign" # Assigns a string to a variable
     VarAssignRandom = "var-assign-random" # Assigns a random string to a variable
     VarAssignHeat = "var-assign-heat" # Assign heat values to a variable
