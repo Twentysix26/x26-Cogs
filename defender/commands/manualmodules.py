@@ -200,8 +200,9 @@ class ManualModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if not members:
             await ctx.send_help()
             return
-        if len(members) > 15:
-            await ctx.send("No more than 15. Please try again.")
+        max_targets = await self.config.guild(guild).vaporize_max_targets()
+        if len(members) > max_targets:
+            await ctx.send(f"No more than {max_targets} users at once. Please try again.")
             return
         for m in members:
             rank = await self.rank_user(m)

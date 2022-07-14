@@ -428,6 +428,17 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("Vaporize manual module disabled.")
 
+    @vaporizegroup.command(name="maxtargets")
+    async def vaporizegroupmaxtargets(self, ctx: commands.Context, max_targets: int):
+        """Sets the maximum amount of targets (1-999)
+
+        By default only a maximum of 15 users can be vaporized at once"""
+        if max_targets < 1 or max_targets > 999:
+            return await ctx.send_help()
+
+        await self.config.guild(ctx.guild).vaporize_max_targets.set(max_targets)
+        await ctx.tick()
+
     @dset.group(name="joinmonitor", aliases=["jm"])
     @commands.admin()
     async def joinmonitorgroup(self, ctx: commands.Context):

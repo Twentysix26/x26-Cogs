@@ -92,6 +92,7 @@ default_guild_settings = {
     "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
     "silence_rank": 0, # ... and as such, this default will be 0
     "vaporize_enabled": False,
+    "vaporize_max_targets": 15,
     "voteout_enabled": False,
     "voteout_rank": Rank.Rank2.value, # Rank X or below
     "voteout_votes": 3, # Votes needed for a successful voting session

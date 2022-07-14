@@ -340,9 +340,11 @@ async def make_status(ctx, cog):
     if d_enabled:
         enabled = await cog.config.guild(guild).vaporize_enabled()
 
+    v_max_targets = await cog.config.guild(guild).vaporize_max_targets()
     msg += ("**Vaporize   ☁️**\nThis manual module is designed to get rid of vast amounts of bad actors in a quick way "
             "without creating a mod-log entry. To prevent misuse only **Rank 3** and below are targetable by this "
-            "module. This module can be rendered available to helper roles in *emergency mode*.\n")
+            f"module. A maximum of **{v_max_targets}** users can be vaporized at once. This module can be rendered available "
+            "to helper roles in *emergency mode*.\n")
     if EmergencyModules.Vaporize.value in em_modules:
         msg += "It is set to be rendered available to helper roles in *emergency mode*.\n"
     else:
