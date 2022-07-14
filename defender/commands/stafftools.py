@@ -30,7 +30,7 @@ from ..exceptions import ExecutionError, InvalidRule
 from ..core.announcements import get_announcements_embed
 from redbot.core.utils import AsyncIter
 from redbot.core.utils.menus import DEFAULT_CONTROLS, menu
-from redbot.core.utils.chat_formatting import error, pagify, box, inline
+from redbot.core.utils.chat_formatting import error, pagify, box, inline, escape
 from redbot.core import commands
 from io import BytesIO
 from inspect import cleandoc
@@ -493,10 +493,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         no_box = "```" in raw_rule
 
         if no_box:
-            for symbol in ("|", "~", ">", "*", "`"):
-                raw_rule = raw_rule.replace(symbol, f"\\{symbol}")
+            raw_rule = escape(raw_rule, formatting=True)
 
-        for p in pagify(rule.raw_rule, page_length=1950, escape_mass_mentions=False):
+        for p in pagify(raw_rule, page_length=1950, escape_mass_mentions=False):
             if no_box:
                 await ctx.send(p)
             else:
