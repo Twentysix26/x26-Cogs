@@ -213,7 +213,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         new_members = []
         x_hours_ago = ctx.message.created_at - datetime.timedelta(hours=hours)
         for m in ctx.guild.members:
-            if m.joined_at > x_hours_ago:
+            if m.joined_at is not None and m.joined_at > x_hours_ago:
                 new_members.append(m)
 
         new_members.sort(key=lambda m: m.joined_at, reverse=True)
