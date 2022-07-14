@@ -60,7 +60,7 @@ CHECKS_MODULES_EVENTS = {
     ChecksKeys.CommentAnalysis: Event.OnMessage,
     ChecksKeys.InviteFilter: Event.OnMessage,
     ChecksKeys.JoinMonitor: Event.OnUserJoin,
-    ChecksKeys.RaiderDetection: Event.OnUserJoin,
+    ChecksKeys.RaiderDetection: Event.OnMessage,
 }
 
 class WDStatement:
