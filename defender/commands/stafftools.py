@@ -21,7 +21,7 @@ from ..enums import Rank
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
 from ..core.warden.enums import Event as WardenEvent, ConditionBlock
-from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_prompt
+from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_prompt, strip_yaml_codeblock
 from ..core.warden import heat
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
@@ -371,14 +371,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                            f"using Warden. Please read `{ctx.prefix}def status` in its entirety.")
             return
 
-        rule = rule.strip("\n")
+        rule = strip_yaml_codeblock(rule)
         prompts_sent = False
-        if rule.startswith(("```yaml", "```YAML")):
-            rule = rule.lstrip("`yamlYAML")
-        if rule.startswith(("```yml", "```YML")):
-            rule = rule.lstrip("`ymlYML")
-        if rule.startswith("```") or rule.endswith("```"):
-            rule = rule.strip("`")
 
         try:
             new_rule = WardenRule()

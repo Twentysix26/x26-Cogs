@@ -16,15 +16,20 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from defender.core.warden.rule import WardenRule
+from defender.core.warden.enums import ChecksKeys as WDChecksKeys
+from defender.core.warden import api as WardenAPI
 from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import EmergencyModules, Action, Rank, PerspectiveAttributes
 from redbot.core import commands
+from redbot.core.utils.chat_formatting import box, pagify, escape
 from ..core import cache as df_cache
 from redbot.core.commands import GuildConverter
 from discord import VerificationLevel
 import discord
 import asyncio
+import logging
 
+log = logging.getLogger("red.x26cogs.defender")
 
 class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
@@ -367,6 +372,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("I will not delete the message containing the invite.")
 
+    @invitefiltergroup.command(name="wdchecks")
+    async def invitefilterwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+        """Implement advanced Warden based checks
+
+        Issuing this command with no arguments will show the current checks
+        Passing 'remove' will remove existing checks"""
+        await self.wd_check_manager(ctx, WDChecksKeys.InviteFilter, conditions)
+
     @dset.group(name="alert")
     @commands.admin()
     async def alertgroup(self, ctx: commands.Context):
@@ -490,6 +503,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("Got it. I won't raise the server's verification level.")
 
+    @joinmonitorgroup.command(name="wdchecks")
+    async def joinmonitorwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+        """Implement advanced Warden based checks
+
+        Issuing this command with no arguments will show the current checks
+        Passing 'remove' will remove existing checks"""
+        await self.wd_check_manager(ctx, WDChecksKeys.JoinMonitor, conditions)
+
     @dset.group(name="raiderdetection", aliases=["rd"])
     @commands.admin()
     async def raiderdetectiongroup(self, ctx: commands.Context):
@@ -560,6 +581,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await self.config.guild(ctx.guild).raider_detection_wipe.set(days)
         await ctx.send(f"Value set. I will delete {days} days worth "
                        "of messages if the action is ban.")
+
+    @raiderdetectiongroup.command(name="wdchecks")
+    async def raiderdetectiongroupwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+        """Implement advanced Warden based checks
+
+        Issuing this command with no arguments will show the current checks
+        Passing 'remove' will remove existing checks"""
+        await self.wd_check_manager(ctx, WDChecksKeys.RaiderDetection, conditions)
 
     @dset.group(name="warden", aliases=["wd"])
     @commands.admin()
@@ -740,6 +769,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("I will not delete the offending message.")
 
+    @caset.command(name="wdchecks")
+    async def casetwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+        """Implement advanced Warden based checks
+
+        Issuing this command with no arguments will show the current checks
+        Passing 'remove' will remove existing checks"""
+        await self.wd_check_manager(ctx, WDChecksKeys.CommentAnalysis, conditions)
+
     @dset.group(name="voteout")
     @commands.admin()
     async def voteoutgroup(self, ctx: commands.Context):
@@ -852,3 +889,33 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         else:
             await ctx.send("Value set. I will auto engage emergency mode after "
                           f"{minutes} minutes of staff inactivity following an alert.")
+
+    async def wd_check_manager(self, ctx, module, conditions):
+        if conditions == "":
+            raw_check = await WardenAPI.get_check(ctx.guild, module)
+            if raw_check is None:
+                return await ctx.send_help()
+
+            no_box = "```" in raw_check
+            if no_box:
+                raw_check = escape(raw_check, formatting=True)
+
+            rm_how_to = "Pass `remove` to this command to remove these checks.\n\n"
+
+            for p in pagify(raw_check, page_length=1900, escape_mass_mentions=False):
+                if no_box:
+                    await ctx.send(rm_how_to + p)
+                else:
+                    await ctx.send(rm_how_to + box(p, lang="yml"))
+                rm_how_to = ""
+        elif conditions.lower() == "remove":
+            await WardenAPI.remove_check(ctx.guild, module)
+            await ctx.tick()
+        else:
+            try:
+                await WardenAPI.set_check(ctx.guild, module, conditions, ctx.author)
+            except Exception as e:
+                await ctx.send(f"Error setting the checks: {e}")
+            else:
+                await ctx.send("Warden checks set. These additional checks will be evaluated "
+                               "*after* the module's standard checks (e.g. rank)")

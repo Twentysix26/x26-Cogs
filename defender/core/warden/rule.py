@@ -20,7 +20,7 @@ from ...core.warden.validation import (ALLOWED_STATEMENTS, ALLOWED_DEBUG_ACTIONS
                                        DEPRECATED, BaseModel)
 from ...core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
-from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock
+from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock, ChecksKeys
 from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, make_fuzzy_suggestion, delete_message_after
 from ...exceptions import InvalidRule, ExecutionError, StopExecution, MisconfigurationError
 from ...core import cache as df_cache
@@ -55,6 +55,13 @@ RULE_FACULTATIVE_KEYS = ("priority", "run-every")
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
 URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I)
 MAX_NESTED = 10
+
+CHECKS_MODULES_EVENTS = {
+    ChecksKeys.CommentAnalysis: Event.OnMessage,
+    ChecksKeys.InviteFilter: Event.OnMessage,
+    ChecksKeys.JoinMonitor: Event.OnUserJoin,
+    ChecksKeys.RaiderDetection: Event.OnUserJoin,
+}
 
 class WDStatement:
     __slots__ = ('enum',)
@@ -194,6 +201,11 @@ class WDRuntime:
         return bool(self.last_result)
 
 class WardenRule:
+    errors = {
+        "CONDITIONS_ONLY": "Actions and conditional action blocks are not allowed in the condition section of a rule.",
+        "NOT_ALLOWED_IN_EVENTS": "Statement `{}` not allowed in the event(s) you have defined.",
+    }
+
     def __init__(self):
         self.last_action = Action.NoOp
         self.name = None
@@ -346,7 +358,7 @@ class WardenRule:
                 raise InvalidRule(f"Invalid statement: `{statement}`.{suggestion}")
 
             if conditions_only and isinstance(enum, (Action, ConditionalActionBlock)):
-                raise InvalidRule("Actions and conditional action blocks are not allowed in the condition section of a rule.")
+                raise InvalidRule(self.errors["CONDITIONS_ONLY"])
 
             model = None
 
@@ -379,7 +391,7 @@ class WardenRule:
             if model:
                 for event in events:
                     if not enum in ALLOWED_STATEMENTS[event]:
-                        raise InvalidRule(f"Statement `{enum.value}` not allowed in the event(s) you have defined.")
+                        raise InvalidRule(self.errors["NOT_ALLOWED_IN_EVENTS"].format(enum.value))
 
             if author and model:
             # Checking author prevents old rules from raising at load
@@ -1592,4 +1604,36 @@ class WardenRule:
         return runtime
 
     def __repr__(self):
-        return f"<WardenRule '{self.name}'>"
+        return f"<{self.__class__.__name__} '{self.name}'>"
+
+class WardenCheck(WardenRule):
+    """Warden Checks are groups of Warden based condition checks that the user can choose to implement
+    for each Defender's module. They are evaluated in addition to a module's standard checks and allow for
+    much greater control over the conditions under which a module should act.
+    e.g. A user can decide that the Comment Analysis automodule should only function in channel A and B"""
+
+    errors = {
+        "CONDITIONS_ONLY": "Only conditions are allowed to be used in Warden checks.",
+        "NOT_ALLOWED_IN_EVENTS": "Statement `{}` is not allowed in the checks for this module.",
+    }
+
+    async def parse(self, rule_str, cog: MixinMeta, module: ChecksKeys, author=None):
+        self.raw_rule = rule_str
+
+        try:
+            rule = yaml.safe_load(rule_str)
+        except:
+            raise InvalidRule("Error parsing YAML. Please make sure the format "
+                              "is valid (a YAML validator may help)")
+
+        if not isinstance(rule, list):
+            raise InvalidRule(f"Please review the format: checks should be a list of conditions")
+
+        self.name = module.value
+
+        self.cond_tree = await self.parse_tree(rule,
+                                               cog=cog,
+                                               author=author,
+                                               events=[CHECKS_MODULES_EVENTS[module]],
+                                               conditions_only=True)
+        self.action_tree = {}

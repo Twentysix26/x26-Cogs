@@ -17,8 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import Action, Rank, QAAction
-from ..core.warden.enums import Event as WardenEvent
+from ..core.warden.enums import Event as WardenEvent, ChecksKeys as WDChecksKeys
 from ..core.warden.rule import WardenRule
+from ..core.warden import api as WardenAPI
 from ..core.utils import QUICK_ACTION_EMOJIS, utcnow
 from ..exceptions import ExecutionError, MisconfigurationError
 from . import cache as df_cache
@@ -90,7 +91,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
         if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
-            if rank >= inv_filter_rank:
+            wd_check = await WardenAPI.eval_check(guild=guild, module=WDChecksKeys.InviteFilter, message=message, user=message.author)
+            if rank >= inv_filter_rank and wd_check:
                 try:
                     expelled = await self.invite_filter(message)
                 except discord.Forbidden as e:
@@ -106,7 +108,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         rd_enabled = await self.config.guild(guild).raider_detection_enabled()
         if rd_enabled and not is_staff:
             rd_rank = await self.config.guild(guild).raider_detection_rank()
-            if rank >= rd_rank:
+            wd_check = await WardenAPI.eval_check(guild=guild, module=WDChecksKeys.RaiderDetection, message=message, user=message.author)
+            if rank >= rd_rank and wd_check:
                 try:
                     expelled = await self.detect_raider(message)
                 except discord.Forbidden as e:
@@ -131,7 +134,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         if ca_enabled and not is_staff:
             rank_ca = await self.config.guild(guild).ca_rank()
-            if rank_ca and rank >= rank_ca:
+            wd_check = await WardenAPI.eval_check(guild=guild, module=WDChecksKeys.CommentAnalysis, message=message, user=message.author)
+            if rank_ca and rank >= rank_ca and wd_check:
                 try:
                     await self.comment_analysis(message)
                 except asyncio.TimeoutError:
@@ -308,8 +312,10 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                         log.error("Warden - unexpected error during actions execution", exc_info=e)
 
         if await self.config.guild(guild).join_monitor_enabled():
-            await self.join_monitor_flood(member)
-            await self.join_monitor_suspicious(member)
+            wd_check = await WardenAPI.eval_check(guild=guild, module=WDChecksKeys.JoinMonitor, user=member)
+            if wd_check:
+                await self.join_monitor_flood(member)
+                await self.join_monitor_suspicious(member)
 
     @commands.Cog.listener()
     async def on_member_remove(self, member: discord.Member):

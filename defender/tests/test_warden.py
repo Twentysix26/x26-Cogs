@@ -1,9 +1,9 @@
-from ..core.warden.enums import Action, Condition, Event
+from ..core.warden.enums import Action, Condition, ChecksKeys
 from ..enums import Rank
 from ..core.warden.validation import CONDITIONS_VALIDATORS, ACTIONS_VALIDATORS
 from ..core.warden.validation import CONDITIONS_ANY_CONTEXT, CONDITIONS_USER_CONTEXT, CONDITIONS_MESSAGE_CONTEXT
 from ..core.warden.validation import ACTIONS_ANY_CONTEXT, ACTIONS_USER_CONTEXT, ACTIONS_MESSAGE_CONTEXT, BaseModel
-from ..core.warden.rule import WardenRule
+from ..core.warden.rule import WardenRule, WardenCheck
 from ..core.warden import heat
 from ..exceptions import InvalidRule
 from . import wd_sample_rules as rl
@@ -606,3 +606,20 @@ async def test_conditions():
 
     with pytest.raises(InvalidRule, match=r".*could not be parsed*"):
         await eval_cond(Condition.MessageHasAttachment, {"value": True}, True)
+
+@pytest.mark.asyncio
+async def test_warden_checks():
+    wd_check = WardenCheck()
+
+    await wd_check.parse(rl.TEST_CHECK_MESSAGE, cog=None, author=None, module=ChecksKeys.CommentAnalysis)
+    FAKE_MESSAGE.content = '123'
+    assert bool(await wd_check.satisfies_conditions(rank=Rank.Rank4, cog=None, guild=FAKE_GUILD, user=FAKE_USER, message=FAKE_MESSAGE)) is True
+
+    with pytest.raises(InvalidRule, match=r".*is not allowed in the checks for this module*"):
+        await wd_check.parse(rl.TEST_CHECK_MESSAGE, cog=None, author=None, module=ChecksKeys.RaiderDetection)
+
+    with pytest.raises(InvalidRule, match=r".*Only conditions are allowed to be used in Warden checks*"):
+        await wd_check.parse(rl.TEST_CHECK_ACTIONS, cog=None, author=None, module=ChecksKeys.CommentAnalysis)
+
+    with pytest.raises(InvalidRule, match=r".*checks should be a list of conditions*"):
+        await wd_check.parse(rl.TEST_MATH, cog=None, author=None, module=ChecksKeys.CommentAnalysis)

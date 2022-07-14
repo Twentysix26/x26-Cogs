@@ -541,3 +541,16 @@ TEST_MATH_HEAT = """
     do:
         - no-op:
 """
+
+TEST_CHECK_ACTIONS = """
+- if-any:
+  - username-matches-any: [123]
+  - message-matches-any: [123]
+- send-message: [123, "abc"]
+"""
+
+TEST_CHECK_MESSAGE = """
+- if-any:
+  - username-matches-any: [123]
+  - message-matches-any: [123]
+"""

@@ -29,7 +29,7 @@ from .enums import Rank, Action, EmergencyModules, PerspectiveAttributes
 from .exceptions import InvalidRule
 from .core.warden.rule import WardenRule
 from .core.warden.enums import Event as WardenEvent
-from .core.warden import heat
+from .core.warden import heat, api as WardenAPI
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
 from .core.utils import QuickAction, utcnow, timestamp
@@ -61,18 +61,21 @@ default_guild_settings = {
     "invite_filter_action": Action.NoAction.value, # Type of action to take on users that posted filtered invites
     "invite_filter_exclude_own_invites": True, # Check against the server's own invites before taking action
     "invite_filter_delete_message": True, # Whether to delete the invite's message or not
+    "invite_filter_wdchecks": "",
     "raider_detection_enabled": False,
     "raider_detection_rank": Rank.Rank3.value, # Users misconfigurating this module can fuck up a server so Rank 3 it is
     "raider_detection_messages": 15, # Take action on users that send more than X messages in...
     "raider_detection_minutes": 1, # ...Y minutes
     "raider_detection_action": Action.Ban.value,
     "raider_detection_wipe": 1, # If action is ban, wipe X days worth of messages
+    "raider_detection_wdchecks": "",
     "join_monitor_enabled": False,
     "join_monitor_n_users": 10, # Alert staff if more than X users...
     "join_monitor_minutes": 5, # ... joined in the past Y minutes
     "join_monitor_v_level": 0, # Raise verification up to X on raids
     "join_monitor_susp_hours": 0, # Notify staff if new join is younger than X hours
     "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
+    "join_monitor_wdchecks": "",
     "warden_enabled": True,
     "wd_rules": {}, # Warden rules | I have to break the naming convention here due to config.py#L798
     "ca_enabled": False, # Comment analysis
@@ -84,6 +87,7 @@ default_guild_settings = {
     "ca_reason": "Bad comment", # Mod-log reason
     "ca_wipe": 0, # If action is ban, wipe X days worth of messages
     "ca_delete_message": True, # Whether to delete the offending message
+    "ca_wdchecks": "",
     "alert_enabled": True, # Available to helper roles by default
     "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
     "silence_rank": 0, # ... and as such, this default will be 0
@@ -118,6 +122,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
     def __init__(self, bot):
         self.bot = bot
+        WardenAPI.init_api(self)
         self.config = Config.get_conf(self, 262626, force_registration=True)
         self.config.register_guild(**default_guild_settings)
         self.config.register_member(**default_member_settings)
@@ -132,6 +137,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         self.emergency_mode = {}
         self.active_warden_rules = defaultdict(lambda: dict())
         self.invalid_warden_rules = defaultdict(lambda: dict())
+        self.warden_checks = defaultdict(lambda: dict())
         self.loop.create_task(self.load_warden_rules())
         self.loop.create_task(self.send_announcements())
         self.loop.create_task(self.load_cache_settings())
@@ -421,6 +427,8 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                     log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
                 else:
                     self.active_warden_rules[int(guid)][new_rule.name] = new_rule
+
+        await WardenAPI.load_modules_checks()
 
 
     async def load_cache_settings(self):

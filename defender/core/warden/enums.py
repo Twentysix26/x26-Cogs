@@ -126,3 +126,9 @@ class ConditionBlock(enum.Enum):
 class ConditionalActionBlock(enum.Enum):
     IfTrue = "if-true"
     IfFalse = "if-false"
+
+class ChecksKeys(enum.Enum):
+    CommentAnalysis = "ca"
+    RaiderDetection = "raider_detection"
+    InviteFilter = "invite_filter"
+    JoinMonitor = "join_monitor"

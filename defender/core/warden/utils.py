@@ -136,3 +136,14 @@ async def rule_add_overwrite_prompt(*, cog, message: discord.Message):
         return False
     else:
         return True
+
+def strip_yaml_codeblock(code: str):
+    code = code.strip("\n")
+    if code.startswith(("```yaml", "```YAML")):
+        code = code.lstrip("`yamlYAML")
+    if code.startswith(("```yml", "```YML")):
+        code = code.lstrip("`ymlYML")
+    if code.startswith("```") or code.endswith("```"):
+        code = code.strip("`")
+
+    return code

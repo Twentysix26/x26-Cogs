@@ -47,6 +47,7 @@ class MixinMeta(ABC):
         self.emergency_mode: dict
         self.active_warden_rules: dict
         self.invalid_warden_rules: dict
+        self.warden_checks: dict
         self.joined_users: dict
         self.monitor: dict
         self.loop: asyncio.AbstractEventLoop
