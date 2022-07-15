@@ -18,7 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import discord
 from ..enums import Action, EmergencyModules
 
+WD_CHECKS = "[Warden checks](https://twentysix26.github.io/defender-docs/#warden-checks): **{}**"
+
 async def make_status(ctx, cog):
+    def is_active(arg):
+        return "active" if bool(arg) else "not active"
+
     pages = []
     guild = ctx.guild
     d_enabled = await cog.config.guild(guild).enabled()
@@ -80,7 +85,7 @@ async def make_status(ctx, cog):
 
     em = discord.Embed(color=discord.Colour.red(), description=msg)
     em.set_footer(text=f"`{p}dset general` to configure")
-    em.set_author(name=f"Defender system v{cog.__version__}")
+    em.set_author(name=f"Defender system v{cog.__version__}", url="https://twentysix26.github.io/defender-docs/")
     em.add_field(name="Notify role", value=n_role.mention if n_role else "None set", inline=True)
     em.add_field(name="Notify channel", value=n_channel.mention if n_channel else "None set", inline=True)
     em.add_field(name="Punish role", value=punish_role.mention if punish_role else "None set", inline=True)
@@ -178,6 +183,7 @@ async def make_status(ctx, cog):
             f"**{minutes} minutes** I will {action}.\n")
     if action == Action.Ban and wipe:
         msg += f"The **ban** will also delete **{wipe} days** worth of messages.\n"
+    msg += f"{WD_CHECKS.format(is_active(await cog.config.guild(guild).raider_detection_wdchecks()))}\n"
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 
@@ -206,6 +212,7 @@ async def make_status(ctx, cog):
     msg += ("**Invite filter   🔥📧**\nThis auto-module is designed to take care of advertisers. It can detect "
             f"a standard Discord invite and take action on the user.\nIt is set so that I will {action} "
             f"who is **Rank {rank}** or below. {action_msg} {oi_text}\n")
+    msg += f"{WD_CHECKS.format(is_active(await cog.config.guild(guild).invite_filter_wdchecks()))}\n"
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 
@@ -229,7 +236,8 @@ async def make_status(ctx, cog):
     if newhours:
         msg += f"I will also report any new user whose account is less than **{newhours} hours old**.\n"
     else:
-        msg += "Newly created accounts notifications are off.\n"
+        msg += "Newly created accounts notifications are **off**.\n"
+    msg += f"{WD_CHECKS.format(is_active(await cog.config.guild(guild).join_monitor_wdchecks()))}\n"
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 
@@ -244,7 +252,7 @@ async def make_status(ctx, cog):
     active_rules = len(cog.active_warden_rules[guild.id])
     invalid_rules = len(cog.invalid_warden_rules[guild.id])
     total_rules = active_rules + invalid_rules
-    warden_guide = "https://github.com/Twentysix26/x26-Cogs/wiki/Warden"
+    warden_guide = "https://twentysix26.github.io/defender-docs/warden/overview/"
     invalid_text = ""
     if invalid_rules:
         invalid_text = f", **{invalid_rules}** of which are invalid"
@@ -310,6 +318,7 @@ async def make_status(ctx, cog):
             f"{ca_action}{ca_del}. The offending user must be **Rank {ca_rank}** or below.\nI will take action "
             f"only if the **{ca_threshold}%** threshold is reached for any of the **{ca_attributes}** "
             f"attribute(s) that have been set.\n")
+    msg += f"{WD_CHECKS.format(is_active(await cog.config.guild(guild).ca_wdchecks()))}\n"
     msg += "This module is currently "
     msg += "**enabled**.\n\n" if enabled else "**disabled**.\n\n"
 
