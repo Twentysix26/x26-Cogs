@@ -91,8 +91,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         inv_filter_enabled = await self.config.guild(guild).invite_filter_enabled()
         if inv_filter_enabled and not is_staff:
             inv_filter_rank = await self.config.guild(guild).invite_filter_rank()
-            wd_check = await WardenAPI.eval_check(guild=guild, module=WDChecksKeys.InviteFilter, message=message, user=message.author)
-            if rank >= inv_filter_rank and wd_check:
+            wd_check = WardenAPI.eval_check(guild=guild, module=WDChecksKeys.InviteFilter, message=message, user=message.author)
+            if rank >= inv_filter_rank and await wd_check:
                 try:
                     expelled = await self.invite_filter(message)
                 except discord.Forbidden as e:
@@ -108,8 +108,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         rd_enabled = await self.config.guild(guild).raider_detection_enabled()
         if rd_enabled and not is_staff:
             rd_rank = await self.config.guild(guild).raider_detection_rank()
-            wd_check = await WardenAPI.eval_check(guild=guild, module=WDChecksKeys.RaiderDetection, message=message, user=message.author)
-            if rank >= rd_rank and wd_check:
+            wd_check = WardenAPI.eval_check(guild=guild, module=WDChecksKeys.RaiderDetection, message=message, user=message.author)
+            if rank >= rd_rank and await wd_check:
                 try:
                     expelled = await self.detect_raider(message)
                 except discord.Forbidden as e:
@@ -134,8 +134,8 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
         if ca_enabled and not is_staff:
             rank_ca = await self.config.guild(guild).ca_rank()
-            wd_check = await WardenAPI.eval_check(guild=guild, module=WDChecksKeys.CommentAnalysis, message=message, user=message.author)
-            if rank_ca and rank >= rank_ca and wd_check:
+            wd_check = WardenAPI.eval_check(guild=guild, module=WDChecksKeys.CommentAnalysis, message=message, user=message.author)
+            if rank_ca and rank >= rank_ca and await wd_check:
                 try:
                     await self.comment_analysis(message)
                 except asyncio.TimeoutError:
