@@ -1574,8 +1574,10 @@ class WardenRule:
             else:
                 ws_author = guild.me
 
+            reason = safe_sub(params.reason) if params.reason else None
+
             try:
-                await ws.api.warn(guild=guild, members=targets, author=ws_author, level=params.level, reason=params.reason,
+                await ws.api.warn(guild=guild, members=targets, author=ws_author, level=params.level, reason=reason,
                                 time=params.time, date=params.date, ban_days=params.ban_days, log_modlog=params.log_modlog,
                                 log_dm=params.log_dm, take_action=params.take_action, automod=params.automod)
             except Exception as e:
