@@ -18,7 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import discord
 from ..enums import Action, EmergencyModules
 
-WD_CHECKS = "[Warden checks](https://twentysix26.github.io/defender-docs/#warden-checks): **{}**"
+DOCS_BASE_URL = "https://twentysix26.github.io/defender-docs"
+WD_CHECKS = f"[Warden checks]({DOCS_BASE_URL}/#warden-checks): " "**{}**"
 
 async def make_status(ctx, cog):
     def is_active(arg):
@@ -57,7 +58,7 @@ async def make_status(ctx, cog):
     has_core_roles_set = bool(admin_roles) or bool(mod_roles)
 
     _not = "NOT " if not d_enabled else ""
-    msg += f"Defender is **{_not}operational**.\n\n"
+    msg += f"[Defender]({DOCS_BASE_URL}) is **{_not}operational**.\n\n"
 
     p = ctx.prefix
 
@@ -85,7 +86,7 @@ async def make_status(ctx, cog):
 
     em = discord.Embed(color=discord.Colour.red(), description=msg)
     em.set_footer(text=f"`{p}dset general` to configure")
-    em.set_author(name=f"Defender system v{cog.__version__}", url="https://twentysix26.github.io/defender-docs/")
+    em.set_author(name=f"Defender system v{cog.__version__}", url=DOCS_BASE_URL)
     em.add_field(name="Notify role", value=n_role.mention if n_role else "None set", inline=True)
     em.add_field(name="Notify channel", value=n_channel.mention if n_channel else "None set", inline=True)
     em.add_field(name="Punish role", value=punish_role.mention if punish_role else "None set", inline=True)
@@ -252,7 +253,7 @@ async def make_status(ctx, cog):
     active_rules = len(cog.active_warden_rules[guild.id])
     invalid_rules = len(cog.invalid_warden_rules[guild.id])
     total_rules = active_rules + invalid_rules
-    warden_guide = "https://twentysix26.github.io/defender-docs/warden/overview/"
+    warden_guide = f"{DOCS_BASE_URL}/warden/overview/"
     invalid_text = ""
     if invalid_rules:
         invalid_text = f", **{invalid_rules}** of which are invalid"
