@@ -512,7 +512,7 @@ class WardenRule:
             return decorator
 
         def safe_sub(string):
-            if string == discord.Embed.Empty:
+            if string is None:
                 return string
             return Template(string).safe_substitute(runtime.state)
 
@@ -885,7 +885,7 @@ class WardenRule:
                 parent = channel.parent
 
         def safe_sub(string):
-            if string == discord.Embed.Empty:
+            if string is None:
                 return string
             return Template(string).safe_substitute(runtime.state)
 
@@ -1272,7 +1272,7 @@ class WardenRule:
             for key in params.dict():
                 attr = getattr(params, key)
                 if attr is None and key not in params._text_only_attrs:
-                    setattr(params, key, discord.Embed.Empty)
+                    setattr(params, key, None)
                 elif isinstance(attr, str):
                     setattr(params, key, safe_sub(attr))
 
