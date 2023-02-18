@@ -19,17 +19,20 @@ from defender.core.warden.rule import WardenRule
 from defender.core.warden.enums import ChecksKeys as WDChecksKeys
 from defender.core.warden import api as WardenAPI
 from ..abc import MixinMeta, CompositeMetaClass
-from ..enums import EmergencyModules, Action, Rank, PerspectiveAttributes
+from ..enums import Action, Rank, PerspectiveAttributes as PAttr, EmergencyModules as EModules
 from redbot.core import commands
 from redbot.core.utils.chat_formatting import box, pagify, escape
 from ..core import cache as df_cache
+from ..core.menus import RestrictedView, SettingSetSelect
 from redbot.core.commands import GuildConverter
-from discord import VerificationLevel
+from discord import SelectOption
 import discord
 import asyncio
 import logging
 
 log = logging.getLogger("red.x26cogs.defender")
+
+P_ATTRS_URL = "https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages"
 
 class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
@@ -485,7 +488,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.tick()
 
     @joinmonitorgroup.command(name="verificationlevel")
-    async def joinmonitorvlevel(self, ctx: commands.Context, verification_level: str):
+    async def joinmonitorvlevel(self, ctx: commands.Context):
         """Raises the server's verification level on raids
 
         You can find a full description of Discord's verification levels in
@@ -497,22 +500,30 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         2 - Medium: must be registered for longer than 5 minutes
         3 - High: must be a member of this server for longer than 10 minutes
         4 - Highest: must have a verified phone on their Discord account"""
-        try:
-            lvl = VerificationLevel(int(verification_level))
-        except ValueError:
-            return await ctx.send_help()
-
         if not ctx.me.guild_permissions.manage_guild:
             return await ctx.send("I cannot do this without `Manage server` permissions. "
                                   "Please fix this and try again.")
 
-        await self.config.guild(ctx.guild).join_monitor_v_level.set(lvl.value)
+        select_options = (
+            SelectOption(value="0", label="No action", description="Are you sure?", emoji="🤠"),
+            SelectOption(value="1", label="Low", description="Must have a verified email address on their Discord", emoji="🟢"),
+            SelectOption(value="2", label="Medium", description="Must also be registered on Discord for >= 5 minutes", emoji="🟡"),
+            SelectOption(value="3", label="High", description="Must also be a member here for more than 10 minutes", emoji="🟠"),
+            SelectOption(value="4", label="Highest", description="Must also have a verified phone on their Discord", emoji="🔴"),
+        )
 
-        if lvl.value:
-            await ctx.send(f"I will raise the server's verification level up to `{lvl}` "
-                           "if I detect many users joining at the same time.")
-        else:
-            await ctx.send("Got it. I won't raise the server's verification level.")
+        view = RestrictedView(self, ctx.author.id)
+        view.add_item(
+            SettingSetSelect(
+                config_value=self.config.guild(ctx.guild).join_monitor_v_level,
+                current_settings=await self.config.guild(ctx.guild).join_monitor_v_level(),
+                select_options=select_options,
+                max_values=1,
+                cast_to=int
+            )
+        )
+
+        await ctx.send("Select the verification level that will be set when a raid is detected", view=view)
 
     @joinmonitorgroup.command(name="wdchecks")
     async def joinmonitorwdchecks(self, ctx: commands.Context, *, conditions: str=""):
@@ -701,22 +712,28 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.tick()
 
     @caset.command(name="attributes")
-    async def casetattributes(self, ctx: commands.Context, *attributes: str):
-        """Sets the attributes that CA will check
+    async def casetattributes(self, ctx: commands.Context):
+        """Setup the attributes that CA will check"""
+        select_options = (
+            SelectOption(value=PAttr.Toxicity.value, label="Toxicity", description="Rude or generally disrespectful comments"),
+            SelectOption(value=PAttr.SevereToxicity.value, label="Severe toxicity", description="Hateful, aggressive comments"),
+            SelectOption(value=PAttr.IdentityAttack.value, label="Identity attack", description="Hateful comments attacking one's identity"),
+            SelectOption(value=PAttr.Insult.value, label="Insult", description="Insulting, inflammatory or negative comments"),
+            SelectOption(value=PAttr.Profanity.value, label="Profanity", description="Comments containing swear words, curse words or profanities"),
+            SelectOption(value=PAttr.Threat.value, label="Threat", description="Comments perceived as an intention to inflict violence against others"),
+        )
 
-        See the full list here:
-        https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages"""
-        if not attributes:
-            return await ctx.send_help()
-        for attribute in attributes:
-            try:
-                PerspectiveAttributes(attribute)
-            except ValueError:
-                attributes_list = "\n".join([a.value for a in PerspectiveAttributes])
-                return await ctx.send("Invalid attribute(s). You must insert one or more of "
-                                      f"the following attributes:\n{attributes_list}")
-        await self.config.guild(ctx.guild).ca_attributes.set(attributes)
-        await ctx.tick()
+        view = RestrictedView(self, ctx.author.id)
+        view.add_item(
+            SettingSetSelect(
+                config_value=self.config.guild(ctx.guild).ca_attributes,
+                current_settings=await self.config.guild(ctx.guild).ca_attributes(),
+                select_options=select_options,
+                min_values=1,
+            )
+        )
+        await ctx.send("Select the attributes that Comment Analysis will check. You can find more "
+                       f"information here:\n{P_ATTRS_URL}", view=view)
 
     @caset.command(name="threshold")
     async def casetthreshold(self, ctx: commands.Context, threshold: int):
@@ -861,27 +878,31 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         See [p]defender status for more information about emergency mode"""
 
     @emergencygroup.command(name="modules")
-    async def emergencygroupmodules(self, ctx: commands.Context, *modules: str):
+    async def emergencygroupmodules(self, ctx: commands.Context):
         """Sets emergency modules
 
         Emergency modules will be rendered available to helper roles
-        during emergency mode. Passing no modules to this command will
+        during emergency mode. Selecting no modules to this command will
         disable emergency mode.
         Available emergency modules: voteout, vaporize, silence"""
-        modules = [m.lower() for m in modules] # type: ignore
-        for m in modules:
-            try:
-                EmergencyModules(m)
-            except:
-                return await ctx.send_help()
-        await self.config.guild(ctx.guild).emergency_modules.set(modules)
-        if modules:
-            await ctx.send("Emergency modules set. They will now be available to helper "
-                           "roles during emergency mode.")
-        else:
-            await ctx.send("Emergency mode is now disabled. If you wish to enable it see "
-                           f"`{ctx.prefix}help dset emergency modules`")
+        select_options = (
+            SelectOption(value=EModules.Silence.value, label="Silence", description="Apply a server wide mute on ranks", emoji="🔇"),
+            SelectOption(value=EModules.Vaporize.value, label="Vaporize", description="Silently get rid of multiple new users at once", emoji="☁️"),
+            SelectOption(value=EModules.Voteout.value, label="Voteout", description="Start a vote to expel misbehaving users", emoji="👎"),
+        )
 
+        view = RestrictedView(self, ctx.author.id)
+        view.add_item(
+            SettingSetSelect(
+                config_value=self.config.guild(ctx.guild).emergency_modules,
+                current_settings=await self.config.guild(ctx.guild).emergency_modules(),
+                select_options=select_options,
+                placeholder="Select 0 or more modules",
+                min_values=0,
+            )
+        )
+        await ctx.send("Select the modules that you want available to helpers during an emergency. "
+                       "Deselecting all of them will disable emergency mode.", view=view)
 
     @emergencygroup.command(name="minutes")
     async def emergencygroupminutes(self, ctx: commands.Context, minutes: int):
