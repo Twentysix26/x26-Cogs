@@ -196,7 +196,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
             async for m in AsyncIter(messages, steps=20):
                 ts = m.created_at.strftime("%H:%M:%S")
-                channel = guild.get_channel(m.channel_id)
+                channel = guild.get_channel(m.channel_id) or guild.get_thread(m.channel_id)
                 # If requester is None it means that it's not a user requesting the logs
                 # therefore we won't do any permission checking
                 if channel and requester is not None:
@@ -215,7 +215,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                         _log.append(f"[{ts}]({channel})[{entry}] {content}")
                 else:
                     _log.append(f"[{ts}]({channel}) {content}")
-        elif isinstance(obj, discord.TextChannel):
+        elif isinstance(obj, (discord.TextChannel, discord.Thread)):
             messages = df_cache.get_channel_messages(obj)
 
             async for m in AsyncIter(messages, steps=20):

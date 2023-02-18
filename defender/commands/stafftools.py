@@ -34,6 +34,7 @@ from redbot.core.utils.chat_formatting import error, pagify, box, inline, escape
 from redbot.core import commands
 from io import BytesIO
 from inspect import cleandoc
+from typing import Union
 import emoji, pydantic, regex, yaml, sys # Debug info purpose
 import logging
 import asyncio
@@ -110,7 +111,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defmessagesgroup.command(name="channel")
-    async def defmessagesgroupuserchannel(self, ctx: commands.Context, channel: discord.TextChannel):
+    async def defmessagesgroupuserchannel(self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.Thread]):
         """Shows recent messages of a channel"""
         author = ctx.author
         if not channel.permissions_for(author).read_messages:
