@@ -550,7 +550,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             staff_mention = f"<@&{await self.config.guild(guild).notify_role()}> "
 
         embed = None
-        send_embed = await self.bot.embed_requested(destination, None)
+        send_embed = await self.bot.embed_requested(destination)
         if send_embed is True and force_text_only is False:
             if jump_to:
                 description += f"\n[Click to jump]({jump_to.jump_url})"
