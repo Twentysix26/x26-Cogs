@@ -12,7 +12,7 @@
 		"cogs",
 		"finder"
 	],
-	"min_bot_version": "3.4.0",
+	"min_bot_version": "3.5.0.dev317",
 	"type": "COG",
 	"end_user_data_statement": "This cog does not store end user data."
 }
