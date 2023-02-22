@@ -25,6 +25,7 @@ from .utils import has_x_or_more_emojis, REMOVE_C_EMOJIS_RE, run_user_regex, mak
 from ...exceptions import InvalidRule, ExecutionError, StopExecution, MisconfigurationError
 from ...core import cache as df_cache
 from ...core.utils import get_external_invite, QuickAction, utcnow
+from ...core.menus import QAView
 from redbot.core.utils.common_filters import INVITE_URL_RE
 from redbot.core.utils.chat_formatting import box
 from redbot.core.commands.converter import parse_timedelta
@@ -947,7 +948,7 @@ class WardenRule:
                 qa_reason = safe_sub(qa_reason)
 
                 try:
-                    quick_action = QuickAction(int(qa_target), qa_reason)
+                    quick_action = QAView(cog, int(params.qa_target), params.qa_reason)
                 except ValueError:
                     raise ExecutionError(f"{qa_target} is not a valid ID for a Quick Action target.")
 

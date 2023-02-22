@@ -94,7 +94,8 @@ class QASelect(discord.ui.Select):
         action = QAInteractions(self.values[0])
 
         target = guild.get_member(int(self.custom_id))
-        if target is None: # TODO?
+        if target is None:
+            await inter.response.send_message("I have tried to take action but the user seems to be gone.", ephemeral=True)
             return
         elif target.top_role >= user.top_role:
             cog.send_to_monitor(guild, f"[QuickAction] Prevented user {user} from taking action on {target}: "
@@ -137,6 +138,7 @@ class QASelect(discord.ui.Select):
             else:
                 cog.send_to_monitor(guild, "[QuickAction] Failed to punish user. Is the punish role "
                                            "still present and with *no* privileges?")
+            await inter.response.defer()
             return
         elif action == QAInteractions.BanAndDelete24:
             await guild.ban(target, reason=auditlog_reason, delete_message_days=1)
@@ -144,6 +146,8 @@ class QASelect(discord.ui.Select):
 
         if action == QAInteractions.BanAndDelete24:
             action = QAInteractions.Ban
+
+        await inter.response.defer()
 
         await cog.create_modlog_case(
             bot,
