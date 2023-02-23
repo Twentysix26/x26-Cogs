@@ -129,4 +129,3 @@ def build_embeds(repos_cogs, prefix="[p]", is_owner=False):
         embeds.append(em)
 
     return embeds
-
