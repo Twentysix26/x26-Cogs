@@ -26,24 +26,24 @@ from .parser import Repo, Cog, build_embeds, FLOPPY_DISK, ARROW_DOWN
 PREV_ARROW = "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"
 CROSS_MARK = "\N{HEAVY MULTIPLICATION X}\N{VARIATION SELECTOR-16}"
 NEXT_ARROW = "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}"
+MAG_GLASS = "\N{LEFT-POINTING MAGNIFYING GLASS}"
 
-class IndexReposView(discord.ui.View):
-
-    def __init__(self, ctx: commands.Context, repos: List[Repo]):
-        super().__init__(timeout=60 * 3)
+class IndexView(discord.ui.View):
+    def __init__(self, ctx: commands.Context, *args, **kwargs):
         self.ctx: commands.Context = ctx
         self.cog = ctx.cog
-
-        self.repos: List[Repo] = repos
 
         self._message: Optional[discord.Message] = None
         self._embeds: Optional[List[discord.Embed]] = None
         self._selected = 0
 
+        super().__init__(*args, timeout=60 * 3, **kwargs)
+
     async def interaction_check(self, interaction: discord.Interaction):
         if not interaction.user.id == self.ctx.author.id:
             await interaction.response.send_message(
-                f"You are not allowed to use this interaction. You can use `{self.ctx.prefix}index browse`.", ephemeral=True
+                "You are not allowed to interact with this menu. "
+                f"You can open your own with `{self.ctx.prefix}index browse`.", ephemeral=True
             )
             return False
         return True
@@ -57,15 +57,16 @@ class IndexReposView(discord.ui.View):
         except discord.HTTPException:
             pass
 
+class IndexReposView(IndexView):
+    def __init__(self, ctx: commands.Context, repos: List[Repo]):
+        super().__init__(ctx)
+        self.repos: List[Repo] = repos
+
     async def show_repos(self):
         is_owner = await self.ctx.bot.is_owner(self.ctx.author) and self.ctx.bot.get_cog("Downloader")
         self._embeds = build_embeds(self.repos, prefix=self.ctx.prefix, is_owner=is_owner)
         if not is_owner:
             self.remove_item(self.install_repo)
-        view_button = discord.utils.get(self.children, label="View")
-        if view_button:
-            self.remove_item(view_button)
-        self.add_item(discord.ui.Button(label="View", url=self.repos[self._selected].url))
         self._message = await self.ctx.send(embed=self._embeds[self._selected], view=self)
 
     @discord.ui.button(emoji=PREV_ARROW)
@@ -74,10 +75,20 @@ class IndexReposView(discord.ui.View):
             self._selected = 0
         else:
             self._selected += 1
-        view_button = discord.utils.get(self.children, label="View")
-        if view_button:
-            self.remove_item(view_button)
-        self.add_item(discord.ui.Button(label="View", url=self.repos[self._selected].url))
+        await interaction.response.edit_message(embed=self._embeds[self._selected], view=self)
+
+    @discord.ui.button(emoji=MAG_GLASS)
+    async def enter_repo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        await self._message.delete()
+        await IndexCogsView(self.ctx, repo=self.repos[self._selected]).show_cogs()
+
+    @discord.ui.button(emoji=NEXT_ARROW)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self._selected == 0:
+            self._selected = len(self.repos) - 1
+        else:
+            self._selected -= 1
         await interaction.response.edit_message(embed=self._embeds[self._selected], view=self)
 
     @discord.ui.button(style=discord.ButtonStyle.danger, emoji=CROSS_MARK)
@@ -89,25 +100,7 @@ class IndexReposView(discord.ui.View):
             pass
         self.stop()
 
-    @discord.ui.button(emoji=NEXT_ARROW)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self._selected == 0:
-            self._selected = len(self.repos) - 1
-        else:
-            self._selected -= 1
-        view_button = discord.utils.get(self.children, label="View")
-        if view_button:
-            self.remove_item(view_button)
-        self.add_item(discord.ui.Button(label="View", url=self.repos[self._selected].url))
-        await interaction.response.edit_message(embed=self._embeds[self._selected], view=self)
-
-    @discord.ui.button(emoji=ARROW_DOWN)
-    async def enter_repo(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
-        await self._message.delete()
-        await IndexCogsView(self.ctx, repo=self.repos[self._selected]).show_cogs()
-
-    @discord.ui.button(style=discord.ButtonStyle.success, label="Install this repo", emoji=FLOPPY_DISK)
+    @discord.ui.button(style=discord.ButtonStyle.success, label="Install repo", emoji=FLOPPY_DISK)
     async def install_repo(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         try:
@@ -115,36 +108,11 @@ class IndexReposView(discord.ui.View):
         except RuntimeError as e:
             await self.ctx.send(f"I could not install the repository: {e}")
 
-class IndexCogsView(discord.ui.View):
-
+class IndexCogsView(IndexView):
     def __init__(self, ctx: commands.Context, repo: Optional[Repo] = None, cogs: Optional[List[Cog]] = None):
-        super().__init__(timeout=60 * 3)
-        self.ctx: commands.Context = ctx
-        self.cog = ctx.cog
-
+        super().__init__(ctx)
         self.repo: Optional[Repo] = repo
         self.cogs: Optional[List[Cog]] = cogs
-
-        self._message: Optional[discord.Message] = None
-        self._embeds: Optional[List[discord.Embed]] = None
-        self._selected = 0
-
-    async def interaction_check(self, interaction: discord.Interaction):
-        if not interaction.user.id == self.ctx.author.id:
-            await interaction.response.send_message(
-                f"You are not allowed to use this interaction. You can use `{self.ctx.prefix}index search`.", ephemeral=True
-            )
-            return False
-        return True
-
-    async def on_timeout(self):
-        for child in self.children:
-            if not child.style == discord.ButtonStyle.url:
-                child.disabled = True
-        try:
-            await self._message.edit(view=self)
-        except discord.HTTPException:
-            pass
 
     async def show_cogs(self):
         is_owner = await self.ctx.bot.is_owner(self.ctx.author) and self.ctx.bot.get_cog("Downloader")
@@ -157,10 +125,6 @@ class IndexCogsView(discord.ui.View):
         self._embeds = build_embeds(self.cogs, prefix=self.ctx.prefix, is_owner=is_owner)
         if not is_owner:
             self.remove_item(self.install_cog)
-        view_button = discord.utils.get(self.children, label="View")
-        if view_button:
-            self.remove_item(view_button)
-        self.add_item(discord.ui.Button(label="View", url=self.cogs[self._selected].repo.url))
         self._message = await self.ctx.send(embed=self._embeds[self._selected], view=self)
 
     @discord.ui.button(emoji=PREV_ARROW)
@@ -169,10 +133,20 @@ class IndexCogsView(discord.ui.View):
             self._selected = 0
         else:
             self._selected += 1
-        view_button = discord.utils.get(self.children, label="View")
-        if view_button:
-            self.remove_item(view_button)
-        self.add_item(discord.ui.Button(label="View", url=self.cogs[self._selected].repo.url))
+        await interaction.response.edit_message(embed=self._embeds[self._selected], view=self)
+
+    @discord.ui.button(emoji=ARROW_DOWN)
+    async def browse_repos(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
+        await self._message.delete()
+        await IndexReposView(self.ctx, repos=self.cog.cache.copy()).show_repos()
+
+    @discord.ui.button(emoji=NEXT_ARROW)
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self._selected == 0:
+            self._selected = len(self.cogs) - 1
+        else:
+            self._selected -= 1
         await interaction.response.edit_message(embed=self._embeds[self._selected], view=self)
 
     @discord.ui.button(style=discord.ButtonStyle.danger, emoji=CROSS_MARK)
@@ -184,25 +158,7 @@ class IndexCogsView(discord.ui.View):
             pass
         self.stop()
 
-    @discord.ui.button(emoji=NEXT_ARROW)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self._selected == 0:
-            self._selected = len(self.cogs) - 1
-        else:
-            self._selected -= 1
-        view_button = discord.utils.get(self.children, label="View")
-        if view_button:
-            self.remove_item(view_button)
-        self.add_item(discord.ui.Button(label="View", url=self.cogs[self._selected].repo.url))
-        await interaction.response.edit_message(embed=self._embeds[self._selected], view=self)
-
-    @discord.ui.button(label="Browse repos", emoji=ARROW_DOWN)
-    async def browse_repos(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer()
-        await self._message.delete()
-        await IndexReposView(self.ctx, repos=self.cog.cache.copy()).show_repos()
-
-    @discord.ui.button(style=discord.ButtonStyle.success, label="Install this cog", emoji=FLOPPY_DISK)
+    @discord.ui.button(style=discord.ButtonStyle.success, label="Install cog", emoji=FLOPPY_DISK)
     async def install_cog(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         try:
