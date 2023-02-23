@@ -49,9 +49,11 @@ class IndexReposView(discord.ui.View):
         return True
 
     async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
         try:
-            await self._message.delete()
-        except discord.NotFound:
+            await self._message.edit(view=self)
+        except discord.HTTPException:
             pass
 
     async def show_repos(self):
@@ -72,7 +74,10 @@ class IndexReposView(discord.ui.View):
     @discord.ui.button(style=discord.ButtonStyle.danger, emoji=CROSS_MARK)
     async def close_page(self, interaction: discord.Interaction, button: discord.ui.Item):
         await interaction.response.defer()
-        await self.on_timeout()
+        try:
+            await self._message.delete()
+        except discord.HTTPException:
+            pass
         self.stop()
 
     @discord.ui.button(emoji=NEXT_ARROW)
@@ -120,9 +125,11 @@ class IndexCogsView(discord.ui.View):
         return True
 
     async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
         try:
-            await self._message.delete()
-        except discord.NotFound:
+            await self._message.edit(view=self)
+        except discord.HTTPException:
             pass
 
     async def show_cogs(self):
@@ -149,7 +156,10 @@ class IndexCogsView(discord.ui.View):
     @discord.ui.button(style=discord.ButtonStyle.danger, emoji=CROSS_MARK)
     async def close_page(self, interaction: discord.Interaction, button: discord.ui.Item):
         await interaction.response.defer()
-        await self.on_timeout()
+        try:
+            await self._message.delete()
+        except discord.HTTPException:
+            pass
         self.stop()
 
     @discord.ui.button(emoji=NEXT_ARROW)
