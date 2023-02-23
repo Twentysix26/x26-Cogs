@@ -40,6 +40,14 @@ class IndexReposView(discord.ui.View):
         self._embeds: Optional[List[discord.Embed]] = None
         self._selected = 0
 
+    async def interaction_check(self, interaction: discord.Interaction):
+        if not interaction.user.id == self.ctx.author.id:
+            await interaction.response.send_message(
+                f"You are not allowed to use this interaction. You can use `{self.ctx.prefix}index browse`.", ephemeral=True
+            )
+            return False
+        return True
+
     async def on_timeout(self):
         try:
             await self._message.delete()
@@ -102,6 +110,14 @@ class IndexCogsView(discord.ui.View):
         self._message: Optional[discord.Message] = None
         self._embeds: Optional[List[discord.Embed]] = None
         self._selected = 0
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        if not interaction.user.id == self.ctx.author.id:
+            await interaction.response.send_message(
+                f"You are not allowed to use this interaction. You can use `{self.ctx.prefix}index search`.", ephemeral=True
+            )
+            return False
+        return True
 
     async def on_timeout(self):
         try:
