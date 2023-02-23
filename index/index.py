@@ -53,6 +53,15 @@ class Index(commands.Cog):
         self.cache = []
         self.last_fetched = None
 
+    async def cog_unload(self):
+        await self.session.close()
+
+    async def red_get_data_for_user(self, *, user_id: int) -> Dict[str, Any]:
+        return {}
+
+    async def red_delete_data_for_user(self, *, requester, user_id: int):
+        pass
+
     @commands.group(name="index")
     async def indexgroup(self, ctx: commands.Context):
         """Red-Index cog discoverability commands"""
@@ -284,12 +293,3 @@ class Index(commands.Cog):
             if downloader_repo is None:
                 raise RuntimeError("No valid downloader repo.")
             await downloader._cog_install(ctx, downloader_repo, cog.name)
-
-    async def cog_unload(self):
-        self.session.detach()
-
-    async def red_get_data_for_user(self, *, user_id: int) -> Dict[str, Any]:
-        return {}
-
-    async def red_delete_data_for_user(self, *, requester, user_id: int):
-        pass
