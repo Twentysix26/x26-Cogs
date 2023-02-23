@@ -64,7 +64,7 @@ class IndexReposView(discord.ui.View):
         self._message = await self.ctx.send(embed=self._embeds[0], view=self)
 
     @discord.ui.button(label="Prev page", emoji=PREV_ARROW)
-    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self._selected == (len(self.repos) - 1):
             self._selected = 0
         else:
@@ -72,7 +72,7 @@ class IndexReposView(discord.ui.View):
         await interaction.response.edit_message(embed=self._embeds[self._selected])
 
     @discord.ui.button(style=discord.ButtonStyle.danger, emoji=CROSS_MARK)
-    async def close_page(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def close_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         try:
             await self._message.delete()
@@ -81,7 +81,7 @@ class IndexReposView(discord.ui.View):
         self.stop()
 
     @discord.ui.button(emoji=NEXT_ARROW)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self._selected == 0:
             self._selected = len(self.repos) - 1
         else:
@@ -89,13 +89,13 @@ class IndexReposView(discord.ui.View):
         await interaction.response.edit_message(embed=self._embeds[self._selected])
 
     @discord.ui.button(emoji=ARROW_DOWN)
-    async def enter_repo(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def enter_repo(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         await self._message.delete()
         await IndexCogsView(self.ctx, repo=self.repos[self._selected]).show_cogs()
 
     @discord.ui.button(style=discord.ButtonStyle.success, label="Install this repo", emoji=FLOPPY_DISK)
-    async def install_repo(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def install_repo(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         try:
             await self.cog.install_repo_cog(self.ctx, self.repos[self._selected])
@@ -146,7 +146,7 @@ class IndexCogsView(discord.ui.View):
         self._message = await self.ctx.send(embed=self._embeds[0], view=self)
 
     @discord.ui.button(emoji=PREV_ARROW)
-    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self._selected == (len(self.cogs) - 1):
             self._selected = 0
         else:
@@ -154,7 +154,7 @@ class IndexCogsView(discord.ui.View):
         await interaction.response.edit_message(embed=self._embeds[self._selected])
 
     @discord.ui.button(style=discord.ButtonStyle.danger, emoji=CROSS_MARK)
-    async def close_page(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def close_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         try:
             await self._message.delete()
@@ -163,7 +163,7 @@ class IndexCogsView(discord.ui.View):
         self.stop()
 
     @discord.ui.button(emoji=NEXT_ARROW)
-    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self._selected == 0:
             self._selected = len(self.cogs) - 1
         else:
@@ -171,13 +171,13 @@ class IndexCogsView(discord.ui.View):
         await interaction.response.edit_message(embed=self._embeds[self._selected])
 
     @discord.ui.button(label="Browse repos", emoji=ARROW_DOWN)
-    async def browse_repos(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def browse_repos(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         await self._message.delete()
         await IndexReposView(self.ctx, repos=self.cog.cache.copy()).show_repos()
 
     @discord.ui.button(style=discord.ButtonStyle.success, label="Install this cog", emoji=FLOPPY_DISK)
-    async def install_cog(self, interaction: discord.Interaction, button: discord.ui.Item):
+    async def install_cog(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer()
         try:
             await self.cog.install_repo_cog(self.ctx, self.cogs[self._selected].repo, self.cogs[self._selected])
