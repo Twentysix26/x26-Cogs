@@ -53,11 +53,6 @@ class Repo:
         em.add_field(name="Command to add repo",
                      value=f"{prefix}repo add {self.name.lower()} {url} {self.rx_branch}",
                      inline=False)
-        explore_text = f"Press  {ARROW_UP}  to browse this repo "
-        install_text = ""
-        if is_owner:
-            install_text = f"  |  {FLOPPY_DISK}  to install this repo"
-        em.set_footer(text=f"{explore_text}{install_text}")
         return em
 
 class Cog:
@@ -108,14 +103,10 @@ class Cog:
         em.add_field(name="Command to add cog",
                      value=f"{prefix}cog install {self.repo.name.lower()} {self.name}",
                      inline=False)
-        explore_text = f"Press  {ARROW_DOWN}  to browse repos "
-        install_text = ""
         tags = ""
         if self.tags:
             tags = "\nTags: " + ", ".join(self.tags)
-        if is_owner:
-            install_text = f"  |  {FLOPPY_DISK}  to install this cog"
-        em.set_footer(text=f"{explore_text}{install_text}{tags}")
+        em.set_footer(text=f"{tags}")
         return em
 
 def build_embeds(repos_cogs, prefix="[p]", is_owner=False):
@@ -129,4 +120,3 @@ def build_embeds(repos_cogs, prefix="[p]", is_owner=False):
         embeds.append(em)
 
     return embeds
-

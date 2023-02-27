@@ -17,10 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from typing import Any, Dict
-from redbot.core.utils.menus import menu, prev_page, next_page, close_menu
 
 import aiohttp
-import discord
 import logging
 from copy import copy
 from datetime import datetime
@@ -28,14 +26,12 @@ from redbot.core import commands
 from redbot.core.bot import Red
 from redbot.core.config import Config
 
-from .parser import Repo, Cog, build_embeds, FLOPPY_DISK, ARROW_UP, ARROW_DOWN
+from .parser import Cog, Repo
+from .views import IndexCogsView, IndexReposView
 
 IX_PROTOCOL = 1
 CC_INDEX_LINK = f"https://raw.githubusercontent.com/Cog-Creators/Red-Index/master/index/{IX_PROTOCOL}-min.json"
 RED_INDEX_REPO = "https://github.com/Cog-Creators/Red-Index/"
-PREV_ARROW = "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"
-CROSS_MARK = "\N{CROSS MARK}"
-NEXT_ARROW = "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}"
 
 log = logging.getLogger("red.x26cogs.index")
 
@@ -49,13 +45,22 @@ class Index(commands.Cog):
         )
         self.config.register_global(
             red_index_link=CC_INDEX_LINK,
-            red_index_max_age=10, # minutes
+            red_index_max_age=10,  # minutes
             red_index_cache={},
             red_index_show_unapproved=False,
         )
         self.session = aiohttp.ClientSession()
         self.cache = []
         self.last_fetched = None
+
+    async def cog_unload(self):
+        await self.session.close()
+
+    async def red_get_data_for_user(self, *, user_id: int) -> Dict[str, Any]:
+        return {}
+
+    async def red_delete_data_for_user(self, *, requester, user_id: int):
+        pass
 
     @commands.group(name="index")
     async def indexgroup(self, ctx: commands.Context):
@@ -72,59 +77,16 @@ class Index(commands.Cog):
                            "available or a not working link may have been set.\n"
                            f"Error: {e}")
             return
-        is_owner = await ctx.bot.is_owner(ctx.author) and self.bot.get_cog("Downloader")
         if not repo_name:
             cache = self.cache.copy()
+            await IndexReposView(ctx, repos=cache).show_repos()
         else:
             for r in self.cache:
                 if r.name.lower() == repo_name.lower():
-                    cache = list(r.cogs.values())
-                    await self.show_cogs(ctx, cogs=cache)
-                    return
+                    await IndexCogsView(ctx, repo=r).show_cogs()
+                    break
             else:
                 await ctx.send("I could not find any repo with that name.")
-                return
-        embeds = build_embeds(cache, prefix=ctx.prefix, is_owner=is_owner)
-        selected = 0
-
-        async def nextp(*args, **kwargs):
-            nonlocal selected
-            if selected == (len(cache) - 1):
-                selected = 0
-            else:
-                selected += 1
-            await next_page(*args, **kwargs)
-
-        async def prevp(*args, **kwargs):
-            nonlocal selected
-            if selected == 0:
-                selected = len(cache) - 1
-            else:
-                selected -= 1
-            await prev_page(*args, **kwargs)
-
-        async def enter_repo(*args, **kwargs):
-            kwargs["repo"] = cache[selected]
-            await self.show_cogs(*args, **kwargs)
-
-        async def install_repo(*args, **kwargs):
-            try:
-                await self.install_repo_cog(ctx, cache[selected])
-            except RuntimeError as e:
-                await ctx.send(f"I could not install the repository: {e}")
-            args = args[:-1]
-            return await menu(*args, **kwargs)
-
-        controls = {
-            PREV_ARROW: prevp,
-            CROSS_MARK: close_menu,
-            NEXT_ARROW: nextp,
-        }
-
-        controls[ARROW_UP] = enter_repo
-        if is_owner:
-            controls[FLOPPY_DISK] = install_repo
-        await menu(ctx, embeds, controls)
 
     def get_all_cogs(self):
         cogs = []
@@ -173,7 +135,7 @@ class Index(commands.Cog):
                     results.append(c)
 
         if results:
-            await self.show_cogs(ctx, cogs=results)
+            await IndexCogsView(ctx, cogs=results).show_cogs()
         else:
             # Well, fuck it then
             await ctx.send("I could not find anything with those search terms.")
@@ -260,69 +222,6 @@ class Index(commands.Cog):
         else:
             await ctx.send("Done. I won't show any unapproved cog.")
 
-    async def show_cogs(
-        self,
-        ctx: commands.Context,
-        pages: list=None,
-        controls: dict=None,
-        message: discord.Message=None,
-        page: int=None,
-        timeout: float=None,
-        emoji: str=None,
-        repo=None,
-        cogs: list=None
-    ):
-        if message:
-            await message.delete()
-        is_owner = await ctx.bot.is_owner(ctx.author) and self.bot.get_cog("Downloader")
-        if repo and not cogs:
-            cogs = list(repo.cogs.values())
-        elif cogs:
-            pass
-        else:
-            raise ValueError()
-        embeds = build_embeds(cogs, prefix=ctx.prefix, is_owner=is_owner)
-        selected = 0
-
-        async def nextp(*args, **kwargs):
-            nonlocal selected
-            if selected == (len(cogs) - 1):
-                selected = 0
-            else:
-                selected += 1
-            await next_page(*args, **kwargs)
-
-        async def prevp(*args, **kwargs):
-            nonlocal selected
-            if selected == 0:
-                selected = len(cogs) - 1
-            else:
-                selected -= 1
-            await prev_page(*args, **kwargs)
-
-        async def install_cog(*args, **kwargs):
-            try:
-                await self.install_repo_cog(ctx, cogs[selected].repo, cogs[selected])
-            except RuntimeError as e:
-                await ctx.send(f"I could not install the repository: {e}")
-            args = args[:-1]
-            await menu(*args, **kwargs)
-
-        async def browse_repos(_, __, ___, message, *args, **kwargs):
-            await message.delete()
-            await ctx.invoke(self.index_browse)
-
-        controls = {
-            PREV_ARROW: prevp,
-            CROSS_MARK: close_menu,
-            NEXT_ARROW: nextp,
-        }
-
-        controls[ARROW_DOWN] = browse_repos
-        if is_owner:
-            controls[FLOPPY_DISK] = install_cog
-        await menu(ctx, embeds, controls)
-
     async def fetch_index(self, force=False):
         if force or await self.is_cache_stale():
             link = await self.config.red_index_link()
@@ -345,7 +244,7 @@ class Index(commands.Cog):
 
     async def is_cache_stale(self):
         max_age = await self.config.red_index_max_age()
-        if not max_age: # 0 = no auto-refresh
+        if not max_age:  # 0 = no auto-refresh
             return False
         elif not self.last_fetched: # no fetch yet
             return True
@@ -394,15 +293,3 @@ class Index(commands.Cog):
             if downloader_repo is None:
                 raise RuntimeError("No valid downloader repo.")
             await downloader._cog_install(ctx, downloader_repo, cog.name)
-
-    def cog_unload(self):
-        self.session.detach()
-
-    __del__ = cog_unload
-
-    async def red_get_data_for_user(self, *, user_id: int) -> Dict[str, Any]:
-        return {}
-
-    async def red_delete_data_for_user(self, *, requester, user_id: int):
-        pass
-
