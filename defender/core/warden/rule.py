@@ -911,31 +911,6 @@ class WardenRule:
         async def delete_user_message(params: models.IsNone):
             await message.delete()
 
-        @processor(Action.Dm, suggest=Action.SendMessage)
-        async def send_dm(params: models.SendMessageToUser):
-            user_to_dm = guild.get_member(params.id)
-            if not user_to_dm:
-                user_to_dm = discord.utils.get(guild.members, name=params.id)
-            if not user_to_dm:
-                return
-            content = Template(params.content).safe_substitute(runtime.state)
-            try:
-                runtime.last_sent_message = await user_to_dm.send(content)
-            except:
-                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
-                                    f"{user_to_dm} ({user_to_dm.id})")
-                runtime.last_sent_message = None
-
-        @processor(Action.DmUser, suggest=Action.SendMessage)
-        async def send_user_dm(params: models.IsStr):
-            text = Template(params.value).safe_substitute(runtime.state)
-            try:
-                runtime.last_sent_message = await user.send(text)
-            except:
-                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to DM user "
-                                    f"{user} ({user.id})")
-                runtime.last_sent_message = None
-
         @processor(Action.NotifyStaff)
         async def notify_staff(params: models.NotifyStaff):
             # Checks if only "content" has been passed
@@ -1018,40 +993,10 @@ class WardenRule:
                                                                     force_text_only=text_only,
                                                                     allow_everyone_ping=params.allow_everyone_ping)
 
-        @processor(Action.NotifyStaffAndPing, suggest=Action.NotifyStaff)
-        async def notify_staff_and_ping(params: models.IsStr):
-            text = Template(params.value).safe_substitute(runtime.state)
-            runtime.last_sent_message = await cog.send_notification(guild, text, ping=True, allow_everyone_ping=True,
-                                                            force_text_only=True)
-
-        @processor(Action.NotifyStaffWithEmbed, suggest=Action.NotifyStaff)
-        async def notify_staff_with_embed(params: models.NotifyStaffWithEmbed):
-            title = Template(params.title).safe_substitute(runtime.state)
-            content = Template(params.content).safe_substitute(runtime.state)
-            runtime.last_sent_message = await cog.send_notification(guild, content,
-                                                            title=title, footer=f"Warden rule `{self.name}`",
-                                                            allow_everyone_ping=True)
-
-        @processor(Action.SendInChannel, suggest=Action.SendMessage)
-        async def send_in_channel(params: models.IsStr):
-            text = Template(params.value).safe_substitute(runtime.state)
-            runtime.last_sent_message = await channel.send(text, allowed_mentions=ALLOW_ALL_MENTIONS)
-
         @processor(Action.SetChannelSlowmode)
         async def set_channel_slowmode(params: models.IsTimedelta):
             if params.value.seconds != channel.slowmode_delay:
                 await channel.edit(slowmode_delay=params.value.seconds)
-
-        @processor(Action.SendToChannel, suggest=Action.SendMessage)
-        async def send_to_channel(params: models.SendMessageToChannel):
-            channel_dest = guild.get_channel(params.id_or_name)
-            pool = guild.text_channels if parent is None else guild.threads
-            if not channel_dest:
-                channel_dest = discord.utils.get(pool, name=params.id_or_name)
-            if not channel_dest:
-                raise ExecutionError(f"Channel '{params.id_or_name}' not found.")
-            content = Template(params.content).safe_substitute(runtime.state)
-            runtime.last_sent_message = await channel_dest.send(content, allowed_mentions=ALLOW_ALL_MENTIONS)
 
         @processor(Action.AddRolesToUser)
         async def add_roles_to_user(params: models.NonEmptyList):
