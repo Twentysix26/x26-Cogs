@@ -1014,7 +1014,7 @@ class WardenRule:
                                                                     jump_to=jump_to_msg,
                                                                     no_repeat_for=params.no_repeat_for,
                                                                     heat_key=heat_key,
-                                                                    quick_action=quick_action,
+                                                                    view=quick_action,
                                                                     force_text_only=text_only,
                                                                     allow_everyone_ping=params.allow_everyone_ping)
 
