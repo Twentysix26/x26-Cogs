@@ -35,7 +35,7 @@ from redbot.core import commands
 from io import BytesIO
 from inspect import cleandoc
 from typing import Union
-import emoji, pydantic, regex, yaml, sys # Debug info purpose
+import emoji, pydantic, regex, yaml, sys, rapidfuzz # Debug info purpose
 import logging
 import asyncio
 import fnmatch
@@ -334,6 +334,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
              pydantic {pydantic_version}
              pyyaml {yaml.__version__}
              regex {regex.__version__}
+             rapidfuzz {rapidfuzz.__version__}
             -- General settings --
              Notif channel set: {notif_channel_set}
              Notif role set: {notify_role_set}
