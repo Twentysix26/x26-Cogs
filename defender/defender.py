@@ -32,7 +32,7 @@ from .core.warden.enums import Event as WardenEvent
 from .core.warden import heat, api as WardenAPI
 from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
-from .core.utils import QuickAction, utcnow, timestamp
+from .core.utils import utcnow, timestamp
 from .core import cache as df_cache
 from multiprocessing.pool import Pool
 from zlib import crc32
@@ -627,6 +627,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
     async def create_modlog_case(self, bot, guild, created_at, action_type, user, moderator=None, reason=None, until=None,
                                  channel=None, last_known_username=None):
+        if action_type == Action.NoAction.value:
+            return
+
         mod_id = moderator.id if moderator else "none"
 
         heat_key = f"core-modlog-{user.id}-{action_type}-{mod_id}"
