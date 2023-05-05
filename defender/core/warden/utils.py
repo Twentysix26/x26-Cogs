@@ -1,4 +1,4 @@
-from fuzzywuzzy import fuzz, process
+from rapidfuzz import fuzz, process
 from redbot.core.utils import AsyncIter
 import emoji
 import regex as re
