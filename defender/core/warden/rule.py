@@ -944,13 +944,13 @@ class WardenRule:
             quick_action = None
             if params.qa_target:
                 qa_target = safe_sub(params.qa_target)
-                qa_reason = "" if params.qa_reason is None else params.qa_reason
-                qa_reason = safe_sub(qa_reason)
-
                 try:
-                    quick_action = QAView(cog, int(params.qa_target), params.qa_reason)
+                    qa_target = int(qa_target)
                 except ValueError:
                     raise ExecutionError(f"{qa_target} is not a valid ID for a Quick Action target.")
+                qa_reason = "" if params.qa_reason is None else params.qa_reason
+                qa_reason = safe_sub(qa_reason)
+                quick_action = QAView(cog, qa_target, qa_reason)
 
             jump_to_msg = None
 
