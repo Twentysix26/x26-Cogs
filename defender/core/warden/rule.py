@@ -964,10 +964,11 @@ class WardenRule:
                     jump_to_ch = discord.utils.get(guild.text_channels, id=int(jump_to_channel_id))
                 except ValueError:
                     raise ExecutionError(f"{jump_to_channel_id} is not a valid channel ID for a \"jump to\" message.")
-                if not jump_to_message_id.isdigit():
-                    raise ExecutionError(f"{jump_to_message_id} is not a valid message ID for a \"jump to\" message.")
                 if jump_to_ch:
-                    jump_to_msg = jump_to_ch.get_partial_message(jump_to_message_id)
+                    try:
+                        jump_to_msg = jump_to_ch.get_partial_message(int(jump_to_message_id))
+                    except ValueError:
+                        raise ExecutionError(f"{jump_to_message_id} is not a valid message ID for a \"jump to\" message.")
                 else:
                     raise ExecutionError(f"I could not find the destination channel for the \"jump to\" message.")
 
