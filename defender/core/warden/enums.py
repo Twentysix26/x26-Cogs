@@ -70,13 +70,6 @@ class Action(enum.Enum):
     VarSlice = "var-slice" # Slice a var
     VarSplit = "var-split" # Splits a string into substrings
     VarTransform = "var-transform" # Perform a variety of operations on the var
-    ## Deprecated actions ##
-    Dm = "send-dm" #DM an arbitrary user. Must provide name/id + content
-    DmUser = "dm-user" # DMs user in context
-    SendInChannel = "send-in-channel" # Send message to channel in context
-    SendToChannel = "send-to-channel" # Sends a message to an arbitrary channel
-    NotifyStaffAndPing = "notify-staff-and-ping"
-    NotifyStaffWithEmbed = "notify-staff-with-embed"
 
 class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"

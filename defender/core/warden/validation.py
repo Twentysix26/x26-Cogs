@@ -155,21 +155,6 @@ class Compare(BaseModel):
                 raise ValueError("Unknown operator")
         return v
 
-class SendMessageToUser(BaseModel):
-    id: int
-    content: str
-
-class SendMessageToChannel(BaseModel):
-    id_or_name: Union[int, str]
-    content: str
-
-    async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
-        guild = author.guild
-        channel_dest = guild.get_channel(self.id_or_name)
-        if not channel_dest:
-            channel_dest = discord.utils.get(guild.text_channels, name=self.id_or_name)
-        if not channel_dest:
-            raise InvalidRule(f"`{action_or_cond.value}` Channel '{self.id_or_name}' not found.")
 
 class EmbedField(BaseModel):
     name: str
@@ -204,10 +189,6 @@ class NotifyStaff(BaseModel):
                              'the option to jump to the context\'s message.')
 
         return values
-
-class NotifyStaffWithEmbed(BaseModel):
-    title: str
-    content: str
 
 class AddCustomHeatpoint(BaseModel):
     label: HeatKey
@@ -482,11 +463,7 @@ CONDITIONS_VALIDATORS = {
 }
 
 ACTIONS_VALIDATORS = {
-    Action.Dm: SendMessageToUser,
-    Action.DmUser: IsStr,
     Action.NotifyStaff: NotifyStaff,
-    Action.NotifyStaffAndPing: IsStr,
-    Action.NotifyStaffWithEmbed: NotifyStaffWithEmbed,
     Action.BanAndDelete: IsInt,
     Action.Softban: IsNone,
     Action.Kick: IsNone,
@@ -494,7 +471,6 @@ ACTIONS_VALIDATORS = {
     Action.PunishUserWithMessage: IsNone,
     Action.Modlog: IsStr,
     Action.DeleteUserMessage: IsNone,
-    Action.SendInChannel: IsStr,
     Action.SetChannelSlowmode: IsSlowmodeTimedelta,
     Action.AddRolesToUser: RolesList,
     Action.RemoveRolesFromUser: RolesList,
@@ -502,7 +478,6 @@ ACTIONS_VALIDATORS = {
     Action.SetUserNickname: IsStr,
     Action.NoOp: IsNone,
     Action.SendToMonitor: IsStr,
-    Action.SendToChannel: SendMessageToChannel,
     Action.AddUserHeatpoint: IsHTimedelta,
     Action.AddUserHeatpoints: AddHeatpoints,
     Action.AddChannelHeatpoint: IsHTimedelta,
@@ -576,14 +551,10 @@ CONDITIONS_MESSAGE_CONTEXT = [
 ]
 
 ACTIONS_ANY_CONTEXT = [
-    Action.Dm,
     Action.NotifyStaff,
-    Action.NotifyStaffAndPing,
-    Action.NotifyStaffWithEmbed,
     Action.NoOp,
     Action.SendToMonitor,
     Action.EnableEmergencyMode,
-    Action.SendToChannel,
     Action.IssueCommand,
     Action.AddCustomHeatpoint,
     Action.AddCustomHeatpoints,
@@ -604,7 +575,6 @@ ACTIONS_ANY_CONTEXT = [
 ]
 
 ACTIONS_USER_CONTEXT = [
-    Action.DmUser,
     Action.BanAndDelete,
     Action.Softban,
     Action.Kick,
@@ -621,7 +591,6 @@ ACTIONS_USER_CONTEXT = [
 ACTIONS_MESSAGE_CONTEXT = [
     Action.DeleteUserMessage,
     Action.SetChannelSlowmode,
-    Action.SendInChannel,
     Action.AddChannelHeatpoint,
     Action.AddChannelHeatpoints,
     Action.EmptyChannelHeat,
@@ -667,14 +636,7 @@ ALLOWED_DEBUG_ACTIONS = [
     Action.EmptyCustomHeat,
 ]
 
-DEPRECATED = [
-    Action.Dm,
-    Action.DmUser,
-    Action.SendInChannel,
-    Action.SendToChannel,
-    Action.NotifyStaffAndPing,
-    Action.NotifyStaffWithEmbed,
-]
+DEPRECATED = []
 
 def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[list, dict, str, int, bool])->BaseModel:
     """

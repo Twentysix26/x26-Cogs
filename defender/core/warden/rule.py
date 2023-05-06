@@ -1566,7 +1566,7 @@ class WardenRule:
         if debug:
             for a in Action:
                 if a not in processors:
-                    raise ExecutionError(f"{action.value} does not have a processor.")
+                    raise ExecutionError(f"{a.value} does not have a processor.")
 
         self.last_action = action
         if debug and action not in ALLOWED_DEBUG_ACTIONS:
