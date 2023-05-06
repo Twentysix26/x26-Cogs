@@ -261,14 +261,14 @@ class Sbansync(commands.Cog):
 
         stats = Counter()
 
-        guild_bans = [m.user for m in await guild.bans()]
-        target_bans = [m.user for m in await target_guild.bans()]
+        guild_bans = [m.user async for m in guild.bans(limit=None)]
+        target_bans = [m.user async for m in target_guild.bans(limit=None)]
 
         if operation in (Operation.Pull, Operation.Sync):
             for m in target_bans:
                 if m not in guild_bans:
                     try:
-                        await guild.ban(m, delete_message_days=0, reason=f"Syncban issued by {member} ({member.id})")
+                        await guild.ban(m, delete_message_seconds=0, reason=f"Syncban issued by {member} ({member.id})")
                     except (discord.Forbidden, discord.HTTPException):
                         stats["Failed pulls: "] += 1
                     else:
@@ -278,7 +278,7 @@ class Sbansync(commands.Cog):
             for m in guild_bans:
                 if m not in target_bans:
                     try:
-                        await target_guild.ban(m, delete_message_days=0, reason=f"Syncban issued by {member} ({member.id})")
+                        await target_guild.ban(m, delete_message_seconds=0, reason=f"Syncban issued by {member} ({member.id})")
                     except (discord.Forbidden, discord.HTTPException):
                         stats["Failed pushes: "] += 1
                     else:
