@@ -20,9 +20,9 @@ from ..abc import MixinMeta, CompositeMetaClass
 from ..enums import Rank
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
-from ..core.warden.enums import Event as WardenEvent, ConditionBlock
+from ..core.warden.enums import Event as WardenEvent, ChecksKeys
 from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_prompt, strip_yaml_codeblock
-from ..core.warden import heat
+from ..core.warden import heat, api as WardenAPI
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
 from ..core.utils import utcnow
@@ -313,6 +313,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
     @commands.is_owner()
     async def defenderdebuginfo(self, ctx: commands.Context):
         """Debug info about Defender and its dependencies"""
+        guild = ctx.guild
         admin_roles = await ctx.bot._config.guild(ctx.guild).admin_role()
         mod_roles = await ctx.bot._config.guild(ctx.guild).mod_role()
         conf = self.config.guild(ctx.guild)
@@ -324,6 +325,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             pydantic_version = pydantic.__version__
         except AttributeError:
             pydantic_version = pydantic.version.VERSION
+
+        async def wd_checks_present(module_key):
+            return "Active" if await WardenAPI.get_check(guild, module_key) else "None"
 
         await ctx.send(box(cleandoc(
             f"""
@@ -342,11 +346,11 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
              Roles: {len(admin_roles)} admin / {len(mod_roles)} mod
             -- Enabled modules --
              Defender: {await conf.enabled()}
-             IF: {await conf.invite_filter_enabled()}
-             RD: {await conf.raider_detection_enabled()}
-             JM: {await conf.join_monitor_enabled()}
+             IF: {await conf.invite_filter_enabled()} (WD checks: {await wd_checks_present(ChecksKeys.InviteFilter)})
+             RD: {await conf.raider_detection_enabled()} (WD checks: {await wd_checks_present(ChecksKeys.RaiderDetection)})
+             JM: {await conf.join_monitor_enabled()} (WD checks: {await wd_checks_present(ChecksKeys.JoinMonitor)})
              WD: {await conf.warden_enabled()}
-             CA: {await conf.ca_enabled()}
+             CA: {await conf.ca_enabled()} (WD checks: {await wd_checks_present(ChecksKeys.CommentAnalysis)})
              Alert: {await conf.alert_enabled()}
              Vaporize: {await conf.vaporize_enabled()}
              Silence: {await conf.silence_enabled()}
