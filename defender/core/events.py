@@ -29,6 +29,8 @@ import discord
 import logging
 import asyncio
 
+ALLOWED_MESSAGE_TYPES = (MessageType.default, MessageType.reply)
+
 log = logging.getLogger("red.x26cogs.defender")
 
 class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
@@ -42,7 +44,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         if author.bot:
             return
-        if message.type != MessageType.default:
+        if message.type not in ALLOWED_MESSAGE_TYPES:
             return
         if not await self.config.guild(guild).enabled():
             return
@@ -153,7 +155,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         if author.bot:
             return
-        if message.type != MessageType.default:
+        if message.type not in ALLOWED_MESSAGE_TYPES:
             return
         if message_before.content == message.content:
             return
@@ -233,7 +235,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
             return
         if author.bot:
             return
-        if message.type != MessageType.default:
+        if message.type not in ALLOWED_MESSAGE_TYPES:
             return
 
         if not await self.config.guild(guild).enabled():
