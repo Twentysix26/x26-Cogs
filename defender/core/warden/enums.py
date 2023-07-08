@@ -60,6 +60,10 @@ class Action(enum.Enum):
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
     SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
     GetUserInfo = "get-user-info" # Get info of an arbitrary user
+    ArchiveThread = "archive-thread" # Close the thread in context
+    LockThread = "lock-thread" # Lock the thread in context
+    ArchiveAndLockThread = "archive-and-lock-thread" # Close and lock the thread in context
+    DeleteThread = "delete-thread" # Delete the thread in context
     Exit = "exit" # Stops processing the rule
     WarnSystemWarn = "warnsystem-warn" ## Warnsystem integration
     VarAssign = "var-assign" # Assigns a string to a variable
