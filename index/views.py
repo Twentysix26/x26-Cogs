@@ -22,6 +22,7 @@ import discord
 from redbot.core import commands
 
 from .parser import Repo, Cog, build_embeds, FLOPPY_DISK, ARROW_DOWN
+from .exceptions import NoCogs
 
 PREV_ARROW = "\N{LEFTWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"
 CROSS_MARK = "\N{HEAVY MULTIPLICATION X}\N{VARIATION SELECTOR-16}"
@@ -79,9 +80,14 @@ class IndexReposView(IndexView):
 
     @discord.ui.button(emoji=MAG_GLASS)
     async def enter_repo(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            await IndexCogsView(self.ctx, repo=self.repos[self._selected]).show_cogs()
+        except NoCogs:
+            await interaction.response.send_message("This repository is empty: no cogs to show.",
+                                                    ephemeral=True)
+            return
         await interaction.response.defer()
         await self._message.delete()
-        await IndexCogsView(self.ctx, repo=self.repos[self._selected]).show_cogs()
 
     @discord.ui.button(emoji=NEXT_ARROW)
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -125,6 +131,8 @@ class IndexCogsView(IndexView):
         self._embeds = build_embeds(self.cogs, prefix=self.ctx.prefix, is_owner=is_owner)
         if not is_owner:
             self.remove_item(self.install_cog)
+        if len(self._embeds) == 0:
+            raise NoCogs()
         self._message = await self.ctx.send(embed=self._embeds[self._selected], view=self)
 
     @discord.ui.button(emoji=PREV_ARROW)

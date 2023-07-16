@@ -28,6 +28,7 @@ from redbot.core.config import Config
 
 from .parser import Cog, Repo
 from .views import IndexCogsView, IndexReposView
+from .exceptions import NoCogs
 
 IX_PROTOCOL = 1
 CC_INDEX_LINK = f"https://raw.githubusercontent.com/Cog-Creators/Red-Index/master/index/{IX_PROTOCOL}-min.json"
@@ -82,9 +83,13 @@ class Index(commands.Cog):
             await IndexReposView(ctx, repos=cache).show_repos()
         else:
             for r in self.cache:
-                if r.name.lower() == repo_name.lower():
+                if not r.name.lower() == repo_name.lower():
+                    continue
+                try:
                     await IndexCogsView(ctx, repo=r).show_cogs()
-                    break
+                except NoCogs:
+                    await ctx.send("This repository is empty: no cogs to show.")
+                break
             else:
                 await ctx.send("I could not find any repo with that name.")
 
