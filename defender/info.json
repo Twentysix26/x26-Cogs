@@ -11,7 +11,7 @@
         "moderation",
         "monitoring"
     ],
-    "requirements": ["pyyaml~=5.4.1", "emoji~=1.6.3", "pydantic~=1.9.1", "regex==2022.4.24", "rapidfuzz==3.0.0"],
+    "requirements": ["emoji~=1.6.3", "pydantic~=1.9.1", "regex==2022.4.24"],
     "min_bot_version": "3.5.0.dev317",
     "type": "COG",
     "end_user_data_statement": "This cog stores user IDs for the purpose of counting the messages a user sends and/or send the DM notifications the user has subscribed to."
