@@ -85,7 +85,7 @@ class Cog:
             author = ', '.join(self.author)
         else:
             author = self.repo.name
-        em = discord.Embed(url=url, description=description, colour=discord.Colour.red())
+        em = discord.Embed(url=url, description=description, colour=colour)
         em.set_author(name=f"{self.name} from {self.repo.name}")
         em.add_field(name="Type", value=self.repo.rx_category, inline=True)
         em.add_field(name="Author", value=author, inline=True)
