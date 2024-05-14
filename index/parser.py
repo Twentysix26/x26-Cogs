@@ -41,8 +41,8 @@ class Repo:
                 continue
             self.cogs[cog_name] = Cog(cog_name, self, cog_raw)
 
-    def build_embed(self, *, prefix="[p]", is_owner=False):
-        em = discord.Embed(url=self.url, description=self.description, colour=discord.Colour.red())
+    def build_embed(self, *, prefix="[p]", colour: discord.Colour = discord.Colour.red(), is_owner=False):
+        em = discord.Embed(url=self.url, description=self.description, colour=colour)
         em.set_author(name=f"{self.name} by {', '.join(self.author)}")
         em.add_field(name="Type", value=self.rx_category, inline=True)
         if self.rx_branch:
@@ -74,7 +74,7 @@ class Cog:
         self.type = raw_data.get("type", "")
         self.repo = repo
 
-    def build_embed(self, *, prefix="[p]", is_owner=False):
+    def build_embed(self, *, prefix="[p]", colour: discord.Colour = discord.Colour.red(), is_owner=False):
         url = f"{self.repo.url}/{self.name}"
 
         if self.description:
@@ -109,12 +109,12 @@ class Cog:
         em.set_footer(text=f"{tags}")
         return em
 
-def build_embeds(repos_cogs, prefix="[p]", is_owner=False):
+def build_embeds(repos_cogs, prefix="[p]", colour: discord.Colour = discord.Colour.red(), is_owner=False):
     embeds = []
 
     for rc in repos_cogs:
         if isinstance(rc, (Repo, Cog)):
-            em = rc.build_embed(prefix=prefix, is_owner=is_owner)
+            em = rc.build_embed(prefix=prefix, colour=colour, is_owner=is_owner)
         else:
             raise TypeError("Unhandled type.")
         embeds.append(em)
