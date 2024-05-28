@@ -117,6 +117,14 @@ class HTimeDelta(TimeDelta):
     def validate(cls, v):
         return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(hours=24))
 
+class TimeoutTimeDelta(TimeDelta):
+    """
+    Restricted Timedelta for timeouts
+    """
+    @classmethod
+    def validate(cls, v):
+        return cls.parse_td(v, min=timedelta(minutes=1), max=timedelta(days=28))
+
 class SlowmodeTimeDelta(TimeDelta):
     """
     Restricted Timedelta for slowmode
@@ -402,6 +410,10 @@ class IsTimedelta(BaseModel):
 class IsHTimedelta(BaseModel):
     _single_value = True
     value: HTimeDelta
+    
+class IsTimeoutTimedelta(BaseModel):
+    _single_value = True
+    value: TimeoutTimeDelta
 
 class IsSlowmodeTimedelta(BaseModel):
     _single_value = True
@@ -469,6 +481,7 @@ ACTIONS_VALIDATORS = {
     Action.Kick: IsNone,
     Action.PunishUser: IsNone,
     Action.PunishUserWithMessage: IsNone,
+    Action.TimeoutUser: IsTimeoutTimedelta,
     Action.Modlog: IsStr,
     Action.DeleteUserMessage: IsNone,
     Action.SetChannelSlowmode: IsSlowmodeTimedelta,
@@ -579,6 +592,7 @@ ACTIONS_USER_CONTEXT = [
     Action.Softban,
     Action.Kick,
     Action.PunishUser,
+    Action.TimeoutUser,
     Action.Modlog,
     Action.AddRolesToUser,
     Action.RemoveRolesFromUser,
