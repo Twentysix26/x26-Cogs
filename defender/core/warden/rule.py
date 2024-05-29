@@ -1083,6 +1083,13 @@ class WardenRule:
                 cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
                                             "still present and with *no* privileges?")
 
+        @processor(Action.Timeout)
+        async def timeout_user(params: models.IsOptionalTimedelta):
+            if user not in guild.members:
+                raise ExecutionError(f"User {user} ({user.id}) not in the server.")
+            reason = f"Timeout set by Warden action '{self.name}'"
+            await user.timeout(params.value, reason=reason)
+
         @processor(Action.Modlog)
         async def send_mod_log(params: models.IsStr):
             if runtime.last_expel_action is None:

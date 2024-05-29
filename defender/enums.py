@@ -34,6 +34,7 @@ class Action(enum.Enum):
     Kick = "kick"
     Softban = "softban"
     Punish = "punish"
+    Timeout = "timeout"
 
 class QAAction(enum.Enum):
     BanDeleteOneDay = "ban"

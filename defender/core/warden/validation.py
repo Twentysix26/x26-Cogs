@@ -399,6 +399,10 @@ class IsTimedelta(BaseModel):
     _single_value = True
     value: TimeDelta
 
+class IsOptionalTimedelta(BaseModel):
+    _single_value = True
+    value: Optional[TimeDelta]
+
 class IsHTimedelta(BaseModel):
     _single_value = True
     value: HTimeDelta
@@ -469,6 +473,7 @@ ACTIONS_VALIDATORS = {
     Action.Kick: IsNone,
     Action.PunishUser: IsNone,
     Action.PunishUserWithMessage: IsNone,
+    Action.Timeout: IsOptionalTimedelta,
     Action.Modlog: IsStr,
     Action.DeleteUserMessage: IsNone,
     Action.SetChannelSlowmode: IsSlowmodeTimedelta,
@@ -579,6 +584,7 @@ ACTIONS_USER_CONTEXT = [
     Action.Softban,
     Action.Kick,
     Action.PunishUser,
+    Action.Timeout,
     Action.Modlog,
     Action.AddRolesToUser,
     Action.RemoveRolesFromUser,
