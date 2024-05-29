@@ -75,6 +75,8 @@ class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"
     UsernameMatchesAny = "username-matches-any"
     UsernameMatchesRegex = "username-matches-regex"
+    DisplayNameMatchesAny = "display-name-matches-any"
+    DisplayNameMatchesRegex = "display-name-matches-regex"
     NicknameMatchesAny = "nickname-matches-any"
     NicknameMatchesRegex = "nickname-matches-regex"
     MessageMatchesAny = "message-matches-any"
