@@ -496,6 +496,10 @@ ACTIONS_VALIDATORS = {
     Action.DeleteLastMessageSentAfter: IsDeleteLastMessageSentAfterTimeDelta,
     Action.SendMessage: SendMessage,
     Action.GetUserInfo: GetUserInfo,
+    Action.ArchiveThread: IsNone,
+    Action.LockThread: IsNone,
+    Action.ArchiveAndLockThread: IsNone,
+    Action.DeleteThread: IsNone,
     Action.Exit: IsNone,
     Action.WarnSystemWarn: WarnSystemWarn,
     Action.VarAssign: VarAssign,
@@ -601,6 +605,10 @@ ACTIONS_MESSAGE_CONTEXT = [
     Action.AddChannelHeatpoints,
     Action.EmptyChannelHeat,
     Action.PunishUserWithMessage,
+    Action.ArchiveThread,
+    Action.LockThread,
+    Action.ArchiveAndLockThread,
+    Action.DeleteThread,
 ]
 
 ALLOWED_STATEMENTS = {

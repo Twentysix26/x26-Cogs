@@ -1316,6 +1316,26 @@ class WardenRule:
                     raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message. "
                                         f"{params.edit_message_id} is not a valid ID")
 
+        @processor(Action.ArchiveThread)
+        async def archive_thread(params: models.IsNone):
+            if isinstance(channel, discord.Thread):
+                await channel.edit(archived=True, reason=f"Archived by Warden rule '{self.name}'")
+
+        @processor(Action.LockThread)
+        async def lock_thread(params: models.IsNone):
+            if isinstance(channel, discord.Thread):
+                await channel.edit(locked=True, reason=f"Locked by Warden rule '{self.name}'")
+
+        @processor(Action.ArchiveAndLockThread)
+        async def archive_and_lock_thread(params: models.IsNone):
+            if isinstance(channel, discord.Thread):
+                await channel.edit(archived=True, locked=True, reason=f"Archived and locked by Warden rule '{self.name}'")
+
+        @processor(Action.DeleteThread)
+        async def delete_thread(params: models.IsNone):
+            if isinstance(channel, discord.Thread):
+                await channel.delete()
+
         @processor(Action.GetUserInfo)
         async def get_user_info(params: models.GetUserInfo):
             _id = safe_sub(params.id)
