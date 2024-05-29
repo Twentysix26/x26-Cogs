@@ -133,6 +133,14 @@ class DeleteLastMessageSentAfterTimeDelta(TimeDelta):
     def validate(cls, v):
         return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(minutes=15))
 
+class TimeoutUserTimeDelta(TimeDelta):
+    """
+    Restricted Timedelta for timeout-user
+    """
+    @classmethod
+    def validate(cls, v):
+        return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(days=28))
+
 #
 #   MODELS
 #
@@ -399,9 +407,9 @@ class IsTimedelta(BaseModel):
     _single_value = True
     value: TimeDelta
 
-class IsOptionalTimedelta(BaseModel):
+class IsOptionalTimeoutUserTimedelta(BaseModel):
     _single_value = True
-    value: Optional[TimeDelta]
+    value: Optional[TimeoutUserTimeDelta]
 
 class IsHTimedelta(BaseModel):
     _single_value = True
@@ -473,7 +481,7 @@ ACTIONS_VALIDATORS = {
     Action.Kick: IsNone,
     Action.PunishUser: IsNone,
     Action.PunishUserWithMessage: IsNone,
-    Action.Timeout: IsOptionalTimedelta,
+    Action.Timeout: IsOptionalTimeoutUserTimedelta,
     Action.Modlog: IsStr,
     Action.DeleteUserMessage: IsNone,
     Action.SetChannelSlowmode: IsSlowmodeTimedelta,
