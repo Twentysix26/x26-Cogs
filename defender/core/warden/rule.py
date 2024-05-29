@@ -597,6 +597,8 @@ class WardenRule:
         @checker(Condition.DisplayNameMatchesAny)
         async def display_name_matches_any(params: models.NonEmptyListStr):
             # One match = Passed
+            if not user.global_name:
+                return False
             display_name = user.global_name.lower()
             for pattern in params.value:
                 if fnmatch.fnmatch(display_name, pattern.lower()):
@@ -605,6 +607,8 @@ class WardenRule:
 
         @checker(Condition.DisplayNameMatchesRegex)
         async def display_name_matches_regex(params: models.IsStr):
+            if not user.global_name:
+                return False
             return await run_user_regex(
                 rule_obj=self,
                 cog=cog,
