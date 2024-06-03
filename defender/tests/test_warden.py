@@ -160,13 +160,15 @@ async def test_rule_parsing():
         await WardenRule().parse(rl.INVALID_MIXED_RULE_CONDITION, cog=None)
     with pytest.raises(InvalidRule, match=r".*Statement `delete-user-message` not allowed*"):
         await WardenRule().parse(rl.INVALID_MIXED_RULE_ACTION, cog=None)
-    with pytest.raises(InvalidRule, match=r".*ensure this value is*"):
+    with pytest.raises(InvalidRule, match=r".*too many arguments*"):
+        await WardenRule().parse(rl.INVALID_TOO_MANY_ARGS, cog=None)
+    with pytest.raises(InvalidRule, match=r".*Input should be less than*"):
         await WardenRule().parse(rl.OOB_USER_HEATPOINTS, cog=None)
-    with pytest.raises(InvalidRule, match=r".*amount of time is too large*"):
+    with pytest.raises(InvalidRule, match=r".*This amount of time is too large*"):
         await WardenRule().parse(rl.OOB_USER_HEATPOINTS2, cog=None)
-    with pytest.raises(InvalidRule, match=r".*ensure this value is*"):
+    with pytest.raises(InvalidRule, match=r".*Input should be less than*"):
         await WardenRule().parse(rl.OOB_CUSTOM_HEATPOINTS, cog=None)
-    with pytest.raises(InvalidRule, match=r".*amount of time is too large*"):
+    with pytest.raises(InvalidRule, match=r".*This amount of time is too large*"):
         await WardenRule().parse(rl.OOB_CUSTOM_HEATPOINTS2, cog=None)
     with pytest.raises(InvalidRule, match=r".*cannot start with*"):
         await WardenRule().parse(rl.RESERVED_KEY_CUSTOM_HEATPOINTS, cog=None)
@@ -174,7 +176,7 @@ async def test_rule_parsing():
         await WardenRule().parse(rl.INVALID_VAR_NAME, cog=None)
     with pytest.raises(InvalidRule, match=r".*less than or equal to 4*"):
         await WardenRule().parse(rl.INVALID_RANK, cog=None)
-    with pytest.raises(InvalidRule, match=r".*amount of time is too large*"):
+    with pytest.raises(InvalidRule, match=r".*This amount of time is too large*"):
         await WardenRule().parse(rl.OOB_DELETE_AFTER, cog=None)
     with pytest.raises(InvalidRule, match=r".*conditional action blocks are not allowed in the condition section of a rule.*"):
         await WardenRule().parse(rl.INVALID_COND_ACTION_BLOCK_IN_CONDITION_SECTION, cog=None)
@@ -603,10 +605,10 @@ async def test_conditions():
 
     # This tests the "_single_value" changes. The condition should only accept a single value,
     # not a list to unpack and not a dict
-    with pytest.raises(InvalidRule, match=r".*could not be parsed*"):
+    with pytest.raises(InvalidRule, match=r".*Input should be a valid boolean*"):
         await eval_cond(Condition.MessageHasAttachment, ["true"], True)
 
-    with pytest.raises(InvalidRule, match=r".*could not be parsed*"):
+    with pytest.raises(InvalidRule, match=r".*Input should be a valid boolean*"):
         await eval_cond(Condition.MessageHasAttachment, {"value": True}, True)
 
 @pytest.mark.asyncio

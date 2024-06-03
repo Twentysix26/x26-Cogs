@@ -144,6 +144,17 @@ INVALID_NESTING_COND_ACTION_BLOCK_IN_COND_BLOCK = """
                 - compare: [1, ==, 1]
 """
 
+INVALID_TOO_MANY_ARGS = """
+    name: nesting2
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1, 1]
+    do:
+        - no-op:
+
+"""
+
 CHECK_RANK_SAFEGUARD = """
     name: rank-check
     rank: 3

@@ -16,11 +16,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from .enums import Action, Condition, Event
-from typing import List, Union, Optional, Dict
+from typing import List, Union, Optional, Dict, ClassVar, Tuple
 from redbot.core.commands.converter import parse_timedelta, BadArgument
-from pydantic import BaseModel as PydanticBaseModel, conlist, validator, root_validator, conint
-from pydantic import ValidationError, ExtraError
-from pydantic.error_wrappers import ErrorWrapper
+from pydantic_core import PydanticCustomError, CoreSchema, core_schema
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict, field_validator, model_validator as pydantic_model_validator
+from pydantic import conint, conlist, ValidationError, GetCoreSchemaHandler
+from functools import partial
+from typing_extensions import Any
 from datetime import timedelta, datetime
 from ...exceptions import InvalidRule
 import logging
@@ -32,12 +34,9 @@ VALID_VAR_NAME_CHARS = string.ascii_letters + string.digits + "_"
 log = logging.getLogger("red.x26cogs.defender")
 
 class BaseModel(PydanticBaseModel):
-    _single_value = False
-    _short_form = ()
-    class Config:
-        extra = "forbid"
-        allow_reuse = True
-        allow_mutation = False
+    _single_value: ClassVar[bool] = False
+    _short_form: ClassVar[Tuple[str, ...]] = ()
+    model_config = ConfigDict(extra="forbid", frozen=True, coerce_numbers_to_str=True)
 
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
         raise NotImplementedError
@@ -51,15 +50,19 @@ class HeatKey(str):
     Custom heat key restriction
     """
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        return core_schema.no_info_plain_validator_function(function=cls.validate)
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetCoreSchemaHandler):
+        return {"type": "string", "format": ""}
 
     @classmethod
     def validate(cls, v):
         v = str(v)
         if v.startswith("core-"):
-            raise TypeError("The custom heatpoint's key cannot start with 'core-': "
-                            "this is reserved for internal use.")
+            raise PydanticCustomError("type_error", "The custom heatpoint's key cannot start with 'core-': "
+                                                    "this is reserved for internal use.")
         return v
 
     def __repr__(self):
@@ -67,16 +70,20 @@ class HeatKey(str):
 
 class AlphaNumeric(str):
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        return core_schema.no_info_plain_validator_function(function=cls.validate)
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetCoreSchemaHandler):
+        return {"type": "string", "format": ""}
 
     @classmethod
     def validate(cls, v):
         v = str(v)
         for char in v:
             if char not in VALID_VAR_NAME_CHARS:
-                raise TypeError(f"Invalid variable name. It can only contain "
-                                "letters, numbers and underscores.")
+                raise PydanticCustomError("type_error", f"Invalid variable name. It can only contain "
+                                          "letters, numbers and underscores.")
         return v
 
     def __repr__(self):
@@ -87,23 +94,23 @@ class TimeDelta(str):
     Valid Red timedelta
     """
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        return core_schema.no_info_plain_validator_function(function=cls.parse_td)
 
     @classmethod
-    def validate(cls, v):
-        return cls.parse_td(v)
+    def __get_pydantic_json_schema__(cls, core_schema: CoreSchema, handler: GetCoreSchemaHandler):
+        return {"type": "string", "format": ""}
 
     @classmethod
     def parse_td(cls, v, min=None, max=None):
         if not isinstance(v, str):
-            raise TypeError("Not a valid timedelta")
+            raise PydanticCustomError("type_error", "Not a valid timedelta")
         try:
             td = parse_timedelta(v, minimum=min, maximum=max)
         except BadArgument as e:
-            raise TypeError(f"{e}")
+            raise PydanticCustomError("type_error", f"{e}")
         if td is None:
-            raise TypeError("Not a valid timedelta")
+            raise PydanticCustomError("type_error", "Not a valid timedelta")
         return td
 
     def __repr__(self):
@@ -114,32 +121,36 @@ class HTimeDelta(TimeDelta):
     Restricted Timedelta for heatpoints
     """
     @classmethod
-    def validate(cls, v):
-        return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(hours=24))
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        func = partial(cls.parse_td, min=timedelta(seconds=1), max=timedelta(hours=24))
+        return core_schema.no_info_plain_validator_function(function=func)
 
 class SlowmodeTimeDelta(TimeDelta):
     """
     Restricted Timedelta for slowmode
     """
     @classmethod
-    def validate(cls, v):
-        return cls.parse_td(v, min=timedelta(seconds=0), max=timedelta(hours=6))
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        func = partial(cls.parse_td, min=timedelta(seconds=0), max=timedelta(hours=6))
+        return core_schema.no_info_plain_validator_function(function=func)
 
 class DeleteLastMessageSentAfterTimeDelta(TimeDelta):
     """
     Restricted Timedelta for delete message after
     """
     @classmethod
-    def validate(cls, v):
-        return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(minutes=15))
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        func = partial(cls.parse_td, min=timedelta(seconds=1), max=timedelta(minutes=15))
+        return core_schema.no_info_plain_validator_function(function=func)
 
 class TimeoutUserTimeDelta(TimeDelta):
     """
     Restricted Timedelta for timeout-user
     """
     @classmethod
-    def validate(cls, v):
-        return cls.parse_td(v, min=timedelta(seconds=1), max=timedelta(days=28))
+    def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
+        func = partial(cls.parse_td, min=timedelta(seconds=1), max=timedelta(days=28))
+        return core_schema.no_info_plain_validator_function(function=func)
 
 #
 #   MODELS
@@ -154,7 +165,8 @@ class Compare(BaseModel):
     operator: str
     value2: str
 
-    @validator("operator", allow_reuse=True)
+    @field_validator("operator")
+    @classmethod
     def check_empty_split(cls, v):
         allowed = ("==", "contains", "contains-pattern", ">=", "<=", "<", ">",
                    "!=")
@@ -190,7 +202,7 @@ class NotifyStaff(BaseModel):
     no_repeat_key: Optional[str]
     allow_everyone_ping: Optional[bool]=False
 
-    @root_validator(pre=False, allow_reuse=True)
+    @pydantic_model_validator(mode="after")
     def check_jump_to(cls, values):
         if values["jump_to_ctx_message"] is True and values["jump_to"]:
             raise ValueError('You cannot specify a message to jump to while also choosing '
@@ -223,8 +235,7 @@ class IssueCommand(BaseModel):
                                "you're not allowed to issue commands as other users.")
 
 class SendMessage(BaseModel):
-    class Config(PydanticBaseModel.Config):
-        allow_mutation = True # This being immutable is such a pita that I'd rather take the performance hit of a .copy() :-)
+    model_config = ConfigDict(frozen=False) # This being immutable is such a pita that I'd rather take the performance hit of a .copy() :-)
     _short_form = ("id", "content")
     # Used internally to determine whether an embed has to be sent
     # If any key other than these ones is passed an embed will be sent
@@ -256,7 +267,7 @@ class GetUserInfo(BaseModel):
 
 class WarnSystemWarn(BaseModel):
     _short_form = ("members", "level", "reason", "time")
-    members: Union[str, conlist(str, min_items=1)]
+    members: Union[str, conlist(str, min_length=1)]
     author: Optional[str]
     level: conint(ge=1, le=5)
     reason: Optional[str]
@@ -278,7 +289,7 @@ class VarAssignRandom(BaseModel):
     choices: Union[List[str], Dict[str, int]]
     evaluate: bool=False
 
-    @validator("choices", allow_reuse=True)
+    @field_validator("choices")
     def check_empty(cls, v):
         if len(v) == 0:
             raise ValueError("Choices cannot be empty")
@@ -305,7 +316,7 @@ class VarSplit(BaseModel):
     split_into: List[str]
     max_split: Optional[int]=-1
 
-    @validator("split_into", allow_reuse=True)
+    @field_validator("split_into")
     def check_empty_split(cls, v):
         if len(v) == 0:
             raise ValueError("You must insert at least one variable")
@@ -322,7 +333,7 @@ class VarTransform(BaseModel):
     var_name: str
     operation: str
 
-    @validator("operation", allow_reuse=True)
+    @field_validator("operation")
     def check_operation_allowed(cls, v):
         allowed = ("capitalize", "lowercase", "reverse", "uppercase", "title")
         if isinstance(v, str):
@@ -332,7 +343,18 @@ class VarTransform(BaseModel):
 
 class NonEmptyList(BaseModel):
     _single_value = True
-    value: conlist(Union[int, str], min_items=1)
+    value: conlist(Union[int, str], min_length=1) # Coercion is not working here...
+
+    @field_validator("value")
+    @classmethod
+    def validate(cls, v):
+        new_list = []
+        for value in v:
+            if isinstance(value, str) and value.isdigit():
+                value = int(value)
+            new_list.append(value)
+        return new_list
+
 
 class RolesList(NonEmptyList):
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
@@ -357,11 +379,11 @@ class RolesList(NonEmptyList):
 
 class NonEmptyListInt(BaseModel):
     _single_value = True
-    value: conlist(int, min_items=1)
+    value: conlist(int, min_length=1)
 
 class NonEmptyListStr(BaseModel):
     _single_value = True
-    value: conlist(str, min_items=1)
+    value: conlist(str, min_length=1)
 
 class StatusList(NonEmptyListStr):
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
@@ -688,7 +710,7 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
     if validator._single_value is False:
         if isinstance(parameter, list):
             if len(parameter) > len(validator._short_form):
-                raise ValidationError([ErrorWrapper(ExtraError(), loc="Short form")], validator)
+                raise ValidationError.from_exception_data("Short form: too many arguments", [])
             params = parameter
         else:
             params = (parameter,)
