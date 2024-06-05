@@ -34,6 +34,7 @@ from .core.announcements import get_announcements_text
 from .core.cache import CacheUser
 from .core.utils import utcnow, timestamp
 from .core import cache as df_cache
+from .dashboard.integration import DashboardIntegration
 from multiprocessing.pool import Pool
 from zlib import crc32
 from string import Template
@@ -117,7 +118,7 @@ default_owner_settings = {
     "wd_regex_safety_checks": True, # Performance safety checks for user defined regex
 }
 
-class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeMetaClass):
+class Defender(Commands, AutoModules, Events, DashboardIntegration, commands.Cog, metaclass=CompositeMetaClass):
     """Security tools to protect communities"""
 
     __version__ = "2.0.1"

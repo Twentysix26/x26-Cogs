@@ -192,10 +192,13 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
                     continue
                 rank = await self.rank_user(m)
                 ranks[rank] += 1
-        await ctx.send(box(f"Rank1: {ranks[Rank.Rank1]}\nRank2: {ranks[Rank.Rank2]}\n"
-                    f"Rank3: {ranks[Rank.Rank3]}\nRank4: {ranks[Rank.Rank4]}\n\n"
-                    f"For details about each rank see {ctx.prefix}defender status",
-                    lang="yaml"))
+        await ctx.send(
+            box(
+                f"\n".join(f"- Rank {rank}: {count} Members" for rank, count in ranks.items())
+                + f"\n\nFor details about each rank see {ctx.prefix}defender status",
+                lang="yaml"
+            ),
+        )
 
     @defender.command(name="identify")
     @commands.bot_has_permissions(embed_links=True)
@@ -211,23 +214,20 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
         Can be filtered. Supports wildcards (* and ?)"""
         keywords = keywords.lower()
         msg = ""
-        new_members = []
         x_hours_ago = ctx.message.created_at - datetime.timedelta(hours=hours)
-        for m in ctx.guild.members:
-            if m.joined_at is not None and m.joined_at > x_hours_ago:
-                new_members.append(m)
-
-        new_members.sort(key=lambda m: m.joined_at, reverse=True)
-
+        new_members = sorted(
+            [m for m in ctx.guild.members if m.joined_at is not None and m.joined_at > x_hours_ago],
+            key=lambda m: m.joined_at,
+            reverse=True,
+        )
         if keywords:
             if "*" not in keywords and "?" not in keywords:
                 keywords = f"*{keywords}*"
             keywords = keywords.lower()
 
         for m in new_members:
-            if keywords:
-                if not fnmatch.fnmatch(m.name.lower(), keywords):
-                    continue
+            if keywords and not fnmatch.fnmatch(m.name.lower(), keywords):
+                continue
             join = m.joined_at.strftime("%Y/%m/%d %H:%M:%S")
             created = m.created_at.strftime("%Y/%m/%d %H:%M:%S")
             msg += f"J/C: {join}  {created} | {m.id} | {m}\n"
