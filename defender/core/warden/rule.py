@@ -830,7 +830,7 @@ class WardenRule:
         if debug:
             for c in Condition:
                 if c not in checkers:
-                    raise ExecutionError(f"{condition.value} does not have a checker.")
+                    raise MisconfigurationError(f"{c.value} does not have a checker.")
 
         try:
             processor_func = checkers[condition]
@@ -1593,7 +1593,7 @@ class WardenRule:
         if debug:
             for a in Action:
                 if a not in processors:
-                    raise ExecutionError(f"{a.value} does not have a processor.")
+                    raise MisconfigurationError(f"{a.value} does not have a processor.")
 
         self.last_action = action
         if debug and action not in ALLOWED_DEBUG_ACTIONS:
