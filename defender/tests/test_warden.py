@@ -238,6 +238,22 @@ async def test_rule_cond_eval():
         guild=FAKE_GUILD,
         user=FAKE_USER)) is False
 
+    rule = WardenRule()
+    await rule.parse(rl.DISPLAY_NAME_MATCHES_ANY_OK, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        user=FAKE_USER)) is True
+
+    rule = WardenRule()
+    await rule.parse(rl.DISPLAY_NAME_MATCHES_ANY_KO, cog=None)
+    assert bool(await rule.satisfies_conditions(
+        cog=None,
+        rank=Rank.Rank1,
+        guild=FAKE_GUILD,
+        user=FAKE_USER)) is False
+
     positive_comparisons = (
         '[1, "==", 1]',
         '[1, "!=", 2]',

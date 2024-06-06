@@ -617,6 +617,25 @@ class WardenRule:
                 text=user.nick
             )
 
+        @checker(Condition.DisplayNameMatchesAny)
+        async def display_name_matches_any(params: models.NonEmptyListStr):
+            # One match = Passed
+            display_name = user.display_name.lower()
+            for pattern in params.value:
+                if fnmatch.fnmatch(display_name, pattern.lower()):
+                    return True
+            return False
+
+        @checker(Condition.DisplayNameMatchesRegex)
+        async def display_name_matches_regex(params: models.IsStr):
+            return await run_user_regex(
+                rule_obj=self,
+                cog=cog,
+                guild=guild,
+                regex=params.value,
+                text=user.display_name
+            )
+
         @checker(Condition.ChannelMatchesAny)
         async def channel_matches_any(params: models.NonEmptyList):
             if channel.id in params.value:

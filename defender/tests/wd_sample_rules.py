@@ -364,6 +364,26 @@ CONDITION_TEST_NEGATIVE = """
     - no-op:
 """
 
+DISPLAY_NAME_MATCHES_ANY_OK = """
+    name: positive
+    rank: 1
+    event: on-user-join
+    if:
+    - display-name-matches-any: ["Twentysix"]
+    do:
+    - no-op:
+"""
+
+DISPLAY_NAME_MATCHES_ANY_KO = """
+    name: negative
+    rank: 1
+    event: on-user-join
+    if:
+    - display-name-matches-any: ["26"]
+    do:
+    - no-op:
+"""
+
 INCREASE_HEATPOINTS = """
     name: increase
     rank: 1
