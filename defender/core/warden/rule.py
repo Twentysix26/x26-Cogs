@@ -914,7 +914,7 @@ class WardenRule:
         @processor(Action.NotifyStaff)
         async def notify_staff(params: models.NotifyStaff):
             # Checks if only "content" has been passed
-            text_only = params.__fields_set__ == {"content"}
+            text_only = params.model_fields_set == {"content"}
 
             quick_action = None
             if params.qa_target:
@@ -1214,16 +1214,16 @@ class WardenRule:
         @processor(Action.SendMessage)
         async def send_message(params: models.SendMessage):
 
-            params = params.copy() # This model is mutable for easier handling
+            params = params.model_copy() # This model is mutable for easier handling
 
             send_embed = False
 
-            for key in params.__fields_set__:
+            for key in params.model_fields_set:
                 if key not in params._text_only_attrs:
                     send_embed = True
                     break
 
-            for key in params.dict():
+            for key in params.model_dump():
                 attr = getattr(params, key)
                 if attr is None and key not in params._text_only_attrs:
                     setattr(params, key, None)

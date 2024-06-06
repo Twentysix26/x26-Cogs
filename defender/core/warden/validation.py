@@ -704,7 +704,7 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
 
     # Short form
     if not validator._short_form:
-        validator._short_form = [k for k in validator.schema()['properties']]
+        validator._short_form = [k for k in validator.model_json_schema()['properties']]
 
     args = {}
     if validator._single_value is False:
