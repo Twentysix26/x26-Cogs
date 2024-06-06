@@ -19,7 +19,12 @@ from .enums import Action, Condition, Event
 from typing import List, Union, Optional, Dict, ClassVar, Tuple
 from redbot.core.commands.converter import parse_timedelta, BadArgument
 from pydantic_core import PydanticCustomError, CoreSchema, core_schema
-from pydantic import BaseModel as PydanticBaseModel, ConfigDict, field_validator, model_validator as pydantic_model_validator
+from pydantic import (
+    BaseModel as PydanticBaseModel,
+    ConfigDict,
+    field_validator,
+    model_validator as pydantic_model_validator,
+)
 from pydantic import conint, conlist, ValidationError, GetCoreSchemaHandler
 from functools import partial
 from typing_extensions import Any
@@ -33,6 +38,7 @@ VALID_VAR_NAME_CHARS = string.ascii_letters + string.digits + "_"
 
 log = logging.getLogger("red.x26cogs.defender")
 
+
 class BaseModel(PydanticBaseModel):
     _single_value: ClassVar[bool] = False
     _short_form: ClassVar[Tuple[str, ...]] = ()
@@ -41,14 +47,17 @@ class BaseModel(PydanticBaseModel):
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
         raise NotImplementedError
 
+
 #
 #   VALIDATORS
 #
+
 
 class HeatKey(str):
     """
     Custom heat key restriction
     """
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         return core_schema.no_info_plain_validator_function(function=cls.validate)
@@ -61,12 +70,15 @@ class HeatKey(str):
     def validate(cls, v):
         v = str(v)
         if v.startswith("core-"):
-            raise PydanticCustomError("type_error", "The custom heatpoint's key cannot start with 'core-': "
-                                                    "this is reserved for internal use.")
+            raise PydanticCustomError(
+                "type_error",
+                "The custom heatpoint's key cannot start with 'core-': " "this is reserved for internal use.",
+            )
         return v
 
     def __repr__(self):
         return f"HeatKey({super().__repr__()})"
+
 
 class AlphaNumeric(str):
     @classmethod
@@ -82,17 +94,20 @@ class AlphaNumeric(str):
         v = str(v)
         for char in v:
             if char not in VALID_VAR_NAME_CHARS:
-                raise PydanticCustomError("type_error", f"Invalid variable name. It can only contain "
-                                          "letters, numbers and underscores.")
+                raise PydanticCustomError(
+                    "type_error", f"Invalid variable name. It can only contain " "letters, numbers and underscores."
+                )
         return v
 
     def __repr__(self):
         return f"AlphaNumeric({super().__repr__()})"
 
+
 class TimeDelta(str):
     """
     Valid Red timedelta
     """
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         return core_schema.no_info_plain_validator_function(function=cls.parse_td)
@@ -116,49 +131,60 @@ class TimeDelta(str):
     def __repr__(self):
         return f"TimeDelta({super().__repr__()})"
 
+
 class HTimeDelta(TimeDelta):
     """
     Restricted Timedelta for heatpoints
     """
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         func = partial(cls.parse_td, min=timedelta(seconds=1), max=timedelta(hours=24))
         return core_schema.no_info_plain_validator_function(function=func)
 
+
 class SlowmodeTimeDelta(TimeDelta):
     """
     Restricted Timedelta for slowmode
     """
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         func = partial(cls.parse_td, min=timedelta(seconds=0), max=timedelta(hours=6))
         return core_schema.no_info_plain_validator_function(function=func)
 
+
 class DeleteLastMessageSentAfterTimeDelta(TimeDelta):
     """
     Restricted Timedelta for delete message after
     """
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         func = partial(cls.parse_td, min=timedelta(seconds=1), max=timedelta(minutes=15))
         return core_schema.no_info_plain_validator_function(function=func)
 
+
 class TimeoutUserTimeDelta(TimeDelta):
     """
     Restricted Timedelta for timeout-user
     """
+
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type: Any, handler: GetCoreSchemaHandler) -> CoreSchema:
         func = partial(cls.parse_td, min=timedelta(seconds=1), max=timedelta(days=28))
         return core_schema.no_info_plain_validator_function(function=func)
 
+
 #
 #   MODELS
 #
 
+
 class CheckCustomHeatpoint(BaseModel):
     label: str
     points: int
+
 
 class Compare(BaseModel):
     value1: str
@@ -168,8 +194,7 @@ class Compare(BaseModel):
     @field_validator("operator")
     @classmethod
     def check_empty_split(cls, v):
-        allowed = ("==", "contains", "contains-pattern", ">=", "<=", "<", ">",
-                   "!=")
+        allowed = ("==", "contains", "contains-pattern", ">=", "<=", "<", ">", "!=")
         if isinstance(v, str):
             if v.lower() not in allowed:
                 raise ValueError("Unknown operator")
@@ -179,17 +204,19 @@ class Compare(BaseModel):
 class EmbedField(BaseModel):
     name: str
     value: str
-    inline: Optional[bool]=True
+    inline: Optional[bool] = True
+
 
 class Message(BaseModel):
     channel_id: str
     message_id: str
 
+
 class NotifyStaff(BaseModel):
     _short_form = ("content",)
     content: str
     title: Optional[str]
-    fields: Optional[List[EmbedField]]=[]
+    fields: Optional[List[EmbedField]] = []
     add_ctx_fields: Optional[bool]
     thumbnail: Optional[str]
     footer_text: Optional[str]
@@ -200,70 +227,90 @@ class NotifyStaff(BaseModel):
     qa_reason: Optional[str]
     no_repeat_for: Optional[TimeDelta]
     no_repeat_key: Optional[str]
-    allow_everyone_ping: Optional[bool]=False
+    allow_everyone_ping: Optional[bool] = False
 
     @pydantic_model_validator(mode="after")
     def check_jump_to(cls, values):
         if values["jump_to_ctx_message"] is True and values["jump_to"]:
-            raise ValueError('You cannot specify a message to jump to while also choosing '
-                             'the option to jump to the context\'s message.')
+            raise ValueError(
+                "You cannot specify a message to jump to while also choosing "
+                "the option to jump to the context's message."
+            )
 
         return values
+
 
 class AddCustomHeatpoint(BaseModel):
     label: HeatKey
     delta: HTimeDelta
+
 
 class AddCustomHeatpoints(BaseModel):
     label: HeatKey
     points: conint(gt=0, le=100)
     delta: HTimeDelta
 
+
 class AddHeatpoints(BaseModel):
     points: conint(gt=0, le=100)
     delta: HTimeDelta
+
 
 class IssueCommand(BaseModel):
     _short_form = ("issue_as", "command")
     issue_as: int
     command: str
-    destination: Optional[str]=None
+    destination: Optional[str] = None
 
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
         if self.issue_as != author.id:
-            raise InvalidRule(f"`{action_or_cond.value}` The first parameter must be your ID. For security reasons "
-                               "you're not allowed to issue commands as other users.")
+            raise InvalidRule(
+                f"`{action_or_cond.value}` The first parameter must be your ID. For security reasons "
+                "you're not allowed to issue commands as other users."
+            )
+
 
 class SendMessage(BaseModel):
-    model_config = ConfigDict(frozen=False) # This being immutable is such a pita that I'd rather take the performance hit of a .copy() :-)
+    model_config = ConfigDict(
+        frozen=False
+    )  # This being immutable is such a pita that I'd rather take the performance hit of a .copy() :-)
     _short_form = ("id", "content")
     # Used internally to determine whether an embed has to be sent
     # If any key other than these ones is passed an embed will be sent
-    _text_only_attrs = ("id", "content", "allow_mass_mentions", "ping_on_reply",
-                        "reply_message_id", "edit_message_id", "add_timestamp")
-    id: str # or context variable
-    content: Optional[str]=""
-    description: Optional[str]=None
-    title: Optional[str]=None
-    fields: Optional[List[EmbedField]]=[]
-    footer_text: Optional[str]=None
-    footer_icon_url: Optional[str]=None
-    thumbnail: Optional[str]=None
-    author_name: Optional[str]=None
-    author_url: Optional[str]=None
-    author_icon_url: Optional[str]=None
-    image: Optional[str]=None
-    url: Optional[str]=None
-    color: Optional[Union[bool, int]]=True
-    add_timestamp: Optional[bool]=False
-    allow_mass_mentions: Optional[bool]=False
-    ping_on_reply: Optional[bool]=False
-    reply_message_id: Optional[str]=None
-    edit_message_id: Optional[str]=None
+    _text_only_attrs = (
+        "id",
+        "content",
+        "allow_mass_mentions",
+        "ping_on_reply",
+        "reply_message_id",
+        "edit_message_id",
+        "add_timestamp",
+    )
+    id: str  # or context variable
+    content: Optional[str] = ""
+    description: Optional[str] = None
+    title: Optional[str] = None
+    fields: Optional[List[EmbedField]] = []
+    footer_text: Optional[str] = None
+    footer_icon_url: Optional[str] = None
+    thumbnail: Optional[str] = None
+    author_name: Optional[str] = None
+    author_url: Optional[str] = None
+    author_icon_url: Optional[str] = None
+    image: Optional[str] = None
+    url: Optional[str] = None
+    color: Optional[Union[bool, int]] = True
+    add_timestamp: Optional[bool] = False
+    allow_mass_mentions: Optional[bool] = False
+    ping_on_reply: Optional[bool] = False
+    reply_message_id: Optional[str] = None
+    edit_message_id: Optional[str] = None
+
 
 class GetUserInfo(BaseModel):
-    id: str # or context variable
+    id: str  # or context variable
     mapping: Dict[str, str]
+
 
 class WarnSystemWarn(BaseModel):
     _short_form = ("members", "level", "reason", "time")
@@ -274,20 +321,22 @@ class WarnSystemWarn(BaseModel):
     time: Optional[TimeDelta]
     date: Optional[datetime]
     ban_days: Optional[int]
-    log_modlog: Optional[bool]=True
-    log_dm: Optional[bool]=True
-    take_action: Optional[bool]=True
-    automod: Optional[bool]=True
+    log_modlog: Optional[bool] = True
+    log_dm: Optional[bool] = True
+    take_action: Optional[bool] = True
+    automod: Optional[bool] = True
+
 
 class VarAssign(BaseModel):
     var_name: AlphaNumeric
     value: str
-    evaluate: bool=False
+    evaluate: bool = False
+
 
 class VarAssignRandom(BaseModel):
     var_name: str
     choices: Union[List[str], Dict[str, int]]
-    evaluate: bool=False
+    evaluate: bool = False
 
     @field_validator("choices")
     def check_empty(cls, v):
@@ -295,26 +344,30 @@ class VarAssignRandom(BaseModel):
             raise ValueError("Choices cannot be empty")
         return v
 
+
 class VarAssignHeat(BaseModel):
     var_name: AlphaNumeric
     heat_label: str
+
 
 class VarReplace(BaseModel):
     var_name: str
     strings: Union[List[str], str]
     substring: str
 
+
 class VarMath(BaseModel):
     result_var: str
     operand1: str
     operator: str
-    operand2: Optional[str]=None
+    operand2: Optional[str] = None
+
 
 class VarSplit(BaseModel):
     var_name: str
     separator: str
     split_into: List[str]
-    max_split: Optional[int]=-1
+    max_split: Optional[int] = -1
 
     @field_validator("split_into")
     def check_empty_split(cls, v):
@@ -322,12 +375,14 @@ class VarSplit(BaseModel):
             raise ValueError("You must insert at least one variable")
         return v
 
+
 class VarSlice(BaseModel):
     var_name: str
     index: Optional[int]
     end_index: Optional[int]
     slice_into: Optional[str]
     step: Optional[int]
+
 
 class VarTransform(BaseModel):
     var_name: str
@@ -341,9 +396,10 @@ class VarTransform(BaseModel):
                 raise ValueError("Unknown operation")
         return v
 
+
 class NonEmptyList(BaseModel):
     _single_value = True
-    value: conlist(Union[int, str], min_length=1) # Coercion is not working here...
+    value: conlist(Union[int, str], min_length=1)  # Coercion is not working here...
 
     @field_validator("value")
     @classmethod
@@ -374,16 +430,21 @@ class RolesList(NonEmptyList):
         if not is_server_owner:
             for r in roles:
                 if r.position >= author.top_role.position:
-                    raise InvalidRule(f"`{action_or_cond.value}` Cannot assign or remove role `{r.name}` through Warden. "
-                                    "You are authorized to only add or remove roles below your top role.")
+                    raise InvalidRule(
+                        f"`{action_or_cond.value}` Cannot assign or remove role `{r.name}` through Warden. "
+                        "You are authorized to only add or remove roles below your top role."
+                    )
+
 
 class NonEmptyListInt(BaseModel):
     _single_value = True
     value: conlist(int, min_length=1)
 
+
 class NonEmptyListStr(BaseModel):
     _single_value = True
     value: conlist(str, min_length=1)
+
 
 class StatusList(NonEmptyListStr):
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
@@ -391,51 +452,66 @@ class StatusList(NonEmptyListStr):
             try:
                 discord.Status(status.lower())
             except ValueError:
-                raise InvalidRule(f"`{action_or_cond.value}` Invalid status. The condition must contain one of "
-                                "the following statuses: online, offline, idle, dnd.")
+                raise InvalidRule(
+                    f"`{action_or_cond.value}` Invalid status. The condition must contain one of "
+                    "the following statuses: online, offline, idle, dnd."
+                )
+
 
 class IsStr(BaseModel):
     _single_value = True
     value: str
 
+
 class IsRegex(IsStr):
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
         enabled: bool = await cog.config.wd_regex_allowed()
         if not enabled:
-            raise InvalidRule(f"`{action_or_cond.value}` Regex use is globally disabled. The bot owner must use "
-                            "`[p]dset warden regexallowed` to activate it.")
+            raise InvalidRule(
+                f"`{action_or_cond.value}` Regex use is globally disabled. The bot owner must use "
+                "`[p]dset warden regexallowed` to activate it."
+            )
+
 
 #
 #   SINGLE VALUE MODELS
 #
 
+
 class UserJoinedCreated(BaseModel):
     _single_value = True
     value: Union[TimeDelta, int]
+
 
 class IsInt(BaseModel):
     _single_value = True
     value: int
 
+
 class IsBool(BaseModel):
     _single_value = True
     value: bool
+
 
 class IsNone(BaseModel):
     _single_value = True
     value: None
 
+
 class IsTimedelta(BaseModel):
     _single_value = True
     value: TimeDelta
+
 
 class IsOptionalTimeoutUserTimedelta(BaseModel):
     _single_value = True
     value: Optional[TimeoutUserTimeDelta]
 
+
 class IsHTimedelta(BaseModel):
     _single_value = True
     value: HTimeDelta
+
 
 class IsSlowmodeTimedelta(BaseModel):
     _single_value = True
@@ -443,16 +519,20 @@ class IsSlowmodeTimedelta(BaseModel):
 
     async def _runtime_check(self, *, cog, author: discord.Member, action_or_cond: Union[Action, Condition]):
         if not author.guild_permissions.manage_channels:
-            raise InvalidRule(f"`{action_or_cond.value}` You need `manage channels` permissions to make a rule with "
-                            "this action.")
+            raise InvalidRule(
+                f"`{action_or_cond.value}` You need `manage channels` permissions to make a rule with " "this action."
+            )
+
 
 class IsDeleteLastMessageSentAfterTimeDelta(BaseModel):
     _single_value = True
     value: DeleteLastMessageSentAfterTimeDelta
 
+
 class IsRank(BaseModel):
     _single_value = True
     value: conint(ge=1, le=4)
+
 
 # The accepted types of each condition for basic sanity checking
 CONDITIONS_VALIDATORS = {
@@ -646,30 +726,58 @@ ACTIONS_MESSAGE_CONTEXT = [
 ]
 
 ALLOWED_STATEMENTS = {
-    Event.OnMessage: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                      *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnMessageEdit: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                          *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnMessageDelete: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                            *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnReactionAdd: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                          *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnReactionRemove: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_MESSAGE_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                            *ACTIONS_ANY_CONTEXT, *ACTIONS_MESSAGE_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnUserJoin: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                       *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnUserLeave: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                        *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnRoleAdd: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                        *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnRoleRemove: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                        *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.OnEmergency: [*CONDITIONS_ANY_CONTEXT,
-                        *ACTIONS_ANY_CONTEXT],
-    Event.Manual: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                   *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
-    Event.Periodic: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT,
-                     *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnMessage: [
+        *CONDITIONS_ANY_CONTEXT,
+        *CONDITIONS_MESSAGE_CONTEXT,
+        *CONDITIONS_USER_CONTEXT,
+        *ACTIONS_ANY_CONTEXT,
+        *ACTIONS_MESSAGE_CONTEXT,
+        *ACTIONS_USER_CONTEXT,
+    ],
+    Event.OnMessageEdit: [
+        *CONDITIONS_ANY_CONTEXT,
+        *CONDITIONS_MESSAGE_CONTEXT,
+        *CONDITIONS_USER_CONTEXT,
+        *ACTIONS_ANY_CONTEXT,
+        *ACTIONS_MESSAGE_CONTEXT,
+        *ACTIONS_USER_CONTEXT,
+    ],
+    Event.OnMessageDelete: [
+        *CONDITIONS_ANY_CONTEXT,
+        *CONDITIONS_MESSAGE_CONTEXT,
+        *CONDITIONS_USER_CONTEXT,
+        *ACTIONS_ANY_CONTEXT,
+        *ACTIONS_MESSAGE_CONTEXT,
+        *ACTIONS_USER_CONTEXT,
+    ],
+    Event.OnReactionAdd: [
+        *CONDITIONS_ANY_CONTEXT,
+        *CONDITIONS_MESSAGE_CONTEXT,
+        *CONDITIONS_USER_CONTEXT,
+        *ACTIONS_ANY_CONTEXT,
+        *ACTIONS_MESSAGE_CONTEXT,
+        *ACTIONS_USER_CONTEXT,
+    ],
+    Event.OnReactionRemove: [
+        *CONDITIONS_ANY_CONTEXT,
+        *CONDITIONS_MESSAGE_CONTEXT,
+        *CONDITIONS_USER_CONTEXT,
+        *ACTIONS_ANY_CONTEXT,
+        *ACTIONS_MESSAGE_CONTEXT,
+        *ACTIONS_USER_CONTEXT,
+    ],
+    Event.OnUserJoin: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnUserLeave: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnRoleAdd: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.OnRoleRemove: [
+        *CONDITIONS_ANY_CONTEXT,
+        *CONDITIONS_USER_CONTEXT,
+        *ACTIONS_ANY_CONTEXT,
+        *ACTIONS_USER_CONTEXT,
+    ],
+    Event.OnEmergency: [*CONDITIONS_ANY_CONTEXT, *ACTIONS_ANY_CONTEXT],
+    Event.Manual: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
+    Event.Periodic: [*CONDITIONS_ANY_CONTEXT, *CONDITIONS_USER_CONTEXT, *ACTIONS_ANY_CONTEXT, *ACTIONS_USER_CONTEXT],
 }
 
 ALLOWED_DEBUG_ACTIONS = [
@@ -686,7 +794,10 @@ ALLOWED_DEBUG_ACTIONS = [
 
 DEPRECATED = []
 
-def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[list, dict, str, int, bool])->BaseModel:
+
+def model_validator(
+    action_or_cond: Union[Action, Condition], parameter: Union[list, dict, str, int, bool]
+) -> BaseModel:
     """
     In Warden it's possible to pass arguments in "Long form" and "Short form"
     Long form is a dict, and we can simply validate it against its model
@@ -698,9 +809,9 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
     on top of, such as models with a single list as an attribute. For these models long form is not allowed.
     """
     try:
-        validator = ACTIONS_VALIDATORS[action_or_cond] # type: ignore
+        validator = ACTIONS_VALIDATORS[action_or_cond]  # type: ignore
     except KeyError:
-        validator = CONDITIONS_VALIDATORS[action_or_cond] # type: ignore
+        validator = CONDITIONS_VALIDATORS[action_or_cond]  # type: ignore
 
     # Long form
     if not validator._single_value and isinstance(parameter, dict):
@@ -708,7 +819,7 @@ def model_validator(action_or_cond: Union[Action, Condition], parameter: Union[l
 
     # Short form
     if not validator._short_form:
-        validator._short_form = [k for k in validator.model_json_schema()['properties']]
+        validator._short_form = [k for k in validator.model_json_schema()["properties"]]
 
     args = {}
     if validator._single_value is False:

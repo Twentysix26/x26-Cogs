@@ -33,17 +33,19 @@ log = logging.getLogger("red.x26cogs.defender")
 
 MessageEdit = namedtuple("MessageEdit", ("content", "edited_at"))
 # These values are overriden at runtime with the owner's settings
-MSG_EXPIRATION_TIME = 48 # Hours
+MSG_EXPIRATION_TIME = 48  # Hours
 MSG_STORE_CAP = 3000
 _guild_dict = {"users": {}, "channels": {}}
 _message_cache = defaultdict(lambda: deepcopy(_guild_dict))
-_msg_obj = None # Warden use
+_msg_obj = None  # Warden use
 
 # We're gonna store *a lot* of messages in memory and we're gonna improve
 # performances by storing only a lite version of them
 
+
 class LiteMessage:
     __slots__ = ("id", "created_at", "content", "channel_id", "author_id", "edits")
+
     def __init__(self, message: discord.Message):
         self.id = message.id
         self.created_at = message.created_at
@@ -55,6 +57,7 @@ class LiteMessage:
             filename = message.attachments[0].filename
             self.content = f"(Attachment: {filename}) {self.content}"
 
+
 class CacheUser:
     def __init__(self, _id, guild):
         self.id = _id
@@ -62,6 +65,7 @@ class CacheUser:
 
     def __str__(self):
         return "Unknown"
+
 
 class UserCacheConverter(IDConverter):
     """
@@ -71,8 +75,9 @@ class UserCacheConverter(IDConverter):
     2. Lookup by name. If found, return a Member
     3. Lookup by ID in cache. If found, return a CacheUser object that will allow to access the cache
     """
+
     async def convert(self, ctx, argument):
-        match = self._get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
+        match = self._get_id_match(argument) or re.match(r"<@!?([0-9]+)>$", argument)
         guild = ctx.guild
         result = None
         user_id = None
@@ -98,6 +103,7 @@ class UserCacheConverter(IDConverter):
 
         return result
 
+
 def add_message(message):
     author = message.author
     guild = message.guild
@@ -113,6 +119,7 @@ def add_message(message):
         _message_cache[guild.id]["channels"][channel.id] = deque(maxlen=MSG_STORE_CAP)
 
     _message_cache[guild.id]["channels"][channel.id].appendleft(lite_message)
+
 
 async def add_message_edit(message):
     author = message.author
@@ -133,12 +140,14 @@ async def add_message_edit(message):
                 m.content = message.content
                 break
 
+
 def get_user_messages(user):
     guild = user.guild
     if user.id not in _message_cache[guild.id]["users"]:
         return []
 
     return _message_cache[guild.id]["users"][user.id].copy()
+
 
 def get_channel_messages(channel):
     guild = channel.guild
@@ -147,17 +156,23 @@ def get_channel_messages(channel):
 
     return _message_cache[guild.id]["channels"][channel.id].copy()
 
+
 async def discard_stale():
     x_hours_ago = utcnow() - timedelta(hours=MSG_EXPIRATION_TIME)
     for guid, _cache in _message_cache.items():
         for uid, store in _cache["users"].items():
-            _message_cache[guid]["users"][uid] = deque([m for m in store if m.created_at > x_hours_ago], maxlen=MSG_STORE_CAP)
+            _message_cache[guid]["users"][uid] = deque(
+                [m for m in store if m.created_at > x_hours_ago], maxlen=MSG_STORE_CAP
+            )
         await asyncio.sleep(0)
 
     for guid, _cache in _message_cache.items():
         for cid, store in _cache["channels"].items():
-            _message_cache[guid]["channels"][cid] = deque([m for m in store if m.created_at > x_hours_ago], maxlen=MSG_STORE_CAP)
+            _message_cache[guid]["channels"][cid] = deque(
+                [m for m in store if m.created_at > x_hours_ago], maxlen=MSG_STORE_CAP
+            )
         await asyncio.sleep(0)
+
 
 async def discard_messages_from_user(_id):
     for guid, _cache in _message_cache.items():
@@ -167,8 +182,11 @@ async def discard_messages_from_user(_id):
 
     for guid, _cache in _message_cache.items():
         for cid, store in _cache["channels"].items():
-            _message_cache[guid]["channels"][cid] = deque([m for m in store if m.author_id != _id], maxlen=MSG_STORE_CAP)
+            _message_cache[guid]["channels"][cid] = deque(
+                [m for m in store if m.author_id != _id], maxlen=MSG_STORE_CAP
+            )
         await asyncio.sleep(0)
+
 
 # This is a single message object that we store to mock commands in Warden
 def maybe_store_msg_obj(message: discord.Message):
@@ -195,7 +213,8 @@ def maybe_store_msg_obj(message: discord.Message):
 
     _msg_obj = msg
 
-def get_msg_obj()->Optional[discord.Message]:
+
+def get_msg_obj() -> Optional[discord.Message]:
     msg = copy(_msg_obj)
     msg.id = time_snowflake(utcnow())
     return msg

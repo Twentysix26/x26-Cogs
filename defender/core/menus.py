@@ -26,8 +26,17 @@ import logging
 
 log = logging.getLogger("red.x26cogs.defender")
 
+
 class SettingSetSelect(ui.Select):
-    def __init__(self, config_value, current_settings: Union[int, str, List[Union[str, int]]], select_options: Tuple[SelectOption, ...], max_values=None, cast_to=None, **kwargs):
+    def __init__(
+        self,
+        config_value,
+        current_settings: Union[int, str, List[Union[str, int]]],
+        select_options: Tuple[SelectOption, ...],
+        max_values=None,
+        cast_to=None,
+        **kwargs,
+    ):
         self.cast_to = cast_to
         self.config_value = config_value
         iterable = isinstance(current_settings, Iterable)
@@ -61,6 +70,7 @@ class SettingSetSelect(ui.Select):
 
         await inter.response.defer()
 
+
 class RestrictedView(ui.View):
     def __init__(self, cog, issuer_id, timeout=180, **kwargs):
         super().__init__(timeout=timeout, **kwargs)
@@ -69,9 +79,12 @@ class RestrictedView(ui.View):
 
     async def interaction_check(self, inter: discord.Interaction):
         if inter.user.id != self.issuer_id:
-            await inter.response.send_message("Only the issuer of the command can change these options.", ephemeral=True)
+            await inter.response.send_message(
+                "Only the issuer of the command can change these options.", ephemeral=True
+            )
             return False
         return True
+
 
 class QASelect(discord.ui.Select):
     def __init__(self, target_id: int):
@@ -95,15 +108,20 @@ class QASelect(discord.ui.Select):
 
         target = guild.get_member(int(self.custom_id))
         if target is None:
-            await inter.response.send_message("I have tried to take action but the user seems to be gone.", ephemeral=True)
+            await inter.response.send_message(
+                "I have tried to take action but the user seems to be gone.", ephemeral=True
+            )
             return
         elif target.top_role >= user.top_role:
-            cog.send_to_monitor(guild, f"[QuickAction] Prevented user {user} from taking action on {target}: "
-                                        "hierarchy check failed.")
-            await inter.response.send_message("Denied. Your top role must be higher than the target's to take action on them.", ephemeral=True)
+            cog.send_to_monitor(
+                guild, f"[QuickAction] Prevented user {user} from taking action on {target}: " "hierarchy check failed."
+            )
+            await inter.response.send_message(
+                "Denied. Your top role must be higher than the target's to take action on them.", ephemeral=True
+            )
             return
 
-        #if action in (QAInteractions.Ban, QAInteractions.Softban, QAInteractions.Kick): # Expel = no more actions
+        # if action in (QAInteractions.Ban, QAInteractions.Softban, QAInteractions.Kick): # Expel = no more actions
         #    self.quick_actions[guild.id].pop(payload.message_id, None)
 
         if await bot.is_mod(target):
@@ -111,12 +129,18 @@ class QASelect(discord.ui.Select):
             await inter.response.send_message("Denied. You're trying to take action on a staff member.", ephemeral=True)
             return
 
-        check1 = user.guild_permissions.ban_members is False and action in (QAInteractions.Ban, QAInteractions.Softban, QAInteractions.BanAndDelete24)
+        check1 = user.guild_permissions.ban_members is False and action in (
+            QAInteractions.Ban,
+            QAInteractions.Softban,
+            QAInteractions.BanAndDelete24,
+        )
         check2 = user.guild_permissions.kick_members is False and action == QAInteractions.Kick
 
         if any((check1, check2)):
             cog.send_to_monitor(guild, f"[QuickAction] Mod {user} lacks permissions to {action.value}.")
-            await inter.response.send_message("Denied. You lack appropriate permissions for this action.", ephemeral=True)
+            await inter.response.send_message(
+                "Denied. You lack appropriate permissions for this action.", ephemeral=True
+            )
             return
 
         auditlog_reason = f"Defender QuickAction issued by {user} ({user.id})"
@@ -136,8 +160,11 @@ class QASelect(discord.ui.Select):
             if punish_role and not cog.is_role_privileged(punish_role):
                 await target.add_roles(punish_role, reason=auditlog_reason)
             else:
-                cog.send_to_monitor(guild, "[QuickAction] Failed to punish user. Is the punish role "
-                                           "still present and with *no* privileges?")
+                cog.send_to_monitor(
+                    guild,
+                    "[QuickAction] Failed to punish user. Is the punish role "
+                    "still present and with *no* privileges?",
+                )
             await inter.response.defer()
             return
         elif action == QAInteractions.BanAndDelete24:
@@ -150,16 +177,9 @@ class QASelect(discord.ui.Select):
         await inter.response.defer()
 
         await cog.create_modlog_case(
-            bot,
-            guild,
-            utcnow(),
-            action.value,
-            target,
-            user,
-            reason if reason else None,
-            until=None,
-            channel=None,
+            bot, guild, utcnow(), action.value, target, user, reason if reason else None, until=None, channel=None
         )
+
 
 class QAView(discord.ui.View):
     def __init__(self, cog, target_id: int, reason: str):
@@ -171,7 +191,9 @@ class QAView(discord.ui.View):
 
     async def interaction_check(self, inter: discord.Interaction):
         if not await self.bot.is_mod(inter.user):
-            await inter.response.send_message("Only staff members are allowed to take action. You sure don't look like one.", ephemeral=True)
+            await inter.response.send_message(
+                "Only staff members are allowed to take action. You sure don't look like one.", ephemeral=True
+            )
             return False
         return True
 
@@ -183,6 +205,7 @@ class StopAlertButton(discord.ui.Button):
         self.disabled = True
         await inter.response.edit_message(view=self.view)
 
+
 class EmergencyView(discord.ui.View):
     def __init__(self, cog):
         super().__init__(timeout=0)
@@ -191,6 +214,8 @@ class EmergencyView(discord.ui.View):
 
     async def interaction_check(self, inter: discord.Interaction):
         if not await self.cog.bot.is_mod(inter.user):
-            await inter.response.send_message("Only staff members are allowed to press this button. You sure don't look like one.", ephemeral=True)
+            await inter.response.send_message(
+                "Only staff members are allowed to press this button. You sure don't look like one.", ephemeral=True
+            )
             return False
         return True

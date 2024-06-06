@@ -16,8 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 from __future__ import annotations
-from ...core.warden.validation import (ALLOWED_STATEMENTS, ALLOWED_DEBUG_ACTIONS, model_validator,
-                                       DEPRECATED, BaseModel)
+from ...core.warden.validation import ALLOWED_STATEMENTS, ALLOWED_DEBUG_ACTIONS, model_validator, DEPRECATED, BaseModel
 from ...core.warden import validation as models
 from ...enums import Rank, EmergencyMode, Action as ModAction
 from .enums import Action, Condition, Event, ConditionBlock, ConditionalActionBlock, ChecksKeys
@@ -54,7 +53,9 @@ RULE_REQUIRED_KEYS = ("name", "event", "rank", "if", "do")
 RULE_FACULTATIVE_KEYS = ("priority", "run-every")
 
 MEDIA_URL_RE = re.compile(r"""(http)?s?:?(\/\/[^"']*\.(?:png|jpg|jpeg|gif|png|svg|mp4|gifv))""", re.I)
-URL_RE = re.compile(r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I)
+URL_RE = re.compile(
+    r"""https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)""", re.I
+)
 MAX_NESTED = 10
 
 CHECKS_MODULES_EVENTS = {
@@ -64,30 +65,37 @@ CHECKS_MODULES_EVENTS = {
     ChecksKeys.RaiderDetection: Event.OnMessage,
 }
 
+
 class WDStatement:
-    __slots__ = ('enum',)
+    __slots__ = ("enum",)
+
     def __repr__(self):
         return f"<{self.__class__.__name__} '{self.enum.value}'>"
+
 
 class WDCondition(WDStatement):
     def __init__(self, enum: Condition):
         self.enum = enum
 
+
 class WDAction(WDStatement):
     def __init__(self, enum: Action):
         self.enum = enum
+
 
 class WDConditionBlock(WDStatement):
     def __init__(self, enum: ConditionBlock):
         self.enum = enum
 
+
 class WDConditionalActionBlock(WDStatement):
     def __init__(self, enum: ConditionalActionBlock):
         self.enum = enum
 
+
 class WDRuntime:
     def __init__(self):
-        self.rule_name = "" # Debugging purpose
+        self.rule_name = ""  # Debugging purpose
         self.cog: MixinMeta
         self.user: discord.Member
         self.guild: discord.Guild
@@ -98,84 +106,91 @@ class WDRuntime:
         self.last_result: Optional[bool] = None
         self.state = {}
         self.trace = []
-        self.last_expel_action: Optional[Union[Action, ModAction]]=None
-        self.last_sent_message: Optional[discord.Message]=None
+        self.last_expel_action: Optional[Union[Action, ModAction]] = None
+        self.last_sent_message: Optional[discord.Message] = None
         self.debug = True
 
     async def populate_ctx_vars(self, rule: WardenRule):
         cog = self.cog
         guild = self.guild
-        self.state.update({
-            "rule_name": rule.name,
-            "guild": str(guild),
-            "guild_id": guild.id,
-            "guild_icon_url": guild.icon.url if guild.icon else "",
-            "guild_banner_url": guild.banner.url if guild.banner else "",
-            "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
-        })
+        self.state.update(
+            {
+                "rule_name": rule.name,
+                "guild": str(guild),
+                "guild_id": guild.id,
+                "guild_icon_url": guild.icon.url if guild.icon else "",
+                "guild_banner_url": guild.banner.url if guild.banner else "",
+                "notification_channel_id": await cog.config.guild(guild).notify_channel() if cog else 0,
+            }
+        )
 
         if self.user:
             user = self.user
-            self.state.update({
-                "user": str(user),
-                "user_name": user.name,
-                "user_display": user.display_name,
-                "user_id": user.id,
-                "user_mention": user.mention,
-                "user_nickname": str(user.nick),
-                "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
-                "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
-                "user_heat": heat.get_user_heat(user, debug=self.debug),
-                "user_avatar_url": user.avatar.url if user.avatar else ""
-            })
+            self.state.update(
+                {
+                    "user": str(user),
+                    "user_name": user.name,
+                    "user_display": user.display_name,
+                    "user_id": user.id,
+                    "user_mention": user.mention,
+                    "user_nickname": str(user.nick),
+                    "user_created_at": user.created_at.strftime("%Y/%m/%d %H:%M:%S"),
+                    "user_joined_at": user.joined_at.strftime("%Y/%m/%d %H:%M:%S"),
+                    "user_heat": heat.get_user_heat(user, debug=self.debug),
+                    "user_avatar_url": user.avatar.url if user.avatar else "",
+                }
+            )
 
         if self.message:
             message = self.message
             channel = message.channel
-            self.state.update({
-                "message": message.content.replace("@", "@\u200b"),
-                "message_clean": message.clean_content,
-                "message_id": message.id,
-                "message_created_at": message.created_at,
-                "message_link": message.jump_url,
-                "message_reaction": str(self.reaction) if self.reaction else "",
-                "message_author_id": message.author.id,
-                "channel": f"#{channel}",
-                "channel_name": channel.name,
-                "channel_id": channel.id,
-                "channel_mention": channel.mention,
-                "channel_category": channel.category.name if channel.category else "None",
-                "channel_category_id": channel.category.id if channel.category else "0",
-                "channel_heat": heat.get_channel_heat(channel, debug=self.debug),
-                "parent": "",
-                "parent_name": "",
-                "parent_id": "",
-                "parent_mention": "",
-                "parent_heat": "",
-            })
+            self.state.update(
+                {
+                    "message": message.content.replace("@", "@\u200b"),
+                    "message_clean": message.clean_content,
+                    "message_id": message.id,
+                    "message_created_at": message.created_at,
+                    "message_link": message.jump_url,
+                    "message_reaction": str(self.reaction) if self.reaction else "",
+                    "message_author_id": message.author.id,
+                    "channel": f"#{channel}",
+                    "channel_name": channel.name,
+                    "channel_id": channel.id,
+                    "channel_mention": channel.mention,
+                    "channel_category": channel.category.name if channel.category else "None",
+                    "channel_category_id": channel.category.id if channel.category else "0",
+                    "channel_heat": heat.get_channel_heat(channel, debug=self.debug),
+                    "parent": "",
+                    "parent_name": "",
+                    "parent_id": "",
+                    "parent_mention": "",
+                    "parent_heat": "",
+                }
+            )
             if message.attachments:
                 attachment = message.attachments[0]
-                self.state.update({
-                    "attachment_filename": attachment.filename,
-                    "attachment_url": attachment.url
-                })
+                self.state.update({"attachment_filename": attachment.filename, "attachment_url": attachment.url})
 
             if isinstance(channel, discord.Thread):
-                self.state.update({
-                    "parent": f"#{channel.parent}",
-                    "parent_name": channel.parent.name,
-                    "parent_id": channel.parent.id,
-                    "parent_mention": channel.parent.mention,
-                    "parent_heat": heat.get_channel_heat(channel.parent, debug=self.debug),
-                })
+                self.state.update(
+                    {
+                        "parent": f"#{channel.parent}",
+                        "parent_name": channel.parent.name,
+                        "parent_id": channel.parent.id,
+                        "parent_mention": channel.parent.mention,
+                        "parent_heat": heat.get_channel_heat(channel.parent, debug=self.debug),
+                    }
+                )
 
         if self.role:
-            self.state.update({
-                "role_id": self.role.id,
-                "role_name": self.role.name,
-                "role_mention": self.role.mention,
-                "role_added": "true" if self.role in self.user.roles else "false",
-            })
+            self.state.update(
+                {
+                    "role_id": self.role.id,
+                    "role_name": self.role.name,
+                    "role_mention": self.role.mention,
+                    "role_added": "true" if self.role in self.user.roles else "false",
+                }
+            )
 
     def __repr__(self):
         return f"<WDRuntime '{self.rule_name}'>"
@@ -212,6 +227,7 @@ class WDRuntime:
     def __bool__(self):
         return bool(self.last_result)
 
+
 class WardenRule:
     errors = {
         "CONDITIONS_ONLY": "Actions and conditional action blocks are not allowed in the condition section of a rule.",
@@ -234,8 +250,7 @@ class WardenRule:
         try:
             rule = yaml.safe_load(rule_str)
         except:
-            raise InvalidRule("Error parsing YAML. Please make sure the format "
-                              "is valid (a YAML validator may help)")
+            raise InvalidRule("Error parsing YAML. Please make sure the format " "is valid (a YAML validator may help)")
 
         if not isinstance(rule, dict):
             raise InvalidRule(f"This rule doesn't seem to follow the expected format.")
@@ -270,29 +285,30 @@ class WardenRule:
         if Event.Periodic in self.events:
             # cog is None when running tests
             if cog and not await cog.config.wd_periodic_allowed():
-                raise InvalidRule("The creation of periodic Warden rules is currently disabled. "
-                                  "The bot owner must use '[p]dset warden periodicallowed' to "
-                                  "enable them.")
+                raise InvalidRule(
+                    "The creation of periodic Warden rules is currently disabled. "
+                    "The bot owner must use '[p]dset warden periodicallowed' to "
+                    "enable them."
+                )
             if "run-every" not in rule.keys():
-                raise InvalidRule("The 'run-every' parameter is mandatory with "
-                                  "periodic rules.")
+                raise InvalidRule("The 'run-every' parameter is mandatory with " "periodic rules.")
             try:
-                td = parse_timedelta(str(rule["run-every"]),
-                                     maximum=datetime.timedelta(hours=24),
-                                     minimum=datetime.timedelta(minutes=5),
-                                     allowed_units=["hours", "minutes"])
+                td = parse_timedelta(
+                    str(rule["run-every"]),
+                    maximum=datetime.timedelta(hours=24),
+                    minimum=datetime.timedelta(minutes=5),
+                    allowed_units=["hours", "minutes"],
+                )
                 if td is None:
                     raise BadArgument()
             except BadArgument:
-                raise InvalidRule("The 'run-every' parameter must be between 5 minutes "
-                                  "and 24 hours.")
+                raise InvalidRule("The 'run-every' parameter must be between 5 minutes " "and 24 hours.")
             else:
                 self.run_every = td
                 self.next_run = utcnow() + td
         else:
             if "run-every" in rule.keys():
-                raise InvalidRule("The 'periodic' event must be specified for rules with "
-                                  "a 'run-every' parameter.")
+                raise InvalidRule("The 'periodic' event must be specified for rules with " "a 'run-every' parameter.")
 
         try:
             self.rank = Rank(rule["rank"])
@@ -316,11 +332,9 @@ class WardenRule:
         if not rule["if"]:
             raise InvalidRule("Rule must have at least one condition.")
 
-        self.cond_tree = await self.parse_tree(rule["if"],
-                                               cog=cog,
-                                               author=author,
-                                               events=self.events,
-                                               conditions_only=True)
+        self.cond_tree = await self.parse_tree(
+            rule["if"], cog=cog, author=author, events=self.events, conditions_only=True
+        )
 
         if not isinstance(rule["do"], list):
             raise InvalidRule("Invalid 'do' category. Must be a list of maps.")
@@ -328,12 +342,11 @@ class WardenRule:
         if not rule["do"]:
             raise InvalidRule("Rule must have at least one action.")
 
-        self.action_tree = await self.parse_tree(rule["do"],
-                                                 cog=cog,
-                                                 author=author,
-                                                 events=self.events)
+        self.action_tree = await self.parse_tree(rule["do"], cog=cog, author=author, events=self.events)
 
-    async def parse_tree(self, raw_tree, *, events, author, cog: MixinMeta, conditions_only=False, stack=-1, outer_block=None):
+    async def parse_tree(
+        self, raw_tree, *, events, author, cog: MixinMeta, conditions_only=False, stack=-1, outer_block=None
+    ):
         def get_enum(statement):
             try:
                 enum = Condition(statement)
@@ -384,13 +397,27 @@ class WardenRule:
                     model = model_validator(enum, value)
                     tree[WDAction(enum=enum)] = model
                 elif isinstance(enum, ConditionBlock):
-                    tree[WDConditionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog,
-                                                                              conditions_only=conditions_only, stack=stack, outer_block=ConditionBlock)
+                    tree[WDConditionBlock(enum=enum)] = await self.parse_tree(
+                        value,
+                        events=events,
+                        author=author,
+                        cog=cog,
+                        conditions_only=conditions_only,
+                        stack=stack,
+                        outer_block=ConditionBlock,
+                    )
                 elif isinstance(enum, ConditionalActionBlock):
                     if outer_block is ConditionBlock:
                         raise InvalidRule("Conditional action blocks are not allowed inside condition blocks")
-                    tree[WDConditionalActionBlock(enum=enum)] = await self.parse_tree(value, events=events, author=author, cog=cog,
-                                                                                      conditions_only=conditions_only, stack=stack, outer_block=ConditionalActionBlock)
+                    tree[WDConditionalActionBlock(enum=enum)] = await self.parse_tree(
+                        value,
+                        events=events,
+                        author=author,
+                        cog=cog,
+                        conditions_only=conditions_only,
+                        stack=stack,
+                        outer_block=ConditionalActionBlock,
+                    )
             except ValidationError as e:
                 raise InvalidRule(f"Statement `{enum.value}` invalid:\n{box(str(e))}")
 
@@ -406,22 +433,34 @@ class WardenRule:
                         raise InvalidRule(self.errors["NOT_ALLOWED_IN_EVENTS"].format(enum.value))
 
             if author and model:
-            # Checking author prevents old rules from raising at load
+                # Checking author prevents old rules from raising at load
                 if enum in DEPRECATED:
-                    raise InvalidRule(f"Statement `{enum.value}` is deprecated: check the documentation "
-                                      "for a supported alternative.")
+                    raise InvalidRule(
+                        f"Statement `{enum.value}` is deprecated: check the documentation "
+                        "for a supported alternative."
+                    )
 
         if not tree:
             raise InvalidRule("Empty block.")
 
         return tree
 
-    async def eval_tree(self, tree: Dict[WDStatement, Union[BaseModel, List]], *, runtime: WDRuntime, bool_stop=None, stack=-1, outer_block=None)->WDRuntime:
+    async def eval_tree(
+        self,
+        tree: Dict[WDStatement, Union[BaseModel, List]],
+        *,
+        runtime: WDRuntime,
+        bool_stop=None,
+        stack=-1,
+        outer_block=None,
+    ) -> WDRuntime:
         stack += 1
 
         for statement, value in tree.items():
             if runtime.debug:
-                runtime.add_trace_enter(stack, statement.enum, ignore=WDConditionalActionBlock if runtime.last_result else None)
+                runtime.add_trace_enter(
+                    stack, statement.enum, ignore=WDConditionalActionBlock if runtime.last_result else None
+                )
 
             if isinstance(statement, WDCondition):
                 await self._evaluate_condition(condition=statement.enum, model=value, runtime=runtime)
@@ -429,18 +468,22 @@ class WardenRule:
                 await self._do_action(action=statement.enum, model=value, runtime=runtime)
             elif isinstance(statement, WDConditionBlock):
                 block_bool_stop = statement.enum in (ConditionBlock.IfNot, ConditionBlock.IfAny)
-                await self.eval_tree(value, runtime=runtime, bool_stop=block_bool_stop, stack=stack, outer_block=statement.enum)
+                await self.eval_tree(
+                    value, runtime=runtime, bool_stop=block_bool_stop, stack=stack, outer_block=statement.enum
+                )
             elif isinstance(statement, WDConditionalActionBlock):
                 can_run_true = statement.enum is ConditionalActionBlock.IfTrue and runtime.last_result is True
                 can_run_false = statement.enum is ConditionalActionBlock.IfFalse and runtime.last_result is False
                 if can_run_true or can_run_false:
                     if runtime.debug:
                         runtime.add_trace_enter(stack, statement.enum)
-                    last_stack_result = runtime.last_result # ConditionalActionBlocks leaking inner last_results leads to unintuitive behaviour
+                    last_stack_result = (
+                        runtime.last_result
+                    )  # ConditionalActionBlocks leaking inner last_results leads to unintuitive behaviour
                     await self.eval_tree(value, runtime=runtime, stack=stack)
                     runtime.last_result = last_stack_result
                 else:
-                    continue # We don't want a trace exit for non-executing CondActionBlocks
+                    continue  # We don't want a trace exit for non-executing CondActionBlocks
 
             if runtime.debug:
                 runtime.add_trace_exit(stack, statement.enum)
@@ -456,8 +499,18 @@ class WardenRule:
 
         return runtime
 
-    async def satisfies_conditions(self, *, rank: Rank, cog: MixinMeta, user: Optional[discord.Member]=None, message: Optional[discord.Message]=None,
-                                   guild: discord.Guild, reaction: Optional[discord.Reaction]=None, role: Optional[discord.Role]=None, debug=False)->WDRuntime:
+    async def satisfies_conditions(
+        self,
+        *,
+        rank: Rank,
+        cog: MixinMeta,
+        user: Optional[discord.Member] = None,
+        message: Optional[discord.Message] = None,
+        guild: discord.Guild,
+        reaction: Optional[discord.Reaction] = None,
+        role: Optional[discord.Role] = None,
+        debug=False,
+    ) -> WDRuntime:
         runtime = WDRuntime()
         runtime.rule_name = self.name
         runtime.cog = cog
@@ -500,16 +553,21 @@ class WardenRule:
 
         checkers = {}
 
-        def checker(condition: Condition, suggest: Condition=None):
+        def checker(condition: Condition, suggest: Condition = None):
             def decorator(function):
                 def wrapper(*args, **kwargs):
                     if suggest is not None:
-                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Condition "
-                                                   f"'{condition.value}' is deprecated, use "
-                                                   f"'{suggest.value}' instead.")
+                        cog.send_to_monitor(
+                            guild,
+                            f"[Warden] ({self.name}): Condition "
+                            f"'{condition.value}' is deprecated, use "
+                            f"'{suggest.value}' instead.",
+                        )
                     return function(*args, **kwargs)
+
                 checkers[condition] = wrapper
                 return wrapper
+
             return decorator
 
         def safe_sub(string):
@@ -528,13 +586,7 @@ class WardenRule:
 
         @checker(Condition.MessageMatchesRegex)
         async def message_matches_regex(params: models.IsStr):
-            return await run_user_regex(
-                rule_obj=self,
-                cog=cog,
-                guild=guild,
-                regex=params.value,
-                text=message.content
-            )
+            return await run_user_regex(rule_obj=self, cog=cog, guild=guild, regex=params.value, text=message.content)
 
         @checker(Condition.MessageContainsWord)
         async def message_contains_word(params: models.NonEmptyListStr):
@@ -586,13 +638,7 @@ class WardenRule:
 
         @checker(Condition.UsernameMatchesRegex)
         async def username_matches_regex(params: models.IsStr):
-            return await run_user_regex(
-                rule_obj=self,
-                cog=cog,
-                guild=guild,
-                regex=params.value,
-                text=user.name
-            )
+            return await run_user_regex(rule_obj=self, cog=cog, guild=guild, regex=params.value, text=user.name)
 
         @checker(Condition.NicknameMatchesAny)
         async def nickname_matches_any(params: models.NonEmptyListStr):
@@ -609,13 +655,7 @@ class WardenRule:
         async def nickname_matches_regex(params: models.IsStr):
             if not user.nick:
                 return False
-            return await run_user_regex(
-                rule_obj=self,
-                cog=cog,
-                guild=guild,
-                regex=params.value,
-                text=user.nick
-            )
+            return await run_user_regex(rule_obj=self, cog=cog, guild=guild, regex=params.value, text=user.nick)
 
         @checker(Condition.DisplayNameMatchesAny)
         async def display_name_matches_any(params: models.NonEmptyListStr):
@@ -628,19 +668,13 @@ class WardenRule:
 
         @checker(Condition.DisplayNameMatchesRegex)
         async def display_name_matches_regex(params: models.IsStr):
-            return await run_user_regex(
-                rule_obj=self,
-                cog=cog,
-                guild=guild,
-                regex=params.value,
-                text=user.display_name
-            )
+            return await run_user_regex(rule_obj=self, cog=cog, guild=guild, regex=params.value, text=user.display_name)
 
         @checker(Condition.ChannelMatchesAny)
         async def channel_matches_any(params: models.NonEmptyList):
             if channel.id in params.value:
                 return True
-            if parent is None: # Name matching for channels only
+            if parent is None:  # Name matching for channels only
                 for channel_str in params.value:
                     channel_str = str(channel_str)
                     channel_obj = discord.utils.get(guild.text_channels, name=channel_str)
@@ -666,7 +700,10 @@ class WardenRule:
         async def channel_is_public(params: models.IsBool):
             if parent is None:
                 everyone = guild.default_role
-                public = everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None)
+                public = everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (
+                    True,
+                    None,
+                )
                 return params.value is public
             else:
                 is_public_thread = channel.type is discord.ChannelType.public_thread
@@ -679,7 +716,7 @@ class WardenRule:
                     return True
                 x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
             else:
-                x_hours_ago = utcnow() - params.value # type: ignore
+                x_hours_ago = utcnow() - params.value  # type: ignore
 
             return user.created_at > x_hours_ago
 
@@ -694,7 +731,7 @@ class WardenRule:
                     return True
                 x_hours_ago = utcnow() - datetime.timedelta(hours=params.value)
             else:
-                x_hours_ago = utcnow() - params.value # type: ignore
+                x_hours_ago = utcnow() - params.value  # type: ignore
 
             return user.joined_at > x_hours_ago
 
@@ -859,7 +896,7 @@ class WardenRule:
         try:
             result = await processor_func(model)
         except ExecutionError as e:
-            if cog: # is None in unit tests
+            if cog:  # is None in unit tests
                 cog.send_to_monitor(guild, f"[Warden] ({self.name}): {e}")
             runtime.last_result = False
             raise e
@@ -869,8 +906,17 @@ class WardenRule:
         else:
             raise ExecutionError(f"Unexpected condition evaluation result for '{condition.value}'.")
 
-    async def do_actions(self, *, cog: MixinMeta, user: Optional[discord.Member]=None, message:  Optional[discord.Message]=None,
-                         reaction: Optional[discord.Reaction]=None, guild: discord.Guild, role: Optional[discord.Role]=None, debug=False):
+    async def do_actions(
+        self,
+        *,
+        cog: MixinMeta,
+        user: Optional[discord.Member] = None,
+        message: Optional[discord.Message] = None,
+        reaction: Optional[discord.Reaction] = None,
+        guild: discord.Guild,
+        role: Optional[discord.Role] = None,
+        debug=False,
+    ):
         runtime = WDRuntime()
         runtime.rule_name = self.name
         runtime.cog = cog
@@ -909,21 +955,26 @@ class WardenRule:
                 return string
             return Template(string).safe_substitute(runtime.state)
 
-        #for heat_key in heat.get_custom_heat_keys(guild):
+        # for heat_key in heat.get_custom_heat_keys(guild):
         #    runtime.state[f"custom_heat_{heat_key}"] = heat.get_custom_heat(guild, heat_key)
 
         processors = {}
 
-        def processor(action: Action, suggest: Action=None):
+        def processor(action: Action, suggest: Action = None):
             def decorator(function):
                 def wrapper(*args, **kwargs):
                     if suggest is not None:
-                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Action "
-                                                   f"'{action.value}' is deprecated, use "
-                                                   f"'{suggest.value}' instead.")
+                        cog.send_to_monitor(
+                            guild,
+                            f"[Warden] ({self.name}): Action "
+                            f"'{action.value}' is deprecated, use "
+                            f"'{suggest.value}' instead.",
+                        )
                     return function(*args, **kwargs)
+
                 processors[action] = wrapper
                 return wrapper
+
             return decorator
 
         @processor(Action.DeleteUserMessage)
@@ -957,14 +1008,14 @@ class WardenRule:
                 try:
                     jump_to_ch = discord.utils.get(guild.text_channels, id=int(jump_to_channel_id))
                 except ValueError:
-                    raise ExecutionError(f"{jump_to_channel_id} is not a valid channel ID for a \"jump to\" message.")
+                    raise ExecutionError(f'{jump_to_channel_id} is not a valid channel ID for a "jump to" message.')
                 if jump_to_ch:
                     try:
                         jump_to_msg = jump_to_ch.get_partial_message(int(jump_to_message_id))
                     except ValueError:
-                        raise ExecutionError(f"{jump_to_message_id} is not a valid message ID for a \"jump to\" message.")
+                        raise ExecutionError(f'{jump_to_message_id} is not a valid message ID for a "jump to" message.')
                 else:
-                    raise ExecutionError(f"I could not find the destination channel for the \"jump to\" message.")
+                    raise ExecutionError(f'I could not find the destination channel for the "jump to" message.')
 
             title = safe_sub(params.title) if params.title else None
             heat_key = safe_sub(params.no_repeat_key) if params.no_repeat_key else None
@@ -998,19 +1049,21 @@ class WardenRule:
                 else:
                     footer = safe_sub(params.footer_text)
 
-            runtime.last_sent_message = await cog.send_notification(guild,
-                                                                    safe_sub(params.content),
-                                                                    title=title,
-                                                                    ping=params.ping,
-                                                                    fields=fields,
-                                                                    footer=footer,
-                                                                    thumbnail=safe_sub(params.thumbnail) if params.thumbnail else None,
-                                                                    jump_to=jump_to_msg,
-                                                                    no_repeat_for=params.no_repeat_for,
-                                                                    heat_key=heat_key,
-                                                                    view=quick_action,
-                                                                    force_text_only=text_only,
-                                                                    allow_everyone_ping=params.allow_everyone_ping)
+            runtime.last_sent_message = await cog.send_notification(
+                guild,
+                safe_sub(params.content),
+                title=title,
+                ping=params.ping,
+                fields=fields,
+                footer=footer,
+                thumbnail=safe_sub(params.thumbnail) if params.thumbnail else None,
+                jump_to=jump_to_msg,
+                no_repeat_for=params.no_repeat_for,
+                heat_key=heat_key,
+                view=quick_action,
+                force_text_only=text_only,
+                allow_everyone_ping=params.allow_everyone_ping,
+            )
 
         @processor(Action.SetChannelSlowmode)
         async def set_channel_slowmode(params: models.IsTimedelta):
@@ -1087,8 +1140,11 @@ class WardenRule:
             if punish_role and not cog.is_role_privileged(punish_role):
                 await user.add_roles(punish_role, reason=f"Punished by Warden rule '{self.name}'")
             else:
-                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
-                                            "still present and with *no* privileges?")
+                cog.send_to_monitor(
+                    guild,
+                    f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
+                    "still present and with *no* privileges?",
+                )
 
         @processor(Action.PunishUserWithMessage)
         async def punish_user_with_message(params: models.IsNone):
@@ -1099,8 +1155,11 @@ class WardenRule:
                 if punish_message:
                     await channel.send(punish_message)
             else:
-                cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
-                                            "still present and with *no* privileges?")
+                cog.send_to_monitor(
+                    guild,
+                    f"[Warden] ({self.name}): Failed to punish user. Is the punish role "
+                    "still present and with *no* privileges?",
+                )
 
         @processor(Action.Timeout)
         async def timeout_user(params: models.IsOptionalTimedelta):
@@ -1143,36 +1202,36 @@ class WardenRule:
 
         @processor(Action.AddUserHeatpoint)
         async def add_user_heatpoint(params: models.IsTimedelta):
-            heat.increase_user_heat(user, params.value, debug=debug) # type: ignore
+            heat.increase_user_heat(user, params.value, debug=debug)  # type: ignore
             runtime.state["user_heat"] = heat.get_user_heat(user, debug=debug)
 
         @processor(Action.AddUserHeatpoints)
         async def add_user_heatpoints(params: models.AddHeatpoints):
             for _ in range(params.points):
-                heat.increase_user_heat(user, params.delta, debug=debug) # type: ignore
+                heat.increase_user_heat(user, params.delta, debug=debug)  # type: ignore
             runtime.state["user_heat"] = heat.get_user_heat(user, debug=debug)
 
         @processor(Action.AddChannelHeatpoint)
         async def add_channel_heatpoint(params: models.IsTimedelta):
-            heat.increase_channel_heat(channel, params.value, debug=debug) # type: ignore
+            heat.increase_channel_heat(channel, params.value, debug=debug)  # type: ignore
             runtime.state["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
 
         @processor(Action.AddChannelHeatpoints)
         async def add_channel_heatpoints(params: models.AddHeatpoints):
             for _ in range(params.points):
-                heat.increase_channel_heat(channel, params.delta, debug=debug) # type: ignore
+                heat.increase_channel_heat(channel, params.delta, debug=debug)  # type: ignore
             runtime.state["channel_heat"] = heat.get_channel_heat(channel, debug=debug)
 
         @processor(Action.AddCustomHeatpoint)
         async def add_custom_heatpoint(params: models.AddCustomHeatpoint):
             heat_key = Template(params.label).safe_substitute(runtime.state)
-            heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug) # type: ignore
+            heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug)  # type: ignore
 
         @processor(Action.AddCustomHeatpoints)
         async def add_custom_heatpoints(params: models.AddCustomHeatpoints):
             heat_key = Template(params.label).safe_substitute(runtime.state)
             for _ in range(params.points):
-                heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug) # type: ignore
+                heat.increase_custom_heat(guild, heat_key, params.delta, debug=debug)  # type: ignore
 
         @processor(Action.EmptyUserHeat)
         async def empty_user_heat(params: models.IsNone):
@@ -1201,23 +1260,22 @@ class WardenRule:
                 notify_channel_id = await cog.config.guild(guild).notify_channel()
                 msg_obj.channel = guild.get_channel(notify_channel_id)
                 if msg_obj.channel is None:
-                    raise ExecutionError(f"Failed to issue command. I could not find the "
-                                         "notification channel.")
+                    raise ExecutionError(f"Failed to issue command. I could not find the " "notification channel.")
             else:
-                if params.destination is None: # User id + command in a message context
+                if params.destination is None:  # User id + command in a message context
                     msg_obj.channel = message.channel
-                else: # User id + command + arbitrary destination
+                else:  # User id + command + arbitrary destination
                     destination = safe_sub(params.destination)
                     try:
                         msg_obj.channel = guild.get_channel(int(destination))
                     except ValueError:
                         raise ExecutionError(f"{destination} is not a valid ID.")
                     if msg_obj.channel is None:
-                        raise ExecutionError(f"Failed to issue command. I could not find the "
-                                            "notification channel.")
+                        raise ExecutionError(f"Failed to issue command. I could not find the " "notification channel.")
                     if msg_obj.channel.permissions_for(issuer).view_channel is False:
-                        raise ExecutionError("Failed to issue command. The issuer has no permissions "
-                                             "to view the destination channel.")
+                        raise ExecutionError(
+                            "Failed to issue command. The issuer has no permissions " "to view the destination channel."
+                        )
 
             msg_obj.author = issuer
             prefix = await cog.bot.get_prefix(msg_obj)
@@ -1233,7 +1291,7 @@ class WardenRule:
         @processor(Action.SendMessage)
         async def send_message(params: models.SendMessage):
 
-            params = params.model_copy() # This model is mutable for easier handling
+            params = params.model_copy()  # This model is mutable for easier handling
 
             send_embed = False
 
@@ -1257,38 +1315,36 @@ class WardenRule:
                 if destination is None:
                     destination = guild.get_member(params.id)
                     if destination is None:
-                        cog.send_to_monitor(guild, f"[Warden] ({self.name}): Failed to send message, "
-                                                    f"I could not find the recipient.")
+                        cog.send_to_monitor(
+                            guild,
+                            f"[Warden] ({self.name}): Failed to send message, " f"I could not find the recipient.",
+                        )
                         return
                     else:
                         is_user = True
             else:
                 destination = discord.utils.get(pool, name=params.id)
                 if destination is None:
-                    raise ExecutionError(f"[Warden] ({self.name}): Failed to send message, "
-                                        f"'{params.id}' is not a valid channel name.")
+                    raise ExecutionError(
+                        f"[Warden] ({self.name}): Failed to send message, "
+                        f"'{params.id}' is not a valid channel name."
+                    )
 
             em = None
 
             if send_embed is False and not params.content:
-                raise ExecutionError(f"[Warden] ({self.name}): I have no content and "
-                                      "no embed to send.")
+                raise ExecutionError(f"[Warden] ({self.name}): I have no content and " "no embed to send.")
 
             if send_embed:
-                em = discord.Embed(title=params.title,
-                                description=params.description,
-                                url=params.url)
+                em = discord.Embed(title=params.title, description=params.description, url=params.url)
 
                 if params.author_name:
-                    em.set_author(name=params.author_name, url=params.author_url,
-                                icon_url=params.author_icon_url)
+                    em.set_author(name=params.author_name, url=params.author_url, icon_url=params.author_icon_url)
                 em.set_image(url=params.image)
                 em.set_thumbnail(url=params.thumbnail)
                 em.set_footer(text=params.footer_text, icon_url=params.footer_icon_url)
                 for field in params.fields:
-                    em.add_field(name=safe_sub(field.name),
-                                value=safe_sub(field.value),
-                                inline=field.inline)
+                    em.add_field(name=safe_sub(field.name), value=safe_sub(field.value), inline=field.inline)
                 if params.add_timestamp:
                     em.timestamp = utcnow()
 
@@ -1299,8 +1355,9 @@ class WardenRule:
                 else:
                     em.color = discord.Colour(params.color)
 
-            mentions = discord.AllowedMentions(everyone=params.allow_mass_mentions, roles=True, users=True,
-                                               replied_user=params.ping_on_reply)
+            mentions = discord.AllowedMentions(
+                everyone=params.allow_mass_mentions, roles=True, users=True, replied_user=params.ping_on_reply
+            )
 
             if params.edit_message_id:
                 params.edit_message_id = safe_sub(params.edit_message_id)
@@ -1316,24 +1373,30 @@ class WardenRule:
 
             if not params.edit_message_id:
                 try:
-                    runtime.last_sent_message = await destination.send(params.content, embed=em, allowed_mentions=mentions,
-                                                                       reference=reference)
+                    runtime.last_sent_message = await destination.send(
+                        params.content, embed=em, allowed_mentions=mentions, reference=reference
+                    )
                 except (discord.HTTPException, discord.Forbidden) as e:
                     # A user could just have DMs disabled
                     if is_user is False:
-                        raise ExecutionError(f"[Warden] ({self.name}): Failed to deliver message "
-                                            f"to channel #{destination}. {e}")
+                        raise ExecutionError(
+                            f"[Warden] ({self.name}): Failed to deliver message " f"to channel #{destination}. {e}"
+                        )
             else:
                 try:
                     partial_msg = destination.get_partial_message(int(params.edit_message_id))
-                    await partial_msg.edit(content=params.content if params.content else None,
-                                           embed=em, allowed_mentions=mentions)
+                    await partial_msg.edit(
+                        content=params.content if params.content else None, embed=em, allowed_mentions=mentions
+                    )
                 except (discord.HTTPException, discord.Forbidden) as e:
-                    raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message "
-                                        f"in channel #{destination}. {e}")
+                    raise ExecutionError(
+                        f"[Warden] ({self.name}): Failed to edit message " f"in channel #{destination}. {e}"
+                    )
                 except ValueError:
-                    raise ExecutionError(f"[Warden] ({self.name}): Failed to edit message. "
-                                        f"{params.edit_message_id} is not a valid ID")
+                    raise ExecutionError(
+                        f"[Warden] ({self.name}): Failed to edit message. "
+                        f"{params.edit_message_id} is not a valid ID"
+                    )
 
         @processor(Action.ArchiveThread)
         async def archive_thread(params: models.IsNone):
@@ -1348,7 +1411,9 @@ class WardenRule:
         @processor(Action.ArchiveAndLockThread)
         async def archive_and_lock_thread(params: models.IsNone):
             if isinstance(channel, discord.Thread):
-                await channel.edit(archived=True, locked=True, reason=f"Archived and locked by Warden rule '{self.name}'")
+                await channel.edit(
+                    archived=True, locked=True, reason=f"Archived and locked by Warden rule '{self.name}'"
+                )
 
         @processor(Action.DeleteThread)
         async def delete_thread(params: models.IsNone):
@@ -1383,7 +1448,7 @@ class WardenRule:
                 else:
                     value = getattr(member, attr, None)
                     if value is None:
-                        raise ExecutionError(f"Attribute \"{attr}\" does not exist.")
+                        raise ExecutionError(f'Attribute "{attr}" does not exist.')
 
                 if isinstance(value, bool):
                     value = str(value).lower()
@@ -1396,7 +1461,7 @@ class WardenRule:
                 elif isinstance(value, (str, int, discord.Asset, discord.Status)):
                     value = str(value)
                 else:
-                    raise ExecutionError(f"Attribute \"{attr}\" not supported.")
+                    raise ExecutionError(f'Attribute "{attr}" not supported.')
 
                 runtime.state[safe_sub(target)] = value
 
@@ -1454,7 +1519,7 @@ class WardenRule:
             elif op in single_ops and params.operand2 is not None:
                 raise ExecutionError(f"A second operand is not needed with operator {op}")
 
-            num1, num2 = safe_sub(params.operand1), safe_sub(params.operand2) if params.operand2 is not None else 0
+            num1, num2 = (safe_sub(params.operand1), safe_sub(params.operand2) if params.operand2 is not None else 0)
 
             def cast_to_number(n):
                 try:
@@ -1498,7 +1563,7 @@ class WardenRule:
             var_name = safe_sub(params.var_name)
             var = runtime.state.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
+                raise ExecutionError(f'Variable "{var_name}" does not exist.')
 
             to_sub = []
 
@@ -1517,7 +1582,7 @@ class WardenRule:
             var_name = safe_sub(params.var_name)
             var = runtime.state.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
+                raise ExecutionError(f'Variable "{var_name}" does not exist.')
 
             sequences = var.split(params.separator, maxsplit=params.max_split)
 
@@ -1532,7 +1597,7 @@ class WardenRule:
             var_name = safe_sub(params.var_name)
             var = runtime.state.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
+                raise ExecutionError(f'Variable "{var_name}" does not exist.')
 
             operation = params.operation.lower()
 
@@ -1554,9 +1619,9 @@ class WardenRule:
             var_name = safe_sub(params.var_name)
             var = runtime.state.get(var_name, None)
             if var is None:
-                raise ExecutionError(f"Variable \"{var_name}\" does not exist.")
+                raise ExecutionError(f'Variable "{var_name}" does not exist.')
 
-            var = var[params.index:params.end_index:params.step]
+            var = var[params.index : params.end_index : params.step]
 
             if params.slice_into:
                 runtime.state[safe_sub(params.slice_into)] = var
@@ -1582,8 +1647,8 @@ class WardenRule:
                     raise ExecutionError(f"'{rt}' is not a valid ID.")
                 if member is None:
                     if rt.isnumeric():
-                        raise ExecutionError("The hackban feature is not yet available.") # TODO
-                        #targets.append(ws.api.UnavailableMember(rt)) # hackban
+                        raise ExecutionError("The hackban feature is not yet available.")  # TODO
+                        # targets.append(ws.api.UnavailableMember(rt)) # hackban
                     else:
                         raise ExecutionError(f"'{rt}' is not a valid ID.")
                 else:
@@ -1599,9 +1664,20 @@ class WardenRule:
             reason = safe_sub(params.reason) if params.reason else None
 
             try:
-                await ws.api.warn(guild=guild, members=targets, author=ws_author, level=params.level, reason=reason,
-                                time=params.time, date=params.date, ban_days=params.ban_days, log_modlog=params.log_modlog,
-                                log_dm=params.log_dm, take_action=params.take_action, automod=params.automod)
+                await ws.api.warn(
+                    guild=guild,
+                    members=targets,
+                    author=ws_author,
+                    level=params.level,
+                    reason=reason,
+                    time=params.time,
+                    date=params.date,
+                    ban_days=params.ban_days,
+                    log_modlog=params.log_modlog,
+                    log_dm=params.log_dm,
+                    take_action=params.take_action,
+                    automod=params.automod,
+                )
             except Exception as e:
                 raise ExecutionError(f"WarnSystem error: {e}")
 
@@ -1630,6 +1706,7 @@ class WardenRule:
     def __repr__(self):
         return f"<{self.__class__.__name__} '{self.name}'>"
 
+
 class WardenCheck(WardenRule):
     """Warden Checks are groups of Warden based condition checks that the user can choose to implement
     for each Defender's module. They are evaluated in addition to a module's standard checks and allow for
@@ -1647,17 +1724,14 @@ class WardenCheck(WardenRule):
         try:
             rule = yaml.safe_load(rule_str)
         except:
-            raise InvalidRule("Error parsing YAML. Please make sure the format "
-                              "is valid (a YAML validator may help)")
+            raise InvalidRule("Error parsing YAML. Please make sure the format " "is valid (a YAML validator may help)")
 
         if not isinstance(rule, list):
             raise InvalidRule(f"Please review the format: checks should be a list of conditions")
 
         self.name = module.value
 
-        self.cond_tree = await self.parse_tree(rule,
-                                               cog=cog,
-                                               author=author,
-                                               events=[CHECKS_MODULES_EVENTS[module]],
-                                               conditions_only=True)
+        self.cond_tree = await self.parse_tree(
+            rule, cog=cog, author=author, events=[CHECKS_MODULES_EVENTS[module]], conditions_only=True
+        )
         self.action_tree = {}

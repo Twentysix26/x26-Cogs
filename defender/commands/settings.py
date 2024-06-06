@@ -34,8 +34,8 @@ log = logging.getLogger("red.x26cogs.defender")
 
 P_ATTRS_URL = "https://developers.perspectiveapi.com/s/about-the-api-attributes-and-languages"
 
-class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
+class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @commands.group(name="dset", aliases=["defset"])
     @commands.guild_only()
     @commands.admin()
@@ -83,16 +83,18 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if not await self.bot.is_admin(other_member):
             return await ctx.send("You are not admin in that server.")
 
-        msg = await ctx.send("This will import all the Defender settings from that server. Role / channel "
-                             "specific settings will not carry over. Optionally Warden rules can also be ported over.\n"
-                             "Existing settings will be **lost**. React to proceed.")
+        msg = await ctx.send(
+            "This will import all the Defender settings from that server. Role / channel "
+            "specific settings will not carry over. Optionally Warden rules can also be ported over.\n"
+            "Existing settings will be **lost**. React to proceed."
+        )
 
         def confirm(r, user):
             return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
 
         await msg.add_reaction(EMOJI)
         try:
-            await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
+            await ctx.bot.wait_for("reaction_add", check=confirm, timeout=15)
         except asyncio.TimeoutError:
             return await ctx.send("Import aborted.")
 
@@ -116,15 +118,18 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         imported = 0
         failed = 0
         if has_rules:
-            msg = await ctx.send("I have imported the settings. Do you also want to import their "
-                                 "Warden rules? Any existing Warden rule with the same name will be "
-                                 "overwritten. React to confirm.")
+            msg = await ctx.send(
+                "I have imported the settings. Do you also want to import their "
+                "Warden rules? Any existing Warden rule with the same name will be "
+                "overwritten. React to confirm."
+            )
+
             def confirm(r, user):
                 return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
 
             await msg.add_reaction(EMOJI)
             try:
-                await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
+                await ctx.bot.wait_for("reaction_add", check=confirm, timeout=15)
             except asyncio.TimeoutError:
                 return await ctx.send("Warden rules importation aborted.")
 
@@ -147,9 +152,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         imported_txt = "" if not imported else f" Imported {imported} rules. "
         failed_txt = "" if not failed else f" Failed to import {failed} rules. "
-        await ctx.send(f"Configuration import completed successfully.{imported_txt}{failed_txt}"
-                       f"\nPlease check `{ctx.prefix}def status` for any remaining feature left to "
-                       "set up.")
+        await ctx.send(
+            f"Configuration import completed successfully.{imported_txt}{failed_txt}"
+            f"\nPlease check `{ctx.prefix}def status` for any remaining feature left to "
+            "set up."
+        )
 
     @generalgroup.command(name="trustedroles")
     async def generalgrouptrustedroles(self, ctx: commands.Context, *roles: discord.Role):
@@ -185,9 +192,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         everyone = ctx.guild.default_role
         await ctx.tick()
         if everyone not in channel.overwrites or channel.overwrites[everyone].read_messages in (True, None):
-            await ctx.send("Channel set. However, that channel is public: "
-                           "a private one (staff-only) would be preferable as I might "
-                           "send sensitive data at some point (logs, etc).")
+            await ctx.send(
+                "Channel set. However, that channel is public: "
+                "a private one (staff-only) would be preferable as I might "
+                "send sensitive data at some point (logs, etc)."
+            )
 
     @generalgroup.command(name="notifyrole")
     async def generalgroupnotifyrole(self, ctx: commands.Context, role: discord.Role):
@@ -202,9 +211,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         perms = channel.permissions_for(ctx.guild.me)
 
         if perms.mention_everyone is not True and not role.mentionable:
-            await ctx.send("Role set. It seems that I won't be able to ping this role "
-                           "in the notify channel that you have set. I suggest to fix "
-                           "this.")
+            await ctx.send(
+                "Role set. It seems that I won't be able to ping this role "
+                "in the notify channel that you have set. I suggest to fix "
+                "this."
+            )
 
     @generalgroup.command(name="punishrole")
     async def generalgrouppunishrole(self, ctx: commands.Context, role: discord.Role):
@@ -213,14 +224,18 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         Note: this will only be assigned if the 'action' of a module
         is set to 'punish'."""
         if self.is_role_privileged(role, ctx.author.top_role):
-            return await ctx.send("I cannot let you proceed: that role has either privileged "
-                                  "permissions or is higher than your top role in the role hierarchy. "
-                                  "The punish role is meant to be assigned to misbehaving users, "
-                                  "it is not supposed to have any sort of privilege.")
+            return await ctx.send(
+                "I cannot let you proceed: that role has either privileged "
+                "permissions or is higher than your top role in the role hierarchy. "
+                "The punish role is meant to be assigned to misbehaving users, "
+                "it is not supposed to have any sort of privilege."
+            )
         await self.config.guild(ctx.guild).punish_role.set(role.id)
-        await ctx.send("Role set. Remember that you're supposed to configure this role in a way that is "
-                       "somehow limiting to the user. Whether this means preventing them from sending "
-                       "messages or only post in certain channels is up to you.")
+        await ctx.send(
+            "Role set. Remember that you're supposed to configure this role in a way that is "
+            "somehow limiting to the user. Whether this means preventing them from sending "
+            "messages or only post in certain channels is up to you."
+        )
 
     @generalgroup.command(name="punishmessage")
     async def generalgrouppunishmessage(self, ctx: commands.Context, *, message: str):
@@ -233,7 +248,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         $user_id -> User's id
         $user_mention -> User's mention
         $user_nickname -> User's nickname if set or 'None'"""
-        if len(message) > 1950: # Since 4k messages might soon be a thing let's check for this
+        if len(message) > 1950:  # Since 4k messages might soon be a thing let's check for this
             return await ctx.send("The message is too long.")
         await self.config.guild(ctx.guild).punish_message.set(message)
         await ctx.tick()
@@ -248,12 +263,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send("Message counting disabled. Rank 4 is now unobtainable.")
 
     @generalgroup.command(name="reset")
-    async def generalgroupreset(self, ctx: commands.Context, confirmation: bool=False):
+    async def generalgroupreset(self, ctx: commands.Context, confirmation: bool = False):
         """Resets Defender configuration for this server"""
         if not confirmation:
-            await ctx.send("Are you sure you want to do this? This will reset the entire Defender "
-                           "configuration for this server, disabling it and reverting back to defaults.\n"
-                           f"Issue `{ctx.prefix}dset general reset yes` if you want to do this.")
+            await ctx.send(
+                "Are you sure you want to do this? This will reset the entire Defender "
+                "configuration for this server, disabling it and reverting back to defaults.\n"
+                f"Issue `{ctx.prefix}dset general reset yes` if you want to do this."
+            )
             return
         await self.config.guild(ctx.guild).clear()
         self.active_warden_rules.pop(ctx.guild.id, None)
@@ -268,19 +285,21 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return await ctx.send("A number between 2 and 720 please.")
         df_cache.MSG_EXPIRATION_TIME = hours
         await self.config.cache_expiration.set(hours)
-        await ctx.send("Value set. If you experience out of memory issues it might be "
-                       "a good idea to tweak this setting.")
+        await ctx.send(
+            "Value set. If you experience out of memory issues it might be " "a good idea to tweak this setting."
+        )
 
     @generalgroup.command(name="messagecachecap")
     @commands.is_owner()
     async def generalgroupcachecap(self, ctx: commands.Context, messages: int):
         """Sets the maximum # of messages to cache for each user / channel"""
-        if messages < 100 or messages > 999999:
+        if messages < 100 or messages > 999_999:
             return await ctx.send("A number between 100 and 999999 please.")
         df_cache.MSG_STORE_CAP = messages
         await self.config.cache_cap.set(messages)
-        await ctx.send("Value set. If you experience out of memory issues it might be "
-                       "a good idea to tweak this setting.")
+        await ctx.send(
+            "Value set. If you experience out of memory issues it might be " "a good idea to tweak this setting."
+        )
 
     @dset.group(name="rank3")
     @commands.admin()
@@ -296,8 +315,10 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send("Value must be between 3 and 10000.")
             return
         count_enabled = await self.config.guild(ctx.guild).count_messages()
-        count_warning = ("Value set, however message counting is disabled in this server, therefore users "
-                        f"cannot obtain Rank 4. Enable it with `{ctx.prefix}dset countmessages`.")
+        count_warning = (
+            "Value set, however message counting is disabled in this server, therefore users "
+            f"cannot obtain Rank 4. Enable it with `{ctx.prefix}dset countmessages`."
+        )
         await self.config.guild(ctx.guild).rank3_min_messages.set(messages)
         await ctx.tick()
         if not count_enabled:
@@ -350,8 +371,10 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
         await self.config.guild(ctx.guild).invite_filter_action.set(action)
         if Action(action) == Action.NoAction:
-            await ctx.send("Action set. Since you've chosen 'none' I may only delete "
-                           "the invite link (`[p]dset if deletemessage`) and notify the staff about it.")
+            await ctx.send(
+                "Action set. Since you've chosen 'none' I may only delete "
+                "the invite link (`[p]dset if deletemessage`) and notify the staff about it."
+            )
         await ctx.tick()
 
     @invitefiltergroup.command(name="excludeowninvites")
@@ -376,7 +399,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send("I will not delete the message containing the invite.")
 
     @invitefiltergroup.command(name="wdchecks")
-    async def invitefilterwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+    async def invitefilterwdchecks(self, ctx: commands.Context, *, conditions: str = ""):
         """Implement advanced Warden based checks
 
         Issuing this command with no arguments will show the current checks
@@ -501,15 +524,24 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         3 - High: must be a member of this server for longer than 10 minutes
         4 - Highest: must have a verified phone on their Discord account"""
         if not ctx.me.guild_permissions.manage_guild:
-            return await ctx.send("I cannot do this without `Manage server` permissions. "
-                                  "Please fix this and try again.")
+            return await ctx.send(
+                "I cannot do this without `Manage server` permissions. " "Please fix this and try again."
+            )
 
         select_options = (
             SelectOption(value="0", label="No action", description="Are you sure?", emoji="🤠"),
-            SelectOption(value="1", label="Low", description="Must have a verified email address on their Discord", emoji="🟢"),
-            SelectOption(value="2", label="Medium", description="Must also be registered on Discord for >= 5 minutes", emoji="🟡"),
-            SelectOption(value="3", label="High", description="Must also be a member here for more than 10 minutes", emoji="🟠"),
-            SelectOption(value="4", label="Highest", description="Must also have a verified phone on their Discord", emoji="🔴"),
+            SelectOption(
+                value="1", label="Low", description="Must have a verified email address on their Discord", emoji="🟢"
+            ),
+            SelectOption(
+                value="2", label="Medium", description="Must also be registered on Discord for >= 5 minutes", emoji="🟡"
+            ),
+            SelectOption(
+                value="3", label="High", description="Must also be a member here for more than 10 minutes", emoji="🟠"
+            ),
+            SelectOption(
+                value="4", label="Highest", description="Must also have a verified phone on their Discord", emoji="🔴"
+            ),
         )
 
         view = RestrictedView(self, ctx.author.id)
@@ -519,14 +551,14 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 current_settings=await self.config.guild(ctx.guild).join_monitor_v_level(),
                 select_options=select_options,
                 max_values=1,
-                cast_to=int
+                cast_to=int,
             )
         )
 
         await ctx.send("Select the verification level that will be set when a raid is detected", view=view)
 
     @joinmonitorgroup.command(name="wdchecks")
-    async def joinmonitorwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+    async def joinmonitorwdchecks(self, ctx: commands.Context, *, conditions: str = ""):
         """Implement advanced Warden based checks
 
         Issuing this command with no arguments will show the current checks
@@ -589,8 +621,9 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
         await self.config.guild(ctx.guild).raider_detection_action.set(action)
         if Action(action) == Action.NoAction:
-            await ctx.send("Action set. Since you've chosen 'none' I will only notify "
-                           "the staff about message spamming.")
+            await ctx.send(
+                "Action set. Since you've chosen 'none' I will only notify " "the staff about message spamming."
+            )
         await ctx.tick()
 
     @raiderdetectiongroup.command(name="wipe")
@@ -601,11 +634,10 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if days < 0 or days > 7:
             return await ctx.send("Value must be between 0 and 7.")
         await self.config.guild(ctx.guild).raider_detection_wipe.set(days)
-        await ctx.send(f"Value set. I will delete {days} days worth "
-                       "of messages if the action is ban.")
+        await ctx.send(f"Value set. I will delete {days} days worth " "of messages if the action is ban.")
 
     @raiderdetectiongroup.command(name="wdchecks")
-    async def raiderdetectiongroupwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+    async def raiderdetectiongroupwdchecks(self, ctx: commands.Context, *, conditions: str = ""):
         """Implement advanced Warden based checks
 
         Issuing this command with no arguments will show the current checks
@@ -634,13 +666,17 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         """Toggles the ability to globally create rules with user defined regex"""
         await self.config.wd_regex_allowed.set(on_or_off)
         if on_or_off:
-            await ctx.send("All servers will now be able to create Warden rules with user defined regex. "
-                           "Keep in mind that badly designed regex can affect bot performances. Defender, "
-                           "other than actively trying to prevent or mitigate this issue, will also report "
-                           "such occurrences in the bot logs.")
+            await ctx.send(
+                "All servers will now be able to create Warden rules with user defined regex. "
+                "Keep in mind that badly designed regex can affect bot performances. Defender, "
+                "other than actively trying to prevent or mitigate this issue, will also report "
+                "such occurrences in the bot logs."
+            )
         else:
-            await ctx.send("The creation of Warden rules with user defined regex has been disabled for "
-                           "all servers. Existing rules with regex conditions will not work anymore.")
+            await ctx.send(
+                "The creation of Warden rules with user defined regex has been disabled for "
+                "all servers. Existing rules with regex conditions will not work anymore."
+            )
 
     @wardenset.command(name="regexsafetychecks")
     @commands.is_owner()
@@ -653,9 +689,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if on_or_off:
             await ctx.send("Global safety checks for user defined regex are now enabled.")
         else:
-            await ctx.send("Global safety checks for user defined regex are now disabled. Please note "
-                           "that badly designed regex can affect bot performances. Keep this in mind if "
-                           "at any point you experience high resource usage on the host.")
+            await ctx.send(
+                "Global safety checks for user defined regex are now disabled. Please note "
+                "that badly designed regex can affect bot performances. Keep this in mind if "
+                "at any point you experience high resource usage on the host."
+            )
 
     @wardenset.command(name="periodicallowed")
     @commands.is_owner()
@@ -669,8 +707,10 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if on_or_off:
             await ctx.send("All servers will now be able to create periodic Warden rules.")
         else:
-            await ctx.send("The creation of periodic Warden rules has been disabled for all servers. "
-                           "Existing periodic rules will not be run anymore.")
+            await ctx.send(
+                "The creation of periodic Warden rules has been disabled for all servers. "
+                "Existing periodic rules will not be run anymore."
+            )
 
     @wardenset.command(name="uploadmaxsize")
     @commands.is_owner()
@@ -715,12 +755,30 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     async def casetattributes(self, ctx: commands.Context):
         """Setup the attributes that CA will check"""
         select_options = (
-            SelectOption(value=PAttr.Toxicity.value, label="Toxicity", description="Rude or generally disrespectful comments"),
-            SelectOption(value=PAttr.SevereToxicity.value, label="Severe toxicity", description="Hateful, aggressive comments"),
-            SelectOption(value=PAttr.IdentityAttack.value, label="Identity attack", description="Hateful comments attacking one's identity"),
-            SelectOption(value=PAttr.Insult.value, label="Insult", description="Insulting, inflammatory or negative comments"),
-            SelectOption(value=PAttr.Profanity.value, label="Profanity", description="Comments containing swear words, curse words or profanities"),
-            SelectOption(value=PAttr.Threat.value, label="Threat", description="Comments perceived as an intention to inflict violence against others"),
+            SelectOption(
+                value=PAttr.Toxicity.value, label="Toxicity", description="Rude or generally disrespectful comments"
+            ),
+            SelectOption(
+                value=PAttr.SevereToxicity.value, label="Severe toxicity", description="Hateful, aggressive comments"
+            ),
+            SelectOption(
+                value=PAttr.IdentityAttack.value,
+                label="Identity attack",
+                description="Hateful comments attacking one's identity",
+            ),
+            SelectOption(
+                value=PAttr.Insult.value, label="Insult", description="Insulting, inflammatory or negative comments"
+            ),
+            SelectOption(
+                value=PAttr.Profanity.value,
+                label="Profanity",
+                description="Comments containing swear words, curse words or profanities",
+            ),
+            SelectOption(
+                value=PAttr.Threat.value,
+                label="Threat",
+                description="Comments perceived as an intention to inflict violence against others",
+            ),
         )
 
         view = RestrictedView(self, ctx.author.id)
@@ -732,8 +790,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 min_values=1,
             )
         )
-        await ctx.send("Select the attributes that Comment Analysis will check. You can find more "
-                       f"information here:\n{P_ATTRS_URL}", view=view)
+        await ctx.send(
+            "Select the attributes that Comment Analysis will check. You can find more "
+            f"information here:\n{P_ATTRS_URL}",
+            view=view,
+        )
 
     @caset.command(name="threshold")
     async def casetthreshold(self, ctx: commands.Context, threshold: int):
@@ -765,8 +826,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return
         await self.config.guild(ctx.guild).ca_action.set(action)
         if Action(action) == Action.NoAction:
-            await ctx.send("Action set. Since you've chosen 'none' I will only "
-                           "notify the staff about it.")
+            await ctx.send("Action set. Since you've chosen 'none' I will only " "notify the staff about it.")
         await ctx.tick()
 
     @caset.command(name="reason")
@@ -785,8 +845,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if days < 0 or days > 7:
             return await ctx.send("Value must be between 0 and 7.")
         await self.config.guild(ctx.guild).ca_wipe.set(days)
-        await ctx.send(f"Value set. I will delete {days} days worth "
-                       "of messages if the action is ban.")
+        await ctx.send(f"Value set. I will delete {days} days worth " "of messages if the action is ban.")
 
     @caset.command(name="deletemessage")
     async def casetdeletemessage(self, ctx: commands.Context, on_or_off: bool):
@@ -798,7 +857,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send("I will not delete the offending message.")
 
     @caset.command(name="wdchecks")
-    async def casetwdchecks(self, ctx: commands.Context, *, conditions: str=""):
+    async def casetwdchecks(self, ctx: commands.Context, *, conditions: str = ""):
         """Implement advanced Warden based checks
 
         Issuing this command with no arguments will show the current checks
@@ -855,9 +914,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return await ctx.send("A minimum of 2 votes is required.")
         action = await self.config.guild(ctx.guild).voteout_action()
         await self.config.guild(ctx.guild).voteout_votes.set(votes)
-        await ctx.send(f"Votes set. A minimum of {votes} (including "
-                       "the person who started the vote) will be "
-                       f"required to {action} the target user.")
+        await ctx.send(
+            f"Votes set. A minimum of {votes} (including "
+            "the person who started the vote) will be "
+            f"required to {action} the target user."
+        )
 
     @voteoutgroup.command(name="wipe")
     async def voteoutgroupwipe(self, ctx: commands.Context, days: int):
@@ -867,8 +928,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if days < 0 or days > 7:
             return await ctx.send("Value must be between 0 and 7.")
         await self.config.guild(ctx.guild).voteout_wipe.set(days)
-        await ctx.send(f"Value set. I will delete {days} days worth "
-                       "of messages if the action is ban.")
+        await ctx.send(f"Value set. I will delete {days} days worth " "of messages if the action is ban.")
 
     @dset.group(name="emergency")
     @commands.admin()
@@ -886,9 +946,24 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         disable emergency mode.
         Available emergency modules: voteout, vaporize, silence"""
         select_options = (
-            SelectOption(value=EModules.Silence.value, label="Silence", description="Apply a server wide mute on ranks", emoji="🔇"),
-            SelectOption(value=EModules.Vaporize.value, label="Vaporize", description="Silently get rid of multiple new users at once", emoji="☁️"),
-            SelectOption(value=EModules.Voteout.value, label="Voteout", description="Start a vote to expel misbehaving users", emoji="👎"),
+            SelectOption(
+                value=EModules.Silence.value,
+                label="Silence",
+                description="Apply a server wide mute on ranks",
+                emoji="🔇",
+            ),
+            SelectOption(
+                value=EModules.Vaporize.value,
+                label="Vaporize",
+                description="Silently get rid of multiple new users at once",
+                emoji="☁️",
+            ),
+            SelectOption(
+                value=EModules.Voteout.value,
+                label="Voteout",
+                description="Start a vote to expel misbehaving users",
+                emoji="👎",
+            ),
         )
 
         view = RestrictedView(self, ctx.author.id)
@@ -901,8 +976,11 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 min_values=0,
             )
         )
-        await ctx.send("Select the modules that you want available to helpers during an emergency. "
-                       "Deselecting all of them will disable emergency mode.", view=view)
+        await ctx.send(
+            "Select the modules that you want available to helpers during an emergency. "
+            "Deselecting all of them will disable emergency mode.",
+            view=view,
+        )
 
     @emergencygroup.command(name="minutes")
     async def emergencygroupminutes(self, ctx: commands.Context, minutes: int):
@@ -919,8 +997,10 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if not modules:
             await ctx.send("Value set. Remember to also set the emergency modules.")
         else:
-            await ctx.send("Value set. I will auto engage emergency mode after "
-                          f"{minutes} minutes of staff inactivity following an alert.")
+            await ctx.send(
+                "Value set. I will auto engage emergency mode after "
+                f"{minutes} minutes of staff inactivity following an alert."
+            )
 
     async def wd_check_manager(self, ctx, module, conditions):
         if conditions == "":
@@ -949,5 +1029,7 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             except Exception as e:
                 await ctx.send(f"Error setting the checks: {e}")
             else:
-                await ctx.send("Warden checks set. These additional checks will be evaluated "
-                               "*after* the module's standard checks (e.g. rank)")
+                await ctx.send(
+                    "Warden checks set. These additional checks will be evaluated "
+                    "*after* the module's standard checks (e.g. rank)"
+                )

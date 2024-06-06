@@ -28,22 +28,20 @@ import logging
 
 log = logging.getLogger("red.x26cogs.simplebansync")
 
+
 class Operation(Enum):
     Pull = 1
     Push = 2
     Sync = 3
+
 
 class Sbansync(commands.Cog):
     """Pull, push and sync bans between servers"""
 
     def __init__(self, bot: Red):
         self.bot = bot
-        self.config = Config.get_conf(
-            self, identifier=262626, force_registration=True
-        )
-        self.config.register_guild(allow_pull_from=[],
-                                   allow_push_to=[],
-                                   silently=False)
+        self.config = Config.get_conf(self, identifier=262_626, force_registration=True)
+        self.config.register_guild(allow_pull_from=[], allow_push_to=[], silently=False)
 
     @commands.group()
     @commands.guild_only()
@@ -165,7 +163,6 @@ class Sbansync(commands.Cog):
                 allowed_push.append(server.id)
         await ctx.send(f"`{server.name}` will now be allowed to **push** bans to this server.")
 
-
     @sbansyncset.command(name="addpull")
     async def sbansyncsaddpull(self, ctx: commands.Context, *, server: GuildConverter):
         """Allows a server to pull bans from this one"""
@@ -180,8 +177,9 @@ class Sbansync(commands.Cog):
         async with self.config.guild(ctx.guild).allow_push_to() as allowed_push:
             if server.id in allowed_push:
                 allowed_push.remove(server.id)
-        await ctx.send(f"`{server.name}` has been removed from the list of servers allowed to "
-                        "**push** bans to this server.")
+        await ctx.send(
+            f"`{server.name}` has been removed from the list of servers allowed to " "**push** bans to this server."
+        )
 
     @sbansyncset.command(name="removepull")
     async def sbansyncsremovepull(self, ctx: commands.Context, *, server: GuildConverter):
@@ -189,22 +187,25 @@ class Sbansync(commands.Cog):
         async with self.config.guild(ctx.guild).allow_pull_from() as allowed_pull:
             if server.id in allowed_pull:
                 allowed_pull.remove(server.id)
-        await ctx.send(f"`{server.name}` has been removed from the list of servers allowed to "
-                        "**pull** bans from this server.")
+        await ctx.send(
+            f"`{server.name}` has been removed from the list of servers allowed to " "**pull** bans from this server."
+        )
 
     @sbansyncset.command(name="clearpush")
     async def sbansyncsaclearpush(self, ctx: commands.Context):
         """Clears the list of servers allowed to push bans to this one"""
         await self.config.guild(ctx.guild).allow_push_to.clear()
-        await ctx.send("Push list cleared. Only local admins are now allowed to push bans to this "
-                       "server from elsewhere.")
+        await ctx.send(
+            "Push list cleared. Only local admins are now allowed to push bans to this " "server from elsewhere."
+        )
 
     @sbansyncset.command(name="clearpull")
     async def sbansyncsclearpull(self, ctx: commands.Context):
         """Clears the list of servers allowed to pull bans from this one"""
         await self.config.guild(ctx.guild).allow_pull_from.clear()
-        await ctx.send("Pull list cleared. Only local admins are now allowed to pull bans from this "
-                       "server from elsewhere.")
+        await ctx.send(
+            "Pull list cleared. Only local admins are now allowed to pull bans from this " "server from elsewhere."
+        )
 
     @sbansyncset.command(name="showlists", aliases=["showsettings"])
     async def sbansyncsshowlists(self, ctx: commands.Context):
@@ -278,7 +279,9 @@ class Sbansync(commands.Cog):
             for m in guild_bans:
                 if m not in target_bans:
                     try:
-                        await target_guild.ban(m, delete_message_seconds=0, reason=f"Syncban issued by {member} ({member.id})")
+                        await target_guild.ban(
+                            m, delete_message_seconds=0, reason=f"Syncban issued by {member} ({member.id})"
+                        )
                     except (discord.Forbidden, discord.HTTPException):
                         stats["Failed pushes: "] += 1
                     else:
@@ -290,11 +293,13 @@ class Sbansync(commands.Cog):
         if ctx.invoked_subcommand is None:
             # User is just checking out the help
             return False
-        error_msg = ("It seems that you have a role that is considered admin at bot level but "
-                     "not the basic permissions that one would reasonably expect an admin to have.\n"
-                     "To use these commands, other than the admin role, you need `administrator` "
-                     "permissions OR `ban members`.\n"
-                     "I cannot let you proceed until you properly configure permissions in this server.")
+        error_msg = (
+            "It seems that you have a role that is considered admin at bot level but "
+            "not the basic permissions that one would reasonably expect an admin to have.\n"
+            "To use these commands, other than the admin role, you need `administrator` "
+            "permissions OR `ban members`.\n"
+            "I cannot let you proceed until you properly configure permissions in this server."
+        )
         channel = ctx.channel
         has_ban_perms = channel.permissions_for(ctx.author).ban_members
 

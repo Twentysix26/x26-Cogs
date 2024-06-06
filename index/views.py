@@ -29,6 +29,7 @@ CROSS_MARK = "\N{HEAVY MULTIPLICATION X}\N{VARIATION SELECTOR-16}"
 NEXT_ARROW = "\N{BLACK RIGHTWARDS ARROW}\N{VARIATION SELECTOR-16}"
 MAG_GLASS = "\N{LEFT-POINTING MAGNIFYING GLASS}"
 
+
 class IndexView(discord.ui.View):
     def __init__(self, ctx: commands.Context, *args, **kwargs):
         self.ctx: commands.Context = ctx
@@ -44,7 +45,8 @@ class IndexView(discord.ui.View):
         if not interaction.user.id == self.ctx.author.id:
             await interaction.response.send_message(
                 "You are not allowed to interact with this menu. "
-                f"You can open your own with `{self.ctx.prefix}index browse`.", ephemeral=True
+                f"You can open your own with `{self.ctx.prefix}index browse`.",
+                ephemeral=True,
             )
             return False
         return True
@@ -57,6 +59,7 @@ class IndexView(discord.ui.View):
             await self._message.edit(view=self)
         except discord.HTTPException:
             pass
+
 
 class IndexReposView(IndexView):
     def __init__(self, ctx: commands.Context, repos: List[Repo]):
@@ -83,8 +86,7 @@ class IndexReposView(IndexView):
         try:
             await IndexCogsView(self.ctx, repo=self.repos[self._selected]).show_cogs()
         except NoCogs:
-            await interaction.response.send_message("This repository is empty: no cogs to show.",
-                                                    ephemeral=True)
+            await interaction.response.send_message("This repository is empty: no cogs to show.", ephemeral=True)
             return
         await interaction.response.defer()
         await self._message.delete()
@@ -113,6 +115,7 @@ class IndexReposView(IndexView):
             await self.cog.install_repo_cog(self.ctx, self.repos[self._selected])
         except RuntimeError as e:
             await self.ctx.send(f"I could not install the repository: {e}")
+
 
 class IndexCogsView(IndexView):
     def __init__(self, ctx: commands.Context, repo: Optional[Repo] = None, cogs: Optional[List[Cog]] = None):

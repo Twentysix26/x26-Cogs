@@ -13,19 +13,23 @@ from datetime import timedelta
 from discord import Activity
 import pytest
 
+
 class FakeGuildPerms:
     manage_guild = False
 
+
 class FakeMe:
     guild_permissions = FakeGuildPerms
+
 
 class FakeRole:
     def __init__(self, _id, name):
         self.id = _id
         self.name = name
 
+
 class FakeGuild:
-    id = 852499907842801727
+    id = 852_499_907_842_801_727
     me = FakeMe
     text_channels = {}
     roles = {}
@@ -37,41 +41,45 @@ class FakeGuild:
             if _id == role.id:
                 return role
 
+
 FAKE_GUILD = FakeGuild()
 
+
 class FakeChannel:
-    id = 852499907842801728
+    id = 852_499_907_842_801_728
     name = "fake"
     guild = FAKE_GUILD
     category = None
     mention = "<@852499907842801728>"
 
+
 FAKE_CHANNEL = FakeChannel()
+
 
 class FakeAsset:
     filename = "26.jpg"
     url = "https://blabla"
 
+
 class FakeUser:
     nick = None
     display_name = "Twentysix"
     name = "Twentysix"
-    id = 852499907842801726
+    id = 852_499_907_842_801_726
     guild = FAKE_GUILD
     mention = "<@852499907842801726>"
     created_at = utcnow()
     joined_at = utcnow()
     avatar = FakeAsset()
     roles = {}
-    activities = [
-        Activity(name="fake activity"),
-        Activity(name="spam")
-    ]
+    activities = [Activity(name="fake activity"), Activity(name="spam")]
+
 
 FAKE_USER = FakeUser()
 
+
 class FakeMessage:
-    id = 852499907842801729
+    id = 852_499_907_842_801_729
     guild = FAKE_GUILD
     channel = FAKE_CHANNEL
     author = FAKE_USER
@@ -83,7 +91,9 @@ class FakeMessage:
     mentions = []
     role_mentions = []
 
+
 FAKE_MESSAGE = FakeMessage()
+
 
 def test_inheritance():
     for c in CONDITIONS_VALIDATORS.values():
@@ -91,6 +101,7 @@ def test_inheritance():
 
     for c in ACTIONS_VALIDATORS.values():
         assert issubclass(c, BaseModel)
+
 
 def test_check_validators_consistency():
     def x_contains_only_y(x, y):
@@ -144,6 +155,7 @@ def test_check_validators_consistency():
     assert x_contains_only_y(ACTIONS_USER_CONTEXT, Action)
     assert x_contains_only_y(ACTIONS_MESSAGE_CONTEXT, Action)
 
+
 @pytest.mark.asyncio
 async def test_rule_parsing():
     with pytest.raises(InvalidRule, match=r".*rank.*"):
@@ -178,7 +190,9 @@ async def test_rule_parsing():
         await WardenRule().parse(rl.INVALID_RANK, cog=None)
     with pytest.raises(InvalidRule, match=r".*This amount of time is too large*"):
         await WardenRule().parse(rl.OOB_DELETE_AFTER, cog=None)
-    with pytest.raises(InvalidRule, match=r".*conditional action blocks are not allowed in the condition section of a rule.*"):
+    with pytest.raises(
+        InvalidRule, match=r".*conditional action blocks are not allowed in the condition section of a rule.*"
+    ):
         await WardenRule().parse(rl.INVALID_COND_ACTION_BLOCK_IN_CONDITION_SECTION, cog=None)
     with pytest.raises(InvalidRule, match=r".*Actions .* are not allowed in the condition section of a rule*"):
         await WardenRule().parse(rl.INVALID_ACTION_IN_CONDITION_SECTION, cog=None)
@@ -204,55 +218,32 @@ async def test_rule_parsing():
     # TODO Add rules to check for invalid types, non-empty lists, etc
     # Restore allowed events tests
 
+
 @pytest.mark.asyncio
 async def test_rule_cond_eval():
     rule = WardenRule()
     await rule.parse(rl.CHECK_RANK_SAFEGUARD, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        user=FAKE_USER)) is False
+    assert bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, user=FAKE_USER)) is False
 
     rule = WardenRule()
     await rule.parse(rl.CHECK_RANK_SAFEGUARD, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank3,
-        guild=FAKE_GUILD,
-        user=FAKE_USER)) is True
+    assert bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank3, guild=FAKE_GUILD, user=FAKE_USER)) is True
 
     rule = WardenRule()
     await rule.parse(rl.CONDITION_TEST_POSITIVE, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        user=FAKE_USER)) is True
+    assert bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, user=FAKE_USER)) is True
 
     rule = WardenRule()
     await rule.parse(rl.CONDITION_TEST_NEGATIVE, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        user=FAKE_USER)) is False
+    assert bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, user=FAKE_USER)) is False
 
     rule = WardenRule()
     await rule.parse(rl.DISPLAY_NAME_MATCHES_ANY_OK, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        user=FAKE_USER)) is True
+    assert bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, user=FAKE_USER)) is True
 
     rule = WardenRule()
     await rule.parse(rl.DISPLAY_NAME_MATCHES_ANY_KO, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        user=FAKE_USER)) is False
+    assert bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, user=FAKE_USER)) is False
 
     positive_comparisons = (
         '[1, "==", 1]',
@@ -263,8 +254,8 @@ async def test_rule_cond_eval():
         '[4, ">=", 3]',
         '[3, "<=", 3]',
         '[3, "<=", 5]',
-        '[hello, contains, ll]',
-        '[hello, contains-pattern, "H?ll*"]', # should NOT be case sensitive
+        "[hello, contains, ll]",
+        '[hello, contains-pattern, "H?ll*"]',  # should NOT be case sensitive
     )
 
     negative_comparisons = (
@@ -274,7 +265,7 @@ async def test_rule_cond_eval():
         '[4, "<", 2]',
         '[3, ">=", 5]',
         '[5, "<=", 3]',
-        '[hello, contains, xx]',
+        "[hello, contains, xx]",
         '[hello, contains-pattern, "h?xx*"]',
     )
 
@@ -282,17 +273,16 @@ async def test_rule_cond_eval():
     for i, comparison_list in enumerate((positive_comparisons, negative_comparisons)):
         for comp in comparison_list:
             rule = WardenRule()
-            await rule.parse(rl.DYNAMIC_RULE.format(
-                rank="1",
-                event="on-user-join",
-                conditions=f"    - compare: {comp}",
-                actions="    - no-op:"
-                ), cog=None)
-            assert bool(await rule.satisfies_conditions(
+            await rule.parse(
+                rl.DYNAMIC_RULE.format(
+                    rank="1", event="on-user-join", conditions=f"    - compare: {comp}", actions="    - no-op:"
+                ),
                 cog=None,
-                rank=Rank.Rank1,
-                guild=FAKE_GUILD,
-                user=FAKE_USER)) is expected_result[i]
+            )
+            assert (
+                bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, user=FAKE_USER))
+                is expected_result[i]
+            )
 
     operations = (
         ('[result, 1, "+", 1]', 2),
@@ -313,198 +303,171 @@ async def test_rule_cond_eval():
     for op in operations:
         heat.empty_custom_heat(FAKE_GUILD, "test-passed")
         rule = WardenRule()
-        await rule.parse(rl.TEST_MATH.format(
-            operation=op[0],
-            result=op[1]
-            ), cog=None)
-        await rule.do_actions(cog=None,
-            guild=FAKE_GUILD)
+        await rule.parse(rl.TEST_MATH.format(operation=op[0], result=op[1]), cog=None)
+        await rule.do_actions(cog=None, guild=FAKE_GUILD)
 
-        assert bool(await test_math_rule.satisfies_conditions(guild=FAKE_GUILD,
-                                                              rank=Rank.Rank1,
-                                                              cog=None)) is True
+        assert bool(await test_math_rule.satisfies_conditions(guild=FAKE_GUILD, rank=Rank.Rank1, cog=None)) is True
 
     ##### Prod store
     rule = WardenRule()
     await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)) is False
+    assert (
+        bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE))
+        is False
+    )
 
     rule = WardenRule()
     await rule.parse(rl.INCREASE_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)) is True
-    await rule.do_actions(cog=None,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)
+    assert (
+        bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE)) is True
+    )
+    await rule.do_actions(cog=None, guild=FAKE_GUILD, message=FAKE_MESSAGE)
 
     rule = WardenRule()
     await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)) is True
+    assert (
+        bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE)) is True
+    )
     ##############
 
     ##### Sandbox store
     rule = WardenRule()
     await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is False
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is False
+    )
 
     rule = WardenRule()
     await rule.parse(rl.INCREASE_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is True
-    await rule.do_actions(cog=None,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is True
+    )
+    await rule.do_actions(cog=None, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True)
 
     rule = WardenRule()
     await rule.parse(rl.CHECK_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is True
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is True
+    )
     ##############
 
     rule = WardenRule()
     await rule.parse(rl.EMPTY_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is True
-    await rule.do_actions(cog=None,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is True
+    )
+    await rule.do_actions(cog=None, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True)
 
     rule = WardenRule()
     await rule.parse(rl.CHECK_EMPTY_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is True
-
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is True
+    )
 
     rule = WardenRule()
     await rule.parse(rl.CHECK_EMPTY_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)) is False
+    assert (
+        bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE))
+        is False
+    )
 
     rule = WardenRule()
     await rule.parse(rl.EMPTY_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)) is True
-    await rule.do_actions(cog=None,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)
+    assert (
+        bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE)) is True
+    )
+    await rule.do_actions(cog=None, guild=FAKE_GUILD, message=FAKE_MESSAGE)
 
     rule = WardenRule()
     await rule.parse(rl.CHECK_EMPTY_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)) is True
+    assert (
+        bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE)) is True
+    )
 
     ## Testing .last_result passing between stacks
     rule = WardenRule()
     await rule.parse(rl.NESTED_HEATPOINTS, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is True
-    await rule.do_actions(cog=None,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is True
+    )
+    await rule.do_actions(cog=None, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True)
 
     rule = WardenRule()
     await rule.parse(rl.NESTED_HEATPOINTS2, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is True
-    await rule.do_actions(cog=None,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is True
+    )
+    await rule.do_actions(cog=None, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True)
 
     rule = WardenRule()
     await rule.parse(rl.NESTED_HEATPOINTS_CHECK, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE,
-        debug=True)) is True
+    assert (
+        bool(
+            await rule.satisfies_conditions(
+                cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE, debug=True
+            )
+        )
+        is True
+    )
 
     ######################
 
     rule = WardenRule()
     await rule.parse(rl.CONDITIONAL_ACTION_TEST_ASSIGN, cog=None)
-    await rule.do_actions(cog=None,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)
+    await rule.do_actions(cog=None, guild=FAKE_GUILD, message=FAKE_MESSAGE)
 
     rule = WardenRule()
     await rule.parse(rl.CONDITIONAL_ACTION_TEST_CHECK, cog=None)
-    assert bool(await rule.satisfies_conditions(
-        cog=None,
-        rank=Rank.Rank1,
-        guild=FAKE_GUILD,
-        message=FAKE_MESSAGE)) is True
+    assert (
+        bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE)) is True
+    )
+
 
 @pytest.mark.asyncio
 async def test_conditions():
     async def eval_cond(condition: Condition, params, expected_result: bool):
         rule = WardenRule()
-        await rule.parse(
-            rl.CONDITION_TEST.format(
-                condition.value,
-                params,
-            ),
-            cog=None
-        )
+        await rule.parse(rl.CONDITION_TEST.format(condition.value, params), cog=None)
 
-        assert bool(await rule.satisfies_conditions(
-            cog=None,
-            rank=Rank.Rank1,
-            guild=FAKE_GUILD,
-            message=FAKE_MESSAGE)) is expected_result
+        assert (
+            bool(await rule.satisfies_conditions(cog=None, rank=Rank.Rank1, guild=FAKE_GUILD, message=FAKE_MESSAGE))
+            is expected_result
+        )
 
     FAKE_MESSAGE.content = "aaa 2626 aaa I like cats"
     await eval_cond(Condition.MessageMatchesAny, ["abcd", "*hello*"], False)
@@ -533,7 +496,9 @@ async def test_conditions():
     await eval_cond(Condition.MessageContainsInvite, "true", False)
     await eval_cond(Condition.MessageContainsInvite, "false", True)
     FAKE_MESSAGE.content = "aaa https://discord.gg/red aaa"
-    await eval_cond(Condition.MessageContainsInvite, "true", False) # Can't be True: will always raise due to missing perms
+    await eval_cond(
+        Condition.MessageContainsInvite, "true", False
+    )  # Can't be True: will always raise due to missing perms
     await eval_cond(Condition.MessageContainsInvite, "false", False)
 
     FAKE_MESSAGE.content = "aaa 2626 https://discord.gg/file.txt aaa"
@@ -562,8 +527,8 @@ async def test_conditions():
     await eval_cond(Condition.MessageHasMTCharacters, 3, True)
     await eval_cond(Condition.MessageHasMTCharacters, 4, False)
 
-    FAKE_USER.id = 262626
-    await eval_cond(Condition.UserIdMatchesAny, [123456, "123424234"], False)
+    FAKE_USER.id = 262_626
+    await eval_cond(Condition.UserIdMatchesAny, [123_456, "123424234"], False)
     await eval_cond(Condition.UserIdMatchesAny, [12, "262626"], True)
 
     FAKE_USER.name = "Twentysix"
@@ -597,7 +562,7 @@ async def test_conditions():
     await eval_cond(Condition.UserHasDefaultAvatar, "true", True)
     await eval_cond(Condition.UserHasDefaultAvatar, "false", False)
 
-    FAKE_CHANNEL.id = 262626
+    FAKE_CHANNEL.id = 262_626
     FAKE_CHANNEL.name = "my-ch"
     FAKE_GUILD.text_channels[FAKE_CHANNEL] = FAKE_CHANNEL
     await eval_cond(Condition.ChannelMatchesAny, [12345, "asdas"], False)
@@ -627,13 +592,21 @@ async def test_conditions():
     with pytest.raises(InvalidRule, match=r".*Input should be a valid boolean*"):
         await eval_cond(Condition.MessageHasAttachment, {"value": True}, True)
 
+
 @pytest.mark.asyncio
 async def test_warden_checks():
     wd_check = WardenCheck()
 
     await wd_check.parse(rl.TEST_CHECK_MESSAGE, cog=None, author=None, module=ChecksKeys.CommentAnalysis)
-    FAKE_MESSAGE.content = '123'
-    assert bool(await wd_check.satisfies_conditions(rank=Rank.Rank4, cog=None, guild=FAKE_GUILD, user=FAKE_USER, message=FAKE_MESSAGE)) is True
+    FAKE_MESSAGE.content = "123"
+    assert (
+        bool(
+            await wd_check.satisfies_conditions(
+                rank=Rank.Rank4, cog=None, guild=FAKE_GUILD, user=FAKE_USER, message=FAKE_MESSAGE
+            )
+        )
+        is True
+    )
 
     with pytest.raises(InvalidRule, match=r".*is not allowed in the checks for this module*"):
         await wd_check.parse(rl.TEST_CHECK_MESSAGE, cog=None, author=None, module=ChecksKeys.JoinMonitor)
