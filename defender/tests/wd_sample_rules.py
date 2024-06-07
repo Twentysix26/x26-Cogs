@@ -144,6 +144,17 @@ INVALID_NESTING_COND_ACTION_BLOCK_IN_COND_BLOCK = """
                 - compare: [1, ==, 1]
 """
 
+INVALID_TOO_MANY_ARGS = """
+    name: nesting2
+    rank: 1
+    event: on-user-join
+    if:
+        - compare: [1, ==, 1, 1]
+    do:
+        - no-op:
+
+"""
+
 CHECK_RANK_SAFEGUARD = """
     name: rank-check
     rank: 3
@@ -349,6 +360,26 @@ CONDITION_TEST_NEGATIVE = """
         - username-matches-any: ["Twentysix"]
     - if-not:
         - user-id-matches-any: [852499907842801726]
+    do:
+    - no-op:
+"""
+
+DISPLAY_NAME_MATCHES_ANY_OK = """
+    name: positive
+    rank: 1
+    event: on-user-join
+    if:
+    - display-name-matches-any: ["Twentysix"]
+    do:
+    - no-op:
+"""
+
+DISPLAY_NAME_MATCHES_ANY_KO = """
+    name: negative
+    rank: 1
+    event: on-user-join
+    if:
+    - display-name-matches-any: ["26"]
     do:
     - no-op:
 """

@@ -8,13 +8,14 @@ import functools
 import asyncio
 import multiprocessing
 
-EMOJI_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:([0-9]+)>')
-REMOVE_C_EMOJIS_RE = re.compile(r'<a?:[a-zA-Z0-9\_]+:[0-9]+>')
+EMOJI_RE = re.compile(r"<a?:[a-zA-Z0-9\_]+:([0-9]+)>")
+REMOVE_C_EMOJIS_RE = re.compile(r"<a?:[a-zA-Z0-9\_]+:[0-9]+>")
 
 log = logging.getLogger("red.x26cogs.defender")
 
 # Based on d.py's EmojiConverter
 # https://github.com/Rapptz/discord.py/blob/master/discord/ext/commands/converter.py
+
 
 def has_x_or_more_emojis(bot: discord.Client, guild: discord.Guild, text: str, limit: int):
     n = emoji.emoji_count(text)
@@ -22,10 +23,11 @@ def has_x_or_more_emojis(bot: discord.Client, guild: discord.Guild, text: str, l
     if n >= limit:
         return True
 
-    if "<" in text: # No need to run a regex if no custom emoji can be present
+    if "<" in text:  # No need to run a regex if no custom emoji can be present
         n += len(list(re.finditer(EMOJI_RE, text)))
 
     return n >= limit
+
 
 async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, text: str):
     # This implementation is similar to what reTrigger does for safe-ish user regex. Thanks Trusty!
@@ -40,22 +42,31 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
 
     if safety_checks_enabled:
         try:
-            regex_obj = re.compile(regex) # type: ignore
+            regex_obj = re.compile(regex)  # type: ignore
             process = cog.wd_pool.apply_async(regex_obj.findall, (text,))
             task = functools.partial(process.get, timeout=3)
             new_task = cog.bot.loop.run_in_executor(None, task)
             result = await asyncio.wait_for(new_task, timeout=5)
         except (multiprocessing.TimeoutError, asyncio.TimeoutError):
-            log.warning(f"Warden - User defined regex timed out. This rule has been disabled."
-                        f"\nGuild: {guild.id}\nRegex: {regex}")
+            log.warning(
+                f"Warden - User defined regex timed out. This rule has been disabled."
+                f"\nGuild: {guild.id}\nRegex: {regex}"
+            )
             cog.active_warden_rules[guild.id].pop(rule_obj.name, None)
             cog.invalid_warden_rules[guild.id][rule_obj.name] = rule_obj
             async with cog.config.guild(guild).wd_rules() as warden_rules:
                 # There's no way to disable rules for now. So, let's just break it :D
-                rule_obj.raw_rule = ":!!! Regex in this rule perform poorly. Fix the issue and remove this line !!!:\n" + rule_obj.raw_rule
+                rule_obj.raw_rule = (
+                    ":!!! Regex in this rule perform poorly. Fix the issue and remove this line !!!:\n"
+                    + rule_obj.raw_rule
+                )
                 warden_rules[rule_obj.name] = rule_obj.raw_rule
-            await cog.send_notification(guild, f"The Warden rule `{rule_obj.name}` has been disabled for poor regex performances. "
-                                            f"Please fix it to prevent this from happening again in the future.", title="👮 • Warden")
+            await cog.send_notification(
+                guild,
+                f"The Warden rule `{rule_obj.name}` has been disabled for poor regex performances. "
+                f"Please fix it to prevent this from happening again in the future.",
+                title="👮 • Warden",
+            )
             return False
         except Exception as e:
             log.error("Warden - Unexpected error while running user defined regex", exc_info=e)
@@ -69,6 +80,7 @@ async def run_user_regex(*, rule_obj, cog, guild: discord.Guild, regex: str, tex
             log.error(f"Warden - Unexpected error while running user defined regex with no safety checks", exc_info=e)
             return False
 
+
 def make_fuzzy_suggestion(term, _list):
     result = process.extract(term, _list, limit=1, scorer=fuzz.QRatio)
     result = [r for r in result if r[1] > 10]
@@ -77,6 +89,7 @@ def make_fuzzy_suggestion(term, _list):
     else:
         return ""
 
+
 async def delete_message_after(message: discord.Message, sleep_for: int):
     await asyncio.sleep(sleep_for)
     try:
@@ -84,13 +97,16 @@ async def delete_message_after(message: discord.Message, sleep_for: int):
     except:
         pass
 
+
 async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
     confirm_emoji = "✅"
     guild = message.guild
     affected = 0
     channel = message.channel
     async with channel.typing():
-        msg: discord.Message = await channel.send("Checking your new rule... Please wait and watch this message for updates.")
+        msg: discord.Message = await channel.send(
+            "Checking your new rule... Please wait and watch this message for updates."
+        )
 
         def confirm(r, user):
             return user == message.author and str(r.emoji) == confirm_emoji and r.message.id == msg.id
@@ -105,11 +121,13 @@ async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
                 affected += 1
 
     if affected >= 10 or affected >= len(guild.members) / 2:
-        await msg.edit(content=f"You're adding a periodic rule. At the first run {affected} users will be affected. "
-                                "Are you sure you want to continue?")
+        await msg.edit(
+            content=f"You're adding a periodic rule. At the first run {affected} users will be affected. "
+            "Are you sure you want to continue?"
+        )
         await msg.add_reaction(confirm_emoji)
         try:
-            await cog.bot.wait_for('reaction_add', check=confirm, timeout=15)
+            await cog.bot.wait_for("reaction_add", check=confirm, timeout=15)
         except asyncio.TimeoutError:
             await channel.send("Not adding the rule.")
             return False
@@ -119,23 +137,26 @@ async def rule_add_periodic_prompt(*, cog, message: discord.Message, new_rule):
         await msg.edit(content="Safety checks passed.")
         return True
 
+
 async def rule_add_overwrite_prompt(*, cog, message: discord.Message):
     save_emoji = "💾"
     channel = message.channel
-    msg = await channel.send("There is a rule with the same name already. Do you want to "
-                            "overwrite it? React to confirm.")
+    msg = await channel.send(
+        "There is a rule with the same name already. Do you want to " "overwrite it? React to confirm."
+    )
 
     def confirm(r, user):
         return user == message.author and str(r.emoji) == save_emoji and r.message.id == msg.id
 
     await msg.add_reaction(save_emoji)
     try:
-        r = await cog.bot.wait_for('reaction_add', check=confirm, timeout=15)
+        r = await cog.bot.wait_for("reaction_add", check=confirm, timeout=15)
     except asyncio.TimeoutError:
         await channel.send("Not proceeding with overwrite.")
         return False
     else:
         return True
+
 
 def strip_yaml_codeblock(code: str):
     code = code.strip("\n")

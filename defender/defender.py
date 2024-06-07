@@ -46,76 +46,77 @@ import logging
 log = logging.getLogger("red.x26cogs.defender")
 
 default_guild_settings = {
-    "enabled": False, # Defender system toggle
-    "notify_channel": 0, # Staff channel where notifications are sent. Supposed to be private.
-    "notify_role": 0, # Staff role to ping.
-    "punish_role": 0, # Role to apply if the "Action" is punish
-    "trusted_roles": [], # Roles that can be considered safe
-    "helper_roles": [], # Roles that are allowed to use special commands to help the staff
-    "punish_message": "", # Message to send after the punish role is assigned
-    "rank3_joined_days": 1, # Users that joined < X days ago are considered new users (rank 3)
-    "rank3_min_messages": 50, # Messages threshold that users should reach to be no longer classified as rank 4
-    "count_messages": True, # Count users' messages. If disabled, rank4 will be unobtainable
+    "enabled": False,  # Defender system toggle
+    "notify_channel": 0,  # Staff channel where notifications are sent. Supposed to be private.
+    "notify_role": 0,  # Staff role to ping.
+    "punish_role": 0,  # Role to apply if the "Action" is punish
+    "trusted_roles": [],  # Roles that can be considered safe
+    "helper_roles": [],  # Roles that are allowed to use special commands to help the staff
+    "punish_message": "",  # Message to send after the punish role is assigned
+    "rank3_joined_days": 1,  # Users that joined < X days ago are considered new users (rank 3)
+    "rank3_min_messages": 50,  # Messages threshold that users should reach to be no longer classified as rank 4
+    "count_messages": True,  # Count users' messages. If disabled, rank4 will be unobtainable
     "announcements_sent": [],
     "invite_filter_enabled": False,
     "invite_filter_rank": Rank.Rank4.value,
-    "invite_filter_action": Action.NoAction.value, # Type of action to take on users that posted filtered invites
-    "invite_filter_exclude_own_invites": True, # Check against the server's own invites before taking action
-    "invite_filter_delete_message": True, # Whether to delete the invite's message or not
+    "invite_filter_action": Action.NoAction.value,  # Type of action to take on users that posted filtered invites
+    "invite_filter_exclude_own_invites": True,  # Check against the server's own invites before taking action
+    "invite_filter_delete_message": True,  # Whether to delete the invite's message or not
     "invite_filter_wdchecks": "",
     "raider_detection_enabled": False,
-    "raider_detection_rank": Rank.Rank3.value, # Users misconfigurating this module can fuck up a server so Rank 3 it is
-    "raider_detection_messages": 15, # Take action on users that send more than X messages in...
-    "raider_detection_minutes": 1, # ...Y minutes
+    "raider_detection_rank": Rank.Rank3.value,  # Users misconfigurating this module can fuck up a server so Rank 3 it is
+    "raider_detection_messages": 15,  # Take action on users that send more than X messages in...
+    "raider_detection_minutes": 1,  # ...Y minutes
     "raider_detection_action": Action.Ban.value,
-    "raider_detection_wipe": 1, # If action is ban, wipe X days worth of messages
+    "raider_detection_wipe": 1,  # If action is ban, wipe X days worth of messages
     "raider_detection_wdchecks": "",
     "join_monitor_enabled": False,
-    "join_monitor_n_users": 10, # Alert staff if more than X users...
-    "join_monitor_minutes": 5, # ... joined in the past Y minutes
-    "join_monitor_v_level": 0, # Raise verification up to X on raids
-    "join_monitor_susp_hours": 0, # Notify staff if new join is younger than X hours
-    "join_monitor_susp_subs": [], # Staff members subscribed to suspicious join notifications
+    "join_monitor_n_users": 10,  # Alert staff if more than X users...
+    "join_monitor_minutes": 5,  # ... joined in the past Y minutes
+    "join_monitor_v_level": 0,  # Raise verification up to X on raids
+    "join_monitor_susp_hours": 0,  # Notify staff if new join is younger than X hours
+    "join_monitor_susp_subs": [],  # Staff members subscribed to suspicious join notifications
     "join_monitor_wdchecks": "",
     "warden_enabled": True,
-    "wd_rules": {}, # Warden rules | I have to break the naming convention here due to config.py#L798
-    "ca_enabled": False, # Comment analysis
-    "ca_token": None, # CA token
-    "ca_attributes": [PerspectiveAttributes.SevereToxicity.value], # Attributes to query
-    "ca_threshold": 80, # Percentage for CA to trigger
+    "wd_rules": {},  # Warden rules | I have to break the naming convention here due to config.py#L798
+    "ca_enabled": False,  # Comment analysis
+    "ca_token": None,  # CA token
+    "ca_attributes": [PerspectiveAttributes.SevereToxicity.value],  # Attributes to query
+    "ca_threshold": 80,  # Percentage for CA to trigger
     "ca_action": Action.NoAction.value,
     "ca_rank": Rank.Rank3.value,
-    "ca_reason": "Bad comment", # Mod-log reason
-    "ca_wipe": 0, # If action is ban, wipe X days worth of messages
-    "ca_delete_message": True, # Whether to delete the offending message
+    "ca_reason": "Bad comment",  # Mod-log reason
+    "ca_wipe": 0,  # If action is ban, wipe X days worth of messages
+    "ca_delete_message": True,  # Whether to delete the offending message
     "ca_wdchecks": "",
-    "alert_enabled": True, # Available to helper roles by default
-    "silence_enabled": False, # This is a manual module. Enabled = Available to be used...
-    "silence_rank": 0, # ... and as such, this default will be 0
+    "alert_enabled": True,  # Available to helper roles by default
+    "silence_enabled": False,  # This is a manual module. Enabled = Available to be used...
+    "silence_rank": 0,  # ... and as such, this default will be 0
     "vaporize_enabled": False,
     "vaporize_max_targets": 15,
     "voteout_enabled": False,
-    "voteout_rank": Rank.Rank2.value, # Rank X or below
-    "voteout_votes": 3, # Votes needed for a successful voting session
-    "voteout_action": Action.Ban.value, # What happens if the vote is successful
-    "voteout_wipe": 1, # If action is ban, wipe X days worth of messages
-    "emergency_modules": [], # EmergencyModules enabled and rendered available to helper roles on emergency
-    "emergency_minutes": 5, # Minutes of staff inactivity after an alert before the guild enters emergency mode
+    "voteout_rank": Rank.Rank2.value,  # Rank X or below
+    "voteout_votes": 3,  # Votes needed for a successful voting session
+    "voteout_action": Action.Ban.value,  # What happens if the vote is successful
+    "voteout_wipe": 1,  # If action is ban, wipe X days worth of messages
+    "emergency_modules": [],  # EmergencyModules enabled and rendered available to helper roles on emergency
+    "emergency_minutes": 5,  # Minutes of staff inactivity after an alert before the guild enters emergency mode
 }
 
 default_member_settings = {
-    "messages" : 0,
-    "join_monitor_susp_hours": 0, # Personalized hours for join monitor suspicious joins
-}
+    "messages": 0,
+    "join_monitor_susp_hours": 0,
+}  # Personalized hours for join monitor suspicious joins
 
 default_owner_settings = {
-    "cache_expiration" : 48, # Hours before a message will be removed from the cache
-    "cache_cap": 3000, # Max messages to store for each user / channel
-    "wd_regex_allowed": False, # Allows the creation of Warden rules with user defined regex
-    "wd_periodic_allowed": True, # Allows the creation of periodic Warden rules
-    "wd_upload_max_size": 3, # Max size for Warden rule upload (in kilobytes)
-    "wd_regex_safety_checks": True, # Performance safety checks for user defined regex
+    "cache_expiration": 48,  # Hours before a message will be removed from the cache
+    "cache_cap": 3000,  # Max messages to store for each user / channel
+    "wd_regex_allowed": False,  # Allows the creation of Warden rules with user defined regex
+    "wd_periodic_allowed": True,  # Allows the creation of periodic Warden rules
+    "wd_upload_max_size": 3,  # Max size for Warden rule upload (in kilobytes)
+    "wd_regex_safety_checks": True,  # Performance safety checks for user defined regex
 }
+
 
 class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeMetaClass):
     """Security tools to protect communities"""
@@ -125,7 +126,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     def __init__(self, bot):
         self.bot = bot
         WardenAPI.init_api(self)
-        self.config = Config.get_conf(self, 262626, force_registration=True)
+        self.config = Config.get_conf(self, 262_626, force_registration=True)
         self.config.register_guild(**default_guild_settings)
         self.config.register_member(**default_member_settings)
         self.config.register_global(**default_owner_settings)
@@ -187,8 +188,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         msg_n += self.message_counter[member.guild.id][member.id]
         return msg_n
 
-    async def make_message_log(self, obj, *, guild: discord.Guild, requester: discord.Member=None,
-                               replace_backtick=False, pagify_log=False):
+    async def make_message_log(
+        self, obj, *, guild: discord.Guild, requester: discord.Member = None, replace_backtick=False, pagify_log=False
+    ):
         text_unauthorized = "[You are not authorized to access that channel]"
         _log = []
 
@@ -258,7 +260,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             timestamp = utcnow()
             try:
                 em = self.emergency_mode[guild.id]
-                if not em.is_manual: # Staff activity = disable auto emergency
+                if not em.is_manual:  # Staff activity = disable auto emergency
                     del self.emergency_mode[guild.id]
                     disabled = True
             except KeyError:
@@ -342,7 +344,6 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         except asyncio.CancelledError:
             pass
 
-
     async def wd_periodic_rules(self):
         try:
             await self.bot.wait_until_red_ready()
@@ -363,7 +364,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             guild = self.bot.get_guild(guid)
             if guild is None:
                 continue
-            if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+            if await self.bot.cog_disabled_in_guild(self, guild):  # type: ignore
                 continue
 
             rules = self.get_warden_rules_by_event(guild, WardenEvent.Periodic)
@@ -396,8 +397,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                     try:
                         await rule.do_actions(cog=self, guild=member.guild, user=member)
                     except Exception as e:
-                        self.send_to_monitor(guild, f"[Warden] Rule {rule.name} "
-                                                    f"({rule.last_action.value}) - {str(e)}")
+                        self.send_to_monitor(
+                            guild, f"[Warden] Rule {rule.name} " f"({rule.last_action.value}) - {str(e)}"
+                        )
             rule.next_run = utcnow() + rule.run_every
 
     async def load_warden_rules(self):
@@ -418,19 +420,17 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                     await new_rule.parse(rule, self)
                 except InvalidRule as e:
                     if new_rule.name is not None:
-                        self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule # type: ignore
+                        self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule  # type: ignore
                     else:
-                        log.error("Warden - rule did not reach name "
-                                  "parsing during cog load", exc_info=e)
+                        log.error("Warden - rule did not reach name " "parsing during cog load", exc_info=e)
                 except Exception as e:
                     if new_rule.name is not None:
-                        self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule # type: ignore
+                        self.invalid_warden_rules[int(guid)][new_rule.name] = new_rule  # type: ignore
                     log.error("Warden - unexpected error during cog load rule parsing", exc_info=e)
                 else:
                     self.active_warden_rules[int(guid)][new_rule.name] = new_rule
 
         await WardenAPI.load_modules_checks()
-
 
     async def load_cache_settings(self):
         df_cache.MSG_STORE_CAP = await self.config.cache_cap()
@@ -450,7 +450,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                 guild = self.bot.get_guild(int(guid))
                 if not guild:
                     continue
-                if await self.bot.cog_disabled_in_guild(self, guild): # type: ignore
+                if await self.bot.cog_disabled_in_guild(self, guild):  # type: ignore
                     continue
                 notify_channel = guild_data.get("notify_channel", 0)
                 if not notify_channel:
@@ -476,7 +476,6 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
 
             await asyncio.sleep(0.5)
 
-
     def cog_unload(self):
         self.counter_task.cancel()
         self.wd_periodic_task.cancel()
@@ -488,11 +487,13 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         if ctx.invoked_subcommand is None:
             # User is just checking out the help
             return False
-        error_msg = ("It seems that you have a role that is considered admin at bot level but "
-                     "not the basic permissions that one would reasonably expect an admin to have.\n"
-                     "To use these commands, other than the admin role, you need `administrator` "
-                     "permissions OR `manage messages` + `manage roles` + `ban member` permissions.\n"
-                     "I cannot let you proceed until you properly configure permissions in this server.")
+        error_msg = (
+            "It seems that you have a role that is considered admin at bot level but "
+            "not the basic permissions that one would reasonably expect an admin to have.\n"
+            "To use these commands, other than the admin role, you need `administrator` "
+            "permissions OR `manage messages` + `manage roles` + `ban member` permissions.\n"
+            "I cannot let you proceed until you properly configure permissions in this server."
+        )
         channel = ctx.channel
         perms = channel.permissions_for(ctx.author)
         has_basic_perms = all((perms.manage_messages, perms.manage_roles, perms.ban_members))
@@ -515,13 +516,25 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
     async def is_emergency_module(self, guild, module: EmergencyModules):
         return module.value in await self.config.guild(guild).emergency_modules()
 
-    async def send_notification(self, destination: discord.abc.Messageable, description: str, *,
-                                title: str=None, fields: list=[], footer: str=None,
-                                thumbnail: str=None,
-                                ping=False, file: discord.File=None, react: str=None,
-                                jump_to: discord.Message=None,
-                                allow_everyone_ping=False, force_text_only=False, heat_key: str=None,
-                                no_repeat_for: datetime.timedelta=None, view: ui.View=None)->Optional[discord.Message]:
+    async def send_notification(
+        self,
+        destination: discord.abc.Messageable,
+        description: str,
+        *,
+        title: str = None,
+        fields: list = [],
+        footer: str = None,
+        thumbnail: str = None,
+        ping=False,
+        file: discord.File = None,
+        react: str = None,
+        jump_to: discord.Message = None,
+        allow_everyone_ping=False,
+        force_text_only=False,
+        heat_key: str = None,
+        no_repeat_for: datetime.timedelta = None,
+        view: ui.View = None,
+    ) -> Optional[discord.Message]:
         """Sends a notification to the staff channel if a guild is passed. Embed preference is respected."""
         if no_repeat_for:
             if isinstance(destination, discord.Guild):
@@ -529,9 +542,9 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             else:
                 guild = destination.guild
 
-            if not heat_key: # A custom heat_key can be passed to block dynamic content
+            if not heat_key:  # A custom heat_key can be passed to block dynamic content
                 heat_key = f"{destination.id}-{description}-{fields}"
-                heat_key =  f"core-notif-{crc32(heat_key.encode('utf-8', 'ignore'))}"
+                heat_key = f"core-notif-{crc32(heat_key.encode('utf-8', 'ignore'))}"
 
             if not heat.get_custom_heat(guild, heat_key) == 0:
                 return
@@ -555,12 +568,11 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         if send_embed is True and force_text_only is False:
             if jump_to:
                 description += f"\n[Click to jump]({jump_to.jump_url})"
-            embed = discord.Embed(
-                title=title if title else "",
-                description=description,
-            )
-            if footer: embed.set_footer(text=footer)
-            if thumbnail: embed.set_thumbnail(url=thumbnail)
+            embed = discord.Embed(title=title if title else "", description=description)
+            if footer:
+                embed.set_footer(text=footer)
+            if thumbnail:
+                embed.set_thumbnail(url=thumbnail)
             for field in fields:
                 embed.add_field(**field)
             message_content = staff_mention
@@ -576,20 +588,26 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             message_content = f"{title}{staff_mention}{description}{fields_txt}{jump_to}{footer}"
 
         allowed_mentions = discord.AllowedMentions(roles=True, everyone=allow_everyone_ping)
-        msg = await destination.send(message_content, file=file, embed=embed,
-                                     allowed_mentions=allowed_mentions, view=view)
+        msg = await destination.send(
+            message_content, file=file, embed=embed, allowed_mentions=allowed_mentions, view=view
+        )
         if react:
             await msg.add_reaction(react)
 
         return msg
 
-
-    def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role=None):
-        if any((
-            role.permissions.manage_channels, role.permissions.manage_guild,
-            role.permissions.manage_messages, role.permissions.manage_roles,
-            role.permissions.ban_members, role.permissions.kick_members,
-            role.permissions.administrator)):
+    def is_role_privileged(self, role: discord.Role, issuers_top_role: discord.Role = None):
+        if any(
+            (
+                role.permissions.manage_channels,
+                role.permissions.manage_guild,
+                role.permissions.manage_messages,
+                role.permissions.manage_roles,
+                role.permissions.ban_members,
+                role.permissions.kick_members,
+                role.permissions.administrator,
+            )
+        ):
             return True
 
         if role.guild.me.top_role <= role:
@@ -600,7 +618,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         else:
             return False
 
-    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent)->List[WardenRule]:
+    def get_warden_rules_by_event(self, guild: discord.Guild, event: WardenEvent) -> List[WardenRule]:
         rules = self.active_warden_rules.get(guild.id, {}).values()
         rules = [r for r in rules if event in r.events]
         return sorted(rules, key=lambda k: k.priority)
@@ -625,8 +643,19 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         event_name = "x26_defender_" + event_name
         self.bot.dispatch(event_name, *args)
 
-    async def create_modlog_case(self, bot, guild, created_at, action_type, user, moderator=None, reason=None, until=None,
-                                 channel=None, last_known_username=None):
+    async def create_modlog_case(
+        self,
+        bot,
+        guild,
+        created_at,
+        action_type,
+        user,
+        moderator=None,
+        reason=None,
+        until=None,
+        channel=None,
+        last_known_username=None,
+    ):
         if action_type == Action.NoAction.value:
             return
 
@@ -638,16 +667,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
         heat.increase_custom_heat(guild, heat_key, datetime.timedelta(seconds=15))
 
         await modlog.create_case(
-            bot,
-            guild,
-            created_at,
-            action_type,
-            user,
-            moderator,
-            reason,
-            until,
-            channel,
-            last_known_username
+            bot, guild, created_at, action_type, user, moderator, reason, until, channel, last_known_username
         )
 
     async def red_delete_data_for_user(self, requester, user_id):
@@ -656,7 +676,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
             return
 
         for _, counter in self.message_counter.items():
-            del counter[user_id] # Counters don't raise if key is missing
+            del counter[user_id]  # Counters don't raise if key is missing
 
         guilds = self.config._get_base_group(self.config.GUILD)
         async with guilds.all() as all_guilds:

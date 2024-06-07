@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import enum
 
+
 class Event(enum.Enum):
     OnMessage = "on-message"
     OnMessageEdit = "on-message-edit"
@@ -31,22 +32,24 @@ class Event(enum.Enum):
     Manual = "manual"
     Periodic = "periodic"
 
+
 class Action(enum.Enum):
     NotifyStaff = "notify-staff"
-    BanAndDelete = "ban-user-and-delete" # Ban user in context and delete X days
-    Kick = "kick-user" # Kick user in context
-    Softban = "softban-user" # Softban user in context
-    PunishUser = "punish-user" # Assign the punish role to the user
-    PunishUserWithMessage = "punish-user-with-message" # Assign the punish role to the user and send the set message
-    Modlog = "send-mod-log" # Send modlog case of last expel action + reason
-    DeleteUserMessage = "delete-user-message" # Delete message in context
-    SetChannelSlowmode = "set-channel-slowmode" # 0 - 6h
-    AddRolesToUser = "add-roles-to-user" # Adds roles to user in context
-    RemoveRolesFromUser = "remove-roles-from-user" # Remove roles from user in context
+    BanAndDelete = "ban-user-and-delete"  # Ban user in context and delete X days
+    Kick = "kick-user"  # Kick user in context
+    Softban = "softban-user"  # Softban user in context
+    PunishUser = "punish-user"  # Assign the punish role to the user
+    PunishUserWithMessage = "punish-user-with-message"  # Assign the punish role to the user and send the set message
+    Timeout = "timeout-user"  # Timeout user in context
+    Modlog = "send-mod-log"  # Send modlog case of last expel action + reason
+    DeleteUserMessage = "delete-user-message"  # Delete message in context
+    SetChannelSlowmode = "set-channel-slowmode"  # 0 - 6h
+    AddRolesToUser = "add-roles-to-user"  # Adds roles to user in context
+    RemoveRolesFromUser = "remove-roles-from-user"  # Remove roles from user in context
     EnableEmergencyMode = "enable-emergency-mode"
-    SetUserNickname = "set-user-nickname" # Changes nickname of user in context
-    NoOp = "no-op" # Does nothing. For testing purpose.
-    SendToMonitor = "send-to-monitor" # Posts a message to [p]defender monitor
+    SetUserNickname = "set-user-nickname"  # Changes nickname of user in context
+    NoOp = "no-op"  # Does nothing. For testing purpose.
+    SendToMonitor = "send-to-monitor"  # Posts a message to [p]defender monitor
     AddUserHeatpoint = "add-user-heatpoint"
     AddUserHeatpoints = "add-user-heatpoints"
     AddChannelHeatpoint = "add-channel-heatpoint"
@@ -58,18 +61,23 @@ class Action(enum.Enum):
     EmptyCustomHeat = "empty-custom-heat"
     IssueCommand = "issue-command"
     DeleteLastMessageSentAfter = "delete-last-message-sent-after"
-    SendMessage = "send-message" # Send a message to an arbitrary destination with an optional embed
-    GetUserInfo = "get-user-info" # Get info of an arbitrary user
-    Exit = "exit" # Stops processing the rule
-    WarnSystemWarn = "warnsystem-warn" ## Warnsystem integration
-    VarAssign = "var-assign" # Assigns a string to a variable
-    VarAssignRandom = "var-assign-random" # Assigns a random string to a variable
-    VarAssignHeat = "var-assign-heat" # Assign heat values to a variable
+    SendMessage = "send-message"  # Send a message to an arbitrary destination with an optional embed
+    GetUserInfo = "get-user-info"  # Get info of an arbitrary user
+    ArchiveThread = "archive-thread"  # Archive the thread in context
+    LockThread = "lock-thread"  # Lock the thread in context
+    ArchiveAndLockThread = "archive-and-lock-thread"  # Archive and lock the thread in context
+    DeleteThread = "delete-thread"  # Delete the thread in context
+    Exit = "exit"  # Stops processing the rule
+    WarnSystemWarn = "warnsystem-warn"  ## Warnsystem integration
+    VarAssign = "var-assign"  # Assigns a string to a variable
+    VarAssignRandom = "var-assign-random"  # Assigns a random string to a variable
+    VarAssignHeat = "var-assign-heat"  # Assign heat values to a variable
     VarMath = "var-math"
-    VarReplace = "var-replace" # Replace var's str with substr
-    VarSlice = "var-slice" # Slice a var
-    VarSplit = "var-split" # Splits a string into substrings
-    VarTransform = "var-transform" # Perform a variety of operations on the var
+    VarReplace = "var-replace"  # Replace var's str with substr
+    VarSlice = "var-slice"  # Slice a var
+    VarSplit = "var-split"  # Splits a string into substrings
+    VarTransform = "var-transform"  # Perform a variety of operations on the var
+
 
 class Condition(enum.Enum):
     UserIdMatchesAny = "user-id-matches-any"
@@ -77,6 +85,8 @@ class Condition(enum.Enum):
     UsernameMatchesRegex = "username-matches-regex"
     NicknameMatchesAny = "nickname-matches-any"
     NicknameMatchesRegex = "nickname-matches-regex"
+    DisplayNameMatchesAny = "display-name-matches-any"
+    DisplayNameMatchesRegex = "display-name-matches-regex"
     MessageMatchesAny = "message-matches-any"
     MessageMatchesRegex = "message-matches-regex"
     MessageContainsWord = "message-contains-word"
@@ -111,14 +121,17 @@ class Condition(enum.Enum):
     CustomHeatMoreThan = "custom-heat-more-than"
     Compare = "compare"
 
+
 class ConditionBlock(enum.Enum):
     IfAll = "if-all"
     IfAny = "if-any"
     IfNot = "if-not"
 
+
 class ConditionalActionBlock(enum.Enum):
     IfTrue = "if-true"
     IfFalse = "if-false"
+
 
 class ChecksKeys(enum.Enum):
     CommentAnalysis = "ca"

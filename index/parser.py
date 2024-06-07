@@ -25,6 +25,7 @@ ARROW_DOWN = "\N{DOWNWARDS BLACK ARROW}\N{VARIATION SELECTOR-16}"
 
 log = logging.getLogger("red.x26cogs.index")
 
+
 class Repo:
     def __init__(self, url: str, raw_data: dict):
         self.url = url
@@ -50,10 +51,13 @@ class Repo:
             url, _ = self.url.split("@", 1)
         else:
             url = self.url
-        em.add_field(name="Command to add repo",
-                     value=f"{prefix}repo add {self.name.lower()} {url} {self.rx_branch}",
-                     inline=False)
+        em.add_field(
+            name="Command to add repo",
+            value=f"{prefix}repo add {self.name.lower()} {url} {self.rx_branch}",
+            inline=False,
+        )
         return em
+
 
 class Cog:
     def __init__(self, name: str, repo: Repo, raw_data: dict):
@@ -82,7 +86,7 @@ class Cog:
         else:
             description = self.short
         if self.author:
-            author = ', '.join(self.author)
+            author = ", ".join(self.author)
         else:
             author = self.repo.name
         em = discord.Embed(url=url, description=description, colour=colour)
@@ -97,12 +101,14 @@ class Cog:
             repo_url, _ = self.repo.url.split("@", 1)
         else:
             repo_url = self.repo.url
-        em.add_field(name="Command to add repo",
-                     value=f"{prefix}repo add {self.repo.name.lower()} {repo_url} {self.repo.rx_branch}",
-                     inline=False)
-        em.add_field(name="Command to add cog",
-                     value=f"{prefix}cog install {self.repo.name.lower()} {self.name}",
-                     inline=False)
+        em.add_field(
+            name="Command to add repo",
+            value=f"{prefix}repo add {self.repo.name.lower()} {repo_url} {self.repo.rx_branch}",
+            inline=False,
+        )
+        em.add_field(
+            name="Command to add cog", value=f"{prefix}cog install {self.repo.name.lower()} {self.name}", inline=False
+        )
         tags = ""
         if self.tags:
             tags = "\nTags: " + ", ".join(self.tags)

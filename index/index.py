@@ -36,19 +36,18 @@ RED_INDEX_REPO = "https://github.com/Cog-Creators/Red-Index/"
 
 log = logging.getLogger("red.x26cogs.index")
 
+
 class Index(commands.Cog):
     """Browse and install repos / cogs from a Red-Index"""
 
     def __init__(self, bot: Red):
         self.bot = bot
-        self.config = Config.get_conf(
-            self, identifier=262626, force_registration=True
-        )
+        self.config = Config.get_conf(self, identifier=262_626, force_registration=True)
         self.config.register_global(
             red_index_link=CC_INDEX_LINK,
-            red_index_max_age=10,  # minutes
+            red_index_max_age=10,
             red_index_cache={},
-            red_index_show_unapproved=False,
+            red_index_show_unapproved=False,  # minutes
         )
         self.session = aiohttp.ClientSession()
         self.cache = []
@@ -74,9 +73,11 @@ class Index(commands.Cog):
         try:
             await self.fetch_index()
         except Exception as e:
-            await ctx.send("Something went wrong. Index service may be not "
-                           "available or a not working link may have been set.\n"
-                           f"Error: {e}")
+            await ctx.send(
+                "Something went wrong. Index service may be not "
+                "available or a not working link may have been set.\n"
+                f"Error: {e}"
+            )
             return
         if not repo_name:
             cache = self.cache.copy()
@@ -106,9 +107,11 @@ class Index(commands.Cog):
         try:
             await self.fetch_index()
         except Exception as e:
-            await ctx.send("Something went wrong. Index service may be not "
-                           "available or a not working link may have been set.\n"
-                           f"Error: {e}")
+            await ctx.send(
+                "Something went wrong. Index service may be not "
+                "available or a not working link may have been set.\n"
+                f"Error: {e}"
+            )
             return
         cogs_cache = self.get_all_cogs()
         results = []
@@ -157,16 +160,16 @@ class Index(commands.Cog):
             try:
                 await self.fetch_index(force=True)
             except Exception as e:
-                await ctx.send("Something went wrong. Index service may be not "
-                               "available or a not working link may have been set.\n"
-                               f"Error: {e}")
+                await ctx.send(
+                    "Something went wrong. Index service may be not "
+                    "available or a not working link may have been set.\n"
+                    f"Error: {e}"
+                )
             else:
                 await ctx.send("Index refreshed successfully.")
 
     @indexset.command(name="maxminutes")
-    async def indexset_maxminutes(
-        self, ctx: commands.Context, minutes: int
-    ):
+    async def indexset_maxminutes(self, ctx: commands.Context, minutes: int):
         """Minutes elapsed before the cache is considered stale
 
         Set 0 if you want the cache refresh to be manual only"""
@@ -175,20 +178,20 @@ class Index(commands.Cog):
             return
         await self.config.red_index_max_age.set(minutes)
         if minutes:
-            await ctx.send(f"After {minutes} minutes the cache will be automatically "
-                            "refreshed when used.")
+            await ctx.send(f"After {minutes} minutes the cache will be automatically " "refreshed when used.")
         else:
-            await ctx.send("Cache auto-refresh disabled. Do "
-                           f"{ctx.prefix}index refresh to refresh it.")
+            await ctx.send("Cache auto-refresh disabled. Do " f"{ctx.prefix}index refresh to refresh it.")
 
     @indexset.command(name="link")
-    async def indexset_link(self, ctx: commands.Context, link: str=""):
+    async def indexset_link(self, ctx: commands.Context, link: str = ""):
         """Set a custom Red-Index link"""
         if not link:
-            await ctx.send("With this command you can set a custom Red-Index link. "
-                           "This gives you the freedom to run your own Red-Index: just fork the repo "
-                           f"and it's ready to go!\n<{RED_INDEX_REPO}>\nTo keep using our curated "
-                           f"index do `{ctx.prefix}indexset link default`")
+            await ctx.send(
+                "With this command you can set a custom Red-Index link. "
+                "This gives you the freedom to run your own Red-Index: just fork the repo "
+                f"and it's ready to go!\n<{RED_INDEX_REPO}>\nTo keep using our curated "
+                f"index do `{ctx.prefix}indexset link default`"
+            )
             return
         if link.lower() == "default":
             await self.config.red_index_link.clear()
@@ -200,15 +203,19 @@ class Index(commands.Cog):
                 await self.fetch_index(force=True)
             except Exception as e:
                 log.error("Error fetching the index file", exc_info=e)
-                await ctx.send("Something went wrong while trying to reach the new link you have set. "
-                               "I'll revert to the default one.\nA custom Red-Index link format must be "
-                               f"similar to this: <{CC_INDEX_LINK}>.\nIt has to be static and point to a "
-                               "valid json source.")
+                await ctx.send(
+                    "Something went wrong while trying to reach the new link you have set. "
+                    "I'll revert to the default one.\nA custom Red-Index link format must be "
+                    f"similar to this: <{CC_INDEX_LINK}>.\nIt has to be static and point to a "
+                    "valid json source."
+                )
                 await self.config.red_index_link.clear()
                 await self.fetch_index(force=True)
             else:
-                await ctx.send("New link successfully set. Remember that you can go back "
-                               f"to the standard link with `{ctx.prefix}indexset link default.`")
+                await ctx.send(
+                    "New link successfully set. Remember that you can go back "
+                    f"to the standard link with `{ctx.prefix}indexset link default.`"
+                )
 
     @indexset.command(name="showunapproved")
     async def indexset_showunapproved(self, ctx: commands.Context, yes_or_no: bool):
@@ -217,13 +224,17 @@ class Index(commands.Cog):
         try:
             await self.fetch_index(force=True)
         except Exception as e:
-            await ctx.send("Something went wrong. Index service may be not "
-                           "available or a not working link may have been set.\n"
-                           f"Error: {e}")
+            await ctx.send(
+                "Something went wrong. Index service may be not "
+                "available or a not working link may have been set.\n"
+                f"Error: {e}"
+            )
             return
         if yes_or_no:
-            await ctx.send("Done. Remember that unapproved cogs haven't been vetted "
-                           "by anyone. Make sure you trust what you install!")
+            await ctx.send(
+                "Done. Remember that unapproved cogs haven't been vetted "
+                "by anyone. Make sure you trust what you install!"
+            )
         else:
             await ctx.send("Done. I won't show any unapproved cog.")
 
@@ -251,17 +262,18 @@ class Index(commands.Cog):
         max_age = await self.config.red_index_max_age()
         if not max_age:  # 0 = no auto-refresh
             return False
-        elif not self.last_fetched: # no fetch yet
+        elif not self.last_fetched:  # no fetch yet
             return True
 
         minutes_since = (datetime.utcnow() - self.last_fetched).seconds / 60
         return minutes_since > max_age
 
-    async def install_repo_cog(self, ctx, repo: Repo, cog: Cog=None):
+    async def install_repo_cog(self, ctx, repo: Repo, cog: Cog = None):
         """
         Following Jackenmen's Cogboard logic made my life easier here. Thanks Jack!
         https://github.com/jack1142/JackCogs/blob/91f39e1f4cb97491a70103cce90f0aa99fa2efc5/cogboard/menus.py#L30
         """
+
         async def get_fake_context(ctx, command):
             fake_message = copy(ctx.message)
             fake_message.content = f"{ctx.prefix}{command.qualified_name}"

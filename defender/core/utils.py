@@ -44,6 +44,7 @@ QUICK_ACTION_EMOJIS = {
 
 QuickAction = namedtuple("QuickAction", ("target", "reason"))
 
+
 async def get_external_invite(guild: discord.Guild, invites: List[Tuple]):
     if not guild.me.guild_permissions.manage_guild:
         raise MisconfigurationError("I need 'manage guild' permissions to fetch this server's invites.")
@@ -68,11 +69,13 @@ async def get_external_invite(guild: discord.Guild, invites: List[Tuple]):
 
     return None
 
+
 def utcnow():
     if discord.version_info.major >= 2:
         return datetime.datetime.now(datetime.timezone.utc)
     else:
         return datetime.datetime.utcnow()
+
 
 def timestamp(ts: datetime.datetime, relative=False):
     # Discord assumes UTC timestamps
