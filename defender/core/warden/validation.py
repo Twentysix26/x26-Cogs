@@ -215,23 +215,23 @@ class Message(BaseModel):
 class NotifyStaff(BaseModel):
     _short_form = ("content",)
     content: str
-    title: Optional[str]
+    title: Optional[str] = None
     fields: Optional[List[EmbedField]] = []
-    add_ctx_fields: Optional[bool]
-    thumbnail: Optional[str]
-    footer_text: Optional[str]
-    ping: Optional[bool]
-    jump_to: Optional[Message]
-    jump_to_ctx_message: Optional[bool]
-    qa_target: Optional[str]
-    qa_reason: Optional[str]
-    no_repeat_for: Optional[TimeDelta]
-    no_repeat_key: Optional[str]
+    add_ctx_fields: Optional[bool] = None
+    thumbnail: Optional[str] = None
+    footer_text: Optional[str] = None
+    ping: Optional[bool] = None
+    jump_to: Optional[Message] = None
+    jump_to_ctx_message: Optional[bool] = None
+    qa_target: Optional[str] = None
+    qa_reason: Optional[str] = None
+    no_repeat_for: Optional[TimeDelta] = None
+    no_repeat_key: Optional[str] = None
     allow_everyone_ping: Optional[bool] = False
 
     @pydantic_model_validator(mode="after")
     def check_jump_to(cls, values):
-        if values["jump_to_ctx_message"] is True and values["jump_to"]:
+        if values.jump_to_ctx_message is True and values.jump_to:
             raise ValueError(
                 "You cannot specify a message to jump to while also choosing "
                 "the option to jump to the context's message."
@@ -315,12 +315,12 @@ class GetUserInfo(BaseModel):
 class WarnSystemWarn(BaseModel):
     _short_form = ("members", "level", "reason", "time")
     members: Union[str, conlist(str, min_length=1)]
-    author: Optional[str]
+    author: Optional[str] = None
     level: conint(ge=1, le=5)
-    reason: Optional[str]
-    time: Optional[TimeDelta]
-    date: Optional[datetime]
-    ban_days: Optional[int]
+    reason: Optional[str] = None
+    time: Optional[TimeDelta] = None
+    date: Optional[datetime] = None
+    ban_days: Optional[int] = None
     log_modlog: Optional[bool] = True
     log_dm: Optional[bool] = True
     take_action: Optional[bool] = True
@@ -378,10 +378,10 @@ class VarSplit(BaseModel):
 
 class VarSlice(BaseModel):
     var_name: str
-    index: Optional[int]
-    end_index: Optional[int]
-    slice_into: Optional[str]
-    step: Optional[int]
+    index: Optional[int] = None
+    end_index: Optional[int] = None
+    slice_into: Optional[str] = None
+    step: Optional[int] = None
 
 
 class VarTransform(BaseModel):
@@ -505,7 +505,7 @@ class IsTimedelta(BaseModel):
 
 class IsOptionalTimeoutUserTimedelta(BaseModel):
     _single_value = True
-    value: Optional[TimeoutUserTimeDelta]
+    value: Optional[TimeoutUserTimeDelta] = None
 
 
 class IsHTimedelta(BaseModel):
