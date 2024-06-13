@@ -590,7 +590,8 @@ class WardenRule:
 
         @checker(Condition.MessageContainsWord)
         async def message_contains_word(params: models.NonEmptyListStr):
-            message_words = message.content.lower().split()
+            # Split into words, allow for apostrophes
+            message_words = re.findall(r"\w+(?:'\w+)*", message.content.lower())
             for word in message_words:
                 for pattern in params.value:
                     if fnmatch.fnmatch(word, pattern.lower()):
