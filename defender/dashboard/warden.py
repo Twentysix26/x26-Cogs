@@ -149,7 +149,7 @@ class WardenIntegration:
 
 WEB_CONTENT = """
     <div class="alert alert-{{ "success" if warden_enabled else "danger" }} text-white d-flex justify-content-between" role="alert">
-        <p style="padding-top: 10px;">Warden is currently <strong>{{ "enabled" if warden_enabled else "disabled" }}</strong>.</p>
+        <p style="padding-top: 10px;">Warden is currently <strong>{{ "enabled" if warden_enabled else "disabled" }}</strong>!</p>
         <a href="{{ url_for("third_parties_blueprint.third_party", name=name, page="settings", guild_id=guild.id, _anchor="Warden") }}" class="btn btn-gradient-default text-white">View Settings</a>
     </div>
 
