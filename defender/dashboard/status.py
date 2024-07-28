@@ -6,6 +6,7 @@ import logging
 
 from redbot.core.utils import AsyncIter
 
+from ..core.status import get_status_msg
 from ..enums import Rank
 
 log = logging.getLogger("red.x26cogs.defender")
@@ -22,7 +23,7 @@ class StatusIntegration:
     @dashboard_page(name=None, description="Defender status.", methods=("GET", "POST"))
     async def dashboard_status_page(self, user: discord.User, guild: discord.Guild, **kwargs) -> typing.Dict[str, typing.Any]:
         member = guild.get_member(user.id)
-        if user.id != guild.owner.id and not await self.bot.is_admin(member) and user.id not in self.bot.owner_ids:
+        if member is None or user.id != guild.owner.id and not await self.bot.is_admin(member) and user.id not in self.bot.owner_ids:
             return {
                 "status": 1,
                 "error_code": 403,
@@ -35,6 +36,8 @@ class StatusIntegration:
                 "error_code": 403,
                 "error_message": "You must have the following permissions to access this page: Manage Messages, Manage Roles and Ban Members.",
             }
+
+        d_enabled, possible_config_issue, status_msg = await get_status_msg(guild, self)
 
         monitor = "\n".join(self.monitor[guild.id])
         freshmeat = ""
@@ -67,6 +70,9 @@ class StatusIntegration:
             "status": 0,
             "web_content": {
                 "source": WEB_CONTENT,
+                "d_enabled": d_enabled,
+                "possible_config_issue": possible_config_issue,
+                "status_msg": status_msg,
                 "monitor": monitor,
                 "freshmeat": freshmeat,
                 "member_ranks": member_ranks,
@@ -74,6 +80,11 @@ class StatusIntegration:
         }
 
 WEB_CONTENT = """
+    <div class="alert alert-{{ ("success" if not possible_config_issue else "warning") if d_enabled else "danger" }} text-white" role="alert">
+        {{ status_msg|markdown }}
+        <a href="{{ url_for("third_parties_blueprint.third_party", name=name, page="settings", guild_id=guild.id) }}" class="btn btn-gradient-default text-white">View Settings</a>
+    </div>
+
     <div id="Monitor" class="card">
         <div class="card-header" id="headingMonitor">
             <a class="btn btn-link mb-0" data-toggle="collapse" data-target="#collapseMonitor" aria-expanded="true" aria-controls="collapseMonitor" style="width: 100%;">

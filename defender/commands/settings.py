@@ -44,6 +44,35 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if await self.callout_if_fake_admin(ctx):
             ctx.invoked_subcommand = None
 
+    @dset.command(name="dashboard")
+    async def dsetdashboard(self, ctx: commands.Context):
+        """Get the link to the Defender Settings on Dashboard"""
+        if (dashboard_url := getattr(ctx.bot, "dashboard_url", None)) is None:
+            raise commands.UserFeedbackCheckFailure(
+                _(
+                    "Red-Dashboard is not installed. Check <https://red-web-dashboard.readthedocs.io>."
+                )
+            )
+        if not dashboard_url[1] and ctx.author.id not in ctx.bot.owner_ids:
+            raise commands.UserFeedbackCheckFailure(_("You can't access the Dashboard."))
+        if (
+            self.qualified_name
+            in await self.bot.get_cog("Dashboard").config.webserver.disabled_third_parties()
+        ):
+            raise commands.UserFeedbackCheckFailure(
+                _("This third party is disabled on the Dashboard.")
+            )
+        url = (
+            f"{dashboard_url[0]}/dashboard/{ctx.guild.id}/third-party/{self.qualified_name}/settings"
+        )
+        embed: discord.Embed = discord.Embed(
+            title=f"Dashboard - {self.qualified_name}",
+            color=await ctx.embed_color(),
+            url=url,
+        )
+        embed.set_footer(text=ctx.guild.name, icon_url=ctx.guild.icon.url)
+        await ctx.send(embed=embed)
+
     @dset.group(name="general")
     @commands.admin()
     async def generalgroup(self, ctx: commands.Context):
@@ -306,8 +335,8 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @rank3group.command(name="joineddays")
     async def rank3joineddays(self, ctx: commands.Context, days: int):
         """Days since join required to be considered Rank 3"""
-        if days < 2 or days > 30:
-            await ctx.send("Value must be between 2 and 30.")
+        if days < 1 or days > 30:
+            await ctx.send("Value must be between 1 and 30.")
             return
         await self.config.guild(ctx.guild).rank3_joined_days.set(days)
         await ctx.tick()
@@ -506,10 +535,10 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         select_options = (
             SelectOption(value="0", label="No action", description="Are you sure?", emoji="🤠"),
-            SelectOption(value="1", label="Low", description="Must have a verified email address on their Discord", emoji="🟢"),
-            SelectOption(value="2", label="Medium", description="Must also be registered on Discord for >= 5 minutes", emoji="🟡"),
-            SelectOption(value="3", label="High", description="Must also be a member here for more than 10 minutes", emoji="🟠"),
-            SelectOption(value="4", label="Highest", description="Must also have a verified phone on their Discord", emoji="🔴"),
+            SelectOption(value="1", label="Low", description="Must have a verified email address on their Discord.", emoji="🟢"),
+            SelectOption(value="2", label="Medium", description="Must also be registered on Discord for >= 5 minutes.", emoji="🟡"),
+            SelectOption(value="3", label="High", description="Must also be a member here for more than 10 minutes.", emoji="🟠"),
+            SelectOption(value="4", label="Highest", description="Must also have a verified phone on their Discord.", emoji="🔴"),
         )
 
         view = RestrictedView(self, ctx.author.id)
@@ -715,12 +744,12 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     async def casetattributes(self, ctx: commands.Context):
         """Setup the attributes that CA will check"""
         select_options = (
-            SelectOption(value=PAttr.Toxicity.value, label="Toxicity", description="Rude or generally disrespectful comments"),
-            SelectOption(value=PAttr.SevereToxicity.value, label="Severe toxicity", description="Hateful, aggressive comments"),
-            SelectOption(value=PAttr.IdentityAttack.value, label="Identity attack", description="Hateful comments attacking one's identity"),
-            SelectOption(value=PAttr.Insult.value, label="Insult", description="Insulting, inflammatory or negative comments"),
-            SelectOption(value=PAttr.Profanity.value, label="Profanity", description="Comments containing swear words, curse words or profanities"),
-            SelectOption(value=PAttr.Threat.value, label="Threat", description="Comments perceived as an intention to inflict violence against others"),
+            SelectOption(value=PAttr.Toxicity.value, label="Toxicity", description="Rude or generally disrespectful comments."),
+            SelectOption(value=PAttr.SevereToxicity.value, label="Severe toxicity", description="Hateful, aggressive comments."),
+            SelectOption(value=PAttr.IdentityAttack.value, label="Identity attack", description="Hateful comments attacking one's identity."),
+            SelectOption(value=PAttr.Insult.value, label="Insult", description="Insulting, inflammatory or negative comments."),
+            SelectOption(value=PAttr.Profanity.value, label="Profanity", description="Comments containing swear words, curse words or profanities."),
+            SelectOption(value=PAttr.Threat.value, label="Threat", description="Comments perceived as an intention to inflict violence against others."),
         )
 
         view = RestrictedView(self, ctx.author.id)
@@ -886,9 +915,9 @@ class Settings(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         disable emergency mode.
         Available emergency modules: voteout, vaporize, silence"""
         select_options = (
-            SelectOption(value=EModules.Silence.value, label="Silence", description="Apply a server wide mute on ranks", emoji="🔇"),
-            SelectOption(value=EModules.Vaporize.value, label="Vaporize", description="Silently get rid of multiple new users at once", emoji="☁️"),
-            SelectOption(value=EModules.Voteout.value, label="Voteout", description="Start a vote to expel misbehaving users", emoji="👎"),
+            SelectOption(value=EModules.Silence.value, label="Silence", description="Apply a server wide mute on ranks.", emoji="🔇"),
+            SelectOption(value=EModules.Vaporize.value, label="Vaporize", description="Silently get rid of multiple new users at once.", emoji="☁️"),
+            SelectOption(value=EModules.Voteout.value, label="Voteout", description="Start a vote to expel misbehaving users.", emoji="👎"),
         )
 
         view = RestrictedView(self, ctx.author.id)

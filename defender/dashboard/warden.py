@@ -19,7 +19,7 @@ class WardenIntegration:
     @dashboard_page(name="warden-rules", description="Manage Warden rules.", methods=("GET", "POST"))
     async def dashboard_warden_page(self, user: discord.User, guild: discord.Guild, **kwargs) -> typing.Dict[str, typing.Any]:
         member = guild.get_member(user.id)
-        if user.id != guild.owner.id and not await self.bot.is_admin(member) and user.id not in self.bot.owner_ids:
+        if member is None or user.id != guild.owner.id and not await self.bot.is_admin(member) and user.id not in self.bot.owner_ids:
             return {
                 "status": 1,
                 "error_code": 403,
@@ -141,12 +141,18 @@ class WardenIntegration:
             "status": 0,
             "web_content": {
                 "source": WEB_CONTENT,
+                "warden_enabled": await self.config.guild(guild).enabled() and await self.config.guild(guild).warden_enabled(),
                 "warden_rules_form": warden_rules_form_str,
                 "warden_rules_form_length": len(warden_rules_form.warden_rules.default),
             },
         }
 
 WEB_CONTENT = """
+    <div class="alert alert-{{ "success" if warden_enabled else "danger" }} text-white d-flex justify-content-between" role="alert">
+        <p style="padding-top: 10px;">Warden is currently <strong>{{ "enabled" if warden_enabled else "disabled" }}</strong>.</p>
+        <a href="{{ url_for("third_parties_blueprint.third_party", name=name, page="settings", guild_id=guild.id) }}" class="btn btn-gradient-default text-white">View Settings</a>
+    </div>
+
     {{ warden_rules_form|safe }}
 
     <script>
