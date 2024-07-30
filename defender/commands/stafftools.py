@@ -21,11 +21,7 @@ from ..enums import Rank
 from ..core.warden.enums import Event as WardenEvent
 from ..core.warden.rule import WardenRule
 from ..core.warden.enums import Event as WardenEvent, ChecksKeys
-from ..core.warden.utils import (
-    rule_add_periodic_prompt,
-    rule_add_overwrite_prompt,
-    strip_yaml_codeblock,
-)
+from ..core.warden.utils import rule_add_periodic_prompt, rule_add_overwrite_prompt, strip_yaml_codeblock
 from ..core.warden import heat, api as WardenAPI
 from ..core.status import make_status
 from ..core.cache import UserCacheConverter
@@ -39,7 +35,7 @@ from redbot.core import commands
 from io import BytesIO
 from inspect import cleandoc
 from typing import Union
-import emoji, pydantic, regex, yaml, sys, rapidfuzz  # Debug info purpose
+import emoji, pydantic, regex, yaml, sys, rapidfuzz # Debug info purpose
 import logging
 import asyncio
 import fnmatch
@@ -49,8 +45,8 @@ import tarfile
 
 log = logging.getLogger("red.x26cogs.defender")
 
+class StaffTools(MixinMeta, metaclass=CompositeMetaClass): # type: ignore
 
-class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
     @commands.group(aliases=["def"])
     @commands.guild_only()
     @commands.mod()
@@ -65,7 +61,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defender.command(name="monitor")
-    async def defendermonitor(self, ctx: commands.Context, *, keywords: str = ""):
+    async def defendermonitor(self, ctx: commands.Context, *, keywords: str=""):
         """Shows recent events that might require your attention
 
         Can be filtered. Supports wildcards (* and ?)"""
@@ -99,17 +95,14 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         """Shows recent messages of a user"""
         author = ctx.author
 
-        pages = await self.make_message_log(
-            user, guild=author.guild, requester=author, pagify_log=True, replace_backtick=True
-        )
+        pages = await self.make_message_log(user, guild=author.guild, requester=author, pagify_log=True,
+                                            replace_backtick=True)
 
         if not pages:
             return await ctx.send("No messages recorded for that user.")
 
-        self.send_to_monitor(
-            ctx.guild,
-            f"{author} ({author.id}) accessed message history " f"of user {user} ({user.id})",
-        )
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) accessed message history "
+                                        f"of user {user} ({user.id})")
 
         if len(pages) == 1:
             await ctx.send(box(pages[0], lang="md"))
@@ -118,32 +111,22 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await menu(ctx, pages, DEFAULT_CONTROLS)
 
     @defmessagesgroup.command(name="channel")
-    async def defmessagesgroupuserchannel(
-        self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.Thread]
-    ):
+    async def defmessagesgroupuserchannel(self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.Thread]):
         """Shows recent messages of a channel"""
         author = ctx.author
         if not channel.permissions_for(author).read_messages:
-            self.send_to_monitor(
-                ctx.guild,
-                f"{author} ({author.id}) attempted to access the message "
-                f"history of channel #{channel.name}",
-            )
-            return await ctx.send(
-                "You do not have read permissions in that channel. Request denied."
-            )
+            self.send_to_monitor(ctx.guild, f"{author} ({author.id}) attempted to access the message "
+                                            f"history of channel #{channel.name}")
+            return await ctx.send("You do not have read permissions in that channel. Request denied.")
 
-        pages = await self.make_message_log(
-            channel, guild=author.guild, requester=author, pagify_log=True, replace_backtick=True
-        )
+        pages = await self.make_message_log(channel, guild=author.guild, requester=author, pagify_log=True,
+                                            replace_backtick=True)
 
         if not pages:
             return await ctx.send("No messages recorded in that channel.")
 
-        self.send_to_monitor(
-            ctx.guild,
-            f"{author} ({author.id}) accessed the message history " f"of channel #{channel.name}",
-        )
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) accessed the message history "
+                                        f"of channel #{channel.name}")
 
         if len(pages) == 1:
             await ctx.send(box(pages[0], lang="md"))
@@ -161,10 +144,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if not _log:
             return await ctx.send("No messages recorded for that user.")
 
-        self.send_to_monitor(
-            ctx.guild,
-            f"{author} ({author.id}) exported message history " f"of user {user} ({user.id})",
-        )
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) exported message history "
+                                        f"of user {user} ({user.id})")
 
         ts = utcnow().strftime("%Y-%m-%d")
         _log = "\n".join(_log)
@@ -173,25 +154,19 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.send(file=f)
 
     @defmessagesgroup.command(name="exportchannel")
-    async def defmessagesgroupuserexportchannel(
-        self, ctx: commands.Context, channel: discord.TextChannel
-    ):
+    async def defmessagesgroupuserexportchannel(self, ctx: commands.Context, channel: discord.TextChannel):
         """Exports recent messages of a channel to a file"""
         author = ctx.author
         if not channel.permissions_for(author).read_messages:
-            return await ctx.send(
-                "You do not have read permissions in that channel. Request denied."
-            )
+            return await ctx.send("You do not have read permissions in that channel. Request denied.")
 
         _log = await self.make_message_log(channel, guild=author.guild, requester=author)
 
         if not _log:
             return await ctx.send("No messages recorded in that channel.")
 
-        self.send_to_monitor(
-            ctx.guild,
-            f"{author} ({author.id}) exported message history " f"of channel #{channel.name}",
-        )
+        self.send_to_monitor(ctx.guild, f"{author} ({author.id}) exported message history "
+                                        f"of channel #{channel.name}")
 
         ts = utcnow().strftime("%Y-%m-%d")
         _log = "\n".join(_log)
@@ -221,7 +196,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             box(
                 f"\n".join(f"- Rank {rank}: {count} Members" for rank, count in ranks.items())
                 + f"\n\nFor details about each rank see {ctx.prefix}defender status",
-                lang="yaml",
+                lang="yaml"
             ),
         )
 
@@ -233,7 +208,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         await ctx.send(embed=em)
 
     @defender.command(name="freshmeat")
-    async def defenderfreshmeat(self, ctx, hours: int = 24, *, keywords: str = ""):
+    async def defenderfreshmeat(self, ctx, hours: int=24, *, keywords: str=""):
         """Returns a list of the new users of the day
 
         Can be filtered. Supports wildcards (* and ?)"""
@@ -241,11 +216,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         msg = ""
         x_hours_ago = ctx.message.created_at - datetime.timedelta(hours=hours)
         new_members = sorted(
-            [
-                m
-                for m in ctx.guild.members
-                if m.joined_at is not None and m.joined_at > x_hours_ago
-            ],
+            [m for m in ctx.guild.members if m.joined_at is not None and m.joined_at > x_hours_ago],
             key=lambda m: m.joined_at,
             reverse=True,
         )
@@ -275,7 +246,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         """Sends you a DM if a user younger than X hours joins
 
         Use 0 hours to disable notifications"""
-        if hours < 0 or hours > 744:  # I think a month is enough
+        if hours < 0 or hours > 744: # I think a month is enough
             await ctx.send("Value must be between 1 and 744.")
             return
 
@@ -306,32 +277,25 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if not modules:
             return await ctx.send("Emergency mode is disabled in this server.")
 
-        alert_msg = (
-            f"⚠️ Emergency mode manually engaged by `{author}` ({author.id}).\n"
-            f"The modules **{', '.join(modules)}** can now be used by "
-            "helper roles. To turn off emergency mode do "
-            f"`{ctx.prefix}defender emergency off`. Good luck."
-        )
+        alert_msg = (f"⚠️ Emergency mode manually engaged by `{author}` ({author.id}).\n"
+                     f"The modules **{', '.join(modules)}** can now be used by "
+                     "helper roles. To turn off emergency mode do "
+                     f"`{ctx.prefix}defender emergency off`. Good luck.")
         emergency_mode = self.is_in_emergency_mode(guild)
 
         if on_or_off:
             if not emergency_mode:
                 self.emergency_mode[guild.id] = EmergencyMode(manual=True)
-                await self.send_notification(
-                    guild, alert_msg, title="Emergency mode", ping=True, jump_to=ctx.message
-                )
+                await self.send_notification(guild, alert_msg, title="Emergency mode",
+                                             ping=True, jump_to=ctx.message)
                 self.dispatch_event("emergency", guild)
             else:
                 await ctx.send("Emergency mode is already ongoing.")
         else:
             if emergency_mode:
                 del self.emergency_mode[guild.id]
-                await self.send_notification(
-                    guild,
-                    "⚠️ Emergency mode manually disabled.",
-                    title="Emergency mode",
-                    jump_to=ctx.message,
-                )
+                await self.send_notification(guild, "⚠️ Emergency mode manually disabled.",
+                                             title="Emergency mode", jump_to=ctx.message)
             else:
                 await ctx.send("Emergency mode is already off.")
 
@@ -365,10 +329,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         async def wd_checks_present(module_key):
             return "Active" if await WardenAPI.get_check(guild, module_key) else "None"
 
-        await ctx.send(
-            box(
-                cleandoc(
-                    f"""
+        await ctx.send(box(cleandoc(
+            f"""
              Defender {self.__version__}
             -- Deps --
              python {py_ver.major}.{py_ver.minor}.{py_ver.micro}
@@ -393,10 +355,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
              Vaporize: {await conf.vaporize_enabled()}
              Silence: {await conf.silence_enabled()}
              Voteout: {await conf.voteout_enabled()}"""
-                ),
-                lang="py",
-            )
-        )
+            ), lang="py"))
 
     @defender.group(name="warden", aliases=["wd"])
     @commands.admin()
@@ -414,10 +373,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         # Since some people immediately dive into Warden before configuring everything up...
         n_channel = await self.config.guild(guild).notify_channel()
         if n_channel == 0:
-            await ctx.send(
-                "It is important that you configure and understand how Defender works before "
-                f"using Warden. Please read `{ctx.prefix}def status` in its entirety."
-            )
+            await ctx.send("It is important that you configure and understand how Defender works before "
+                           f"using Warden. Please read `{ctx.prefix}def status` in its entirety.")
             return
 
         rule = strip_yaml_codeblock(rule)
@@ -430,21 +387,14 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             return await ctx.send(f"Error parsing the rule: {e}")
         except Exception as e:
             log.error("Warden - unexpected error during rule parsing", exc_info=e)
-            return await ctx.send(
-                f"Something very wrong happened during the rule parsing. Please check its format."
-            )
+            return await ctx.send(f"Something very wrong happened during the rule parsing. Please check its format.")
 
         if WardenEvent.Periodic in new_rule.events:
             prompts_sent = True
-            if not await rule_add_periodic_prompt(
-                cog=self, message=ctx.message, new_rule=new_rule
-            ):
+            if not await rule_add_periodic_prompt(cog=self, message=ctx.message, new_rule=new_rule):
                 return
 
-        if (
-            new_rule.name in self.active_warden_rules[guild.id]
-            or new_rule.name in self.invalid_warden_rules[guild.id]
-        ):
+        if new_rule.name in self.active_warden_rules[guild.id] or new_rule.name in self.invalid_warden_rules[guild.id]:
             prompts_sent = True
             if not await rule_add_overwrite_prompt(cog=self, message=ctx.message):
                 return
@@ -477,17 +427,15 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         """Removes all rules"""
         EMOJI = "🚮"
 
-        msg = await ctx.send(
-            "Are you sure you want to remove all the rules? This is "
-            "an irreversible operation. React to confirm."
-        )
+        msg = await ctx.send("Are you sure you want to remove all the rules? This is "
+                             "an irreversible operation. React to confirm.")
 
         def confirm(r, user):
             return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
 
         await msg.add_reaction(EMOJI)
         try:
-            r = await ctx.bot.wait_for("reaction_add", check=confirm, timeout=15)
+            r = await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
         except asyncio.TimeoutError:
             return await ctx.send("Not proceeding with deletion.")
 
@@ -529,11 +477,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         if rules["invalid"]:
             text += f"\n**Invalid rules**:\n{', '.join(rules['invalid'])}\n"
-            text += (
-                "These rules failed the validation process at the last start. Check if "
-                "their format is still considered valid in the most recent version of "
-                "Defender."
-            )
+            text += ("These rules failed the validation process at the last start. Check if "
+                     "their format is still considered valid in the most recent version of "
+                     "Defender.")
 
         for p in pagify(text, delims=[" ", "\n"]):
             await ctx.send(p)
@@ -548,6 +494,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         except KeyError:
             return await ctx.send("There is no rule with that name.")
 
+
         raw_rule = rule.raw_rule
         no_box = "```" in raw_rule
 
@@ -560,21 +507,19 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             else:
                 await ctx.send(box(p, lang="yaml"))
 
-    @commands.cooldown(1, 3600 * 24, commands.BucketType.guild)  # only one session per guild
+    @commands.cooldown(1, 3600*24, commands.BucketType.guild) # only one session per guild
     @wardengroup.command(name="upload")
     async def wardengroupupload(self, ctx: commands.Context):
         """Starts a rule upload session"""
         max_size = await self.config.wd_upload_max_size()
         confirm_emoji = "✅"
         guild = ctx.guild
-        await ctx.send(
-            "Please start sending your rules. Files must be in .yaml or .txt format. "
-            "Type `quit` to stop this process."
-        )
+        await ctx.send("Please start sending your rules. Files must be in .yaml or .txt format. "
+                       "Type `quit` to stop this process.")
 
         def is_valid_attachment(m):
             if ctx.bot.get_cog("Defender") is not self:
-                raise asyncio.TimeoutError()  # The cog has been reloaded
+                raise asyncio.TimeoutError() # The cog has been reloaded
             elif m.author.id != ctx.author.id or m.channel.id != ctx.channel.id:
                 return False
             elif m.content.lower() in ("quit", "`quit`"):
@@ -589,10 +534,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             if attachment.height is not None:
                 return False
 
-            if attachment.size < 1 or attachment.size > (max_size * 1024):
-                self.loop.create_task(
-                    ctx.send(f"The file is too big. The maximum size is {max_size}KB.")
-                )
+            if attachment.size < 1 or attachment.size > (max_size*1024):
+                self.loop.create_task(ctx.send(f"The file is too big. The maximum size is {max_size}KB."))
                 return False
 
             return True
@@ -602,9 +545,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 message = await ctx.bot.wait_for("message", check=is_valid_attachment, timeout=120)
             except asyncio.TimeoutError:
                 ctx.command.reset_cooldown(ctx)
-                return await ctx.send(
-                    f"Please reissue `{ctx.prefix}def warden upload` if you want to upload more rules"
-                )
+                return await ctx.send(f"Please reissue `{ctx.prefix}def warden upload` if you want to upload more rules")
             except Exception as e:
                 ctx.command.reset_cooldown(ctx)
                 return log.error("Error during Warden rules upload", exc_info=e)
@@ -615,9 +556,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 await message.attachments[0].save(raw_rule)
                 raw_rule = raw_rule.read().decode(encoding="utf-8", errors="strict")
             except UnicodeError:
-                await ctx.send(
-                    "Error while parsing your file: is it utf-8 encoded? Please try again."
-                )
+                await ctx.send("Error while parsing your file: is it utf-8 encoded? Please try again.")
                 continue
             except (discord.HTTPException, discord.NotFound) as e:
                 await ctx.send("Error while retrieving your rule. Please try again.")
@@ -635,23 +574,16 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 continue
             except Exception as e:
                 log.error("Warden - unexpected error during rule parsing", exc_info=e)
-                await ctx.send(
-                    f"Something very wrong happened during the rule parsing. Please check its format."
-                )
+                await ctx.send(f"Something very wrong happened during the rule parsing. Please check its format.")
                 continue
             else:
                 prompts_sent = False
                 if WardenEvent.Periodic in new_rule.events:
                     prompts_sent = True
-                    if not await rule_add_periodic_prompt(
-                        cog=self, message=message, new_rule=new_rule
-                    ):
+                    if not await rule_add_periodic_prompt(cog=self, message=message, new_rule=new_rule):
                         continue
 
-                if (
-                    new_rule.name in self.active_warden_rules[guild.id]
-                    or new_rule.name in self.invalid_warden_rules[guild.id]
-                ):
+                if new_rule.name in self.active_warden_rules[guild.id] or new_rule.name in self.invalid_warden_rules[guild.id]:
                     prompts_sent = True
                     if not await rule_add_overwrite_prompt(cog=self, message=message):
                         continue
@@ -693,7 +625,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         tar_obj = BytesIO()
 
-        with tarfile.open(fileobj=tar_obj, mode="w:gz") as tar:
+        with tarfile.open(fileobj=tar_obj, mode='w:gz') as tar:
             for k, v in to_archive.items():
                 info = tarfile.TarInfo(f"{k}.yaml")
                 info.size = len(v.getvalue())
@@ -733,17 +665,15 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         if len(targets) == 0:
             return await ctx.send("No user can be affected by this rule.")
 
-        msg = await ctx.send(
-            f"**{len(targets)} users** will be affected by this rule. "
-            "Are you sure you want to continue? React to confirm."
-        )
+        msg = await ctx.send(f"**{len(targets)} users** will be affected by this rule. "
+                              "Are you sure you want to continue? React to confirm.")
 
         def confirm(r, user):
             return user == ctx.author and str(r.emoji) == EMOJI and r.message.id == msg.id
 
         await msg.add_reaction(EMOJI)
         try:
-            r = await ctx.bot.wait_for("reaction_add", check=confirm, timeout=15)
+            r = await ctx.bot.wait_for('reaction_add', check=confirm, timeout=15)
         except asyncio.TimeoutError:
             return await ctx.send("Not proceeding with execution.")
 
@@ -758,19 +688,16 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
         text = f"Rule `{name}` has been executed on **{len(targets)} users**."
         if errors:
-            text += (
-                f"\n**{errors}** of them triggered an error on this rule. For more details check "
-                f"`{ctx.prefix}def monitor`."
-            )
+            text += (f"\n**{errors}** of them triggered an error on this rule. For more details check "
+                     f"`{ctx.prefix}def monitor`.")
 
         await ctx.send(text)
 
     @wardengroup.command(name="memory")
-    async def wardengroupmemory(self, ctx: commands.Context, *, keywords: str = ""):
+    async def wardengroupmemory(self, ctx: commands.Context, *, keywords: str=""):
         """Shows or resets the memory of Warden
 
         Can be filtered. Supports wildcards (* and ?)"""
-
         def is_relevant(value, keywords):
             if not keywords:
                 return True
@@ -797,17 +724,13 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                     if first_run:
                         text += f"- **{state_name}**:"
                         first_run = False
-                    if text:
-                        text += "\n"
+                    if text: text += "\n"
                     text += f"`{_type.title()} heat levels`\n"
                     text += ", ".join(to_add)
             return text
 
-        text = (
-            show_state(prod_state, "Production heat store")
-            + "\n\n"
-            + show_state(dev_state, "Sandbox heat store")
-        )
+        text = (show_state(prod_state, "Production heat store") + "\n\n" +
+                show_state(dev_state, "Sandbox heat store"))
 
         if text == "\n\n":
             return await ctx.send("There is currently nothing stored in Warden's memory.")
@@ -818,9 +741,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             await ctx.send(p)
 
         def say_free(m):
-            return (
-                m.author == ctx.author and m.channel == ctx.channel and m.content.lower() == "free"
-            )
+            return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() == "free"
 
         try:
             message = await ctx.bot.wait_for("message", check=say_free, timeout=10)
@@ -831,10 +752,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             heat.empty_state(ctx.guild, debug=True)
             await message.add_reaction("✅")
 
+
     @wardengroup.command(name="debug", usage="<id> <event> [rank]")
-    async def wardengroupdebug(
-        self, ctx: commands.Context, _id: int, event: WardenEvent, rank: int = None
-    ):
+    async def wardengroupdebug(self, ctx: commands.Context, _id: int, event: WardenEvent, rank: int=None):
         """Simulate and give a detailed summary of an event
 
         A Warden event must be passed with the proper target ID (user or local message)
@@ -860,10 +780,8 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             try:
                 rank = Rank(rank)
             except ValueError:
-                await ctx.send(
-                    "You must provide a valid rank (1-4) or leave it empty "
-                    "to test against the target's real rank."
-                )
+                await ctx.send("You must provide a valid rank (1-4) or leave it empty "
+                               "to test against the target's real rank.")
                 return
 
         rules = self.get_warden_rules_by_event(ctx.guild, event)
@@ -874,11 +792,7 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
         message = None
         guild = ctx.guild
 
-        if event in (
-            WardenEvent.OnMessage,
-            WardenEvent.OnMessageEdit,
-            WardenEvent.OnMessageDelete,
-        ):
+        if event in (WardenEvent.OnMessage, WardenEvent.OnMessageEdit, WardenEvent.OnMessageDelete):
             try:
                 message = await ctx.channel.fetch_message(_id)
             except discord.NotFound:
@@ -887,31 +801,22 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 return await ctx.send("I failed to retrieve the message.")
             user = message.author
             rank = rank or await self.rank_user(user)
-        elif event in (
-            WardenEvent.OnUserJoin,
-            WardenEvent.OnUserLeave,
-            WardenEvent.Manual,
-            WardenEvent.Periodic,
-        ):
+        elif event in (WardenEvent.OnUserJoin, WardenEvent.OnUserLeave, WardenEvent.Manual, WardenEvent.Periodic):
             user = ctx.guild.get_member(_id)
             if user is None:
                 return await ctx.send("I could not retrieve the user.")
             rank = rank or await self.rank_user(user)
         else:
-            rank = (
-                Rank.Rank1
-            )  # On a user-less event (for now, only on-emergency) rank is not considered
+            rank = Rank.Rank1 # On a user-less event (for now, only on-emergency) rank is not considered
             user = None
 
+
         for rule in rules:
-            result = await rule.satisfies_conditions(
-                cog=self, guild=guild, rank=rank, user=user, message=message, debug=True
-            )
+            result = await rule.satisfies_conditions(cog=self, guild=guild, rank=rank, user=user,
+                                                     message=message, debug=True)
             results.append(result)
             if result:
-                await rule.do_actions(
-                    cog=self, guild=guild, user=user, message=message, debug=True
-                )
+                await rule.do_actions(cog=self, guild=guild, user=user, message=message, debug=True)
 
         text = ""
         for i, result in enumerate(results):
@@ -925,17 +830,13 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                 text += "(Failed)\n"
                 trace = "\n".join(result.trace)
                 text += f"{box(trace)}"
-        text += (
-            "\nIf you want to empty Warden's sandbox memory, say `free` in the next 10 seconds."
-        )
+        text += "\nIf you want to empty Warden's sandbox memory, say `free` in the next 10 seconds."
 
         for p in pagify(text):
             await ctx.send(p)
 
         def say_free(m):
-            return (
-                m.author == ctx.author and m.channel == ctx.channel and m.content.lower() == "free"
-            )
+            return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() == "free"
 
         try:
             message = await ctx.bot.wait_for("message", check=say_free, timeout=10)

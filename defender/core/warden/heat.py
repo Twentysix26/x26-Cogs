@@ -35,18 +35,11 @@ amount of time and are shared between different Warden rules.
 MAX_HEATPOINTS = 100
 log = logging.getLogger("red.x26cogs.defender")
 
-_guild_heat = {"channels": {}, "users": {}, "custom": {}}
+_guild_heat = {"channels" : {}, "users": {}, "custom": {}}
 _heat_store = defaultdict(lambda: deepcopy(_guild_heat))
 _sandbox_heat_store = defaultdict(lambda: deepcopy(_guild_heat))
-
-
 class HeatLevel:
-    __slots__ = (
-        "guild",
-        "id",
-        "type",
-        "_heat_points",
-    )
+    __slots__ = ("guild", "id", "type", "_heat_points",)
 
     def __init__(self, guild: int, _id: Union[str, int], _type: str):
         self.guild = guild
@@ -73,13 +66,11 @@ class HeatLevel:
     def __repr__(self):
         return f"<HeatLevel: {len(self._heat_points)}>"
 
-
 def get_heat_store(guild_id, debug=False):
     if debug is False:
         return _heat_store[guild_id]
     else:
         return _sandbox_heat_store[guild_id]
-
 
 def get_user_heat(user: discord.Member, *, debug=False):
     heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)
@@ -88,14 +79,12 @@ def get_user_heat(user: discord.Member, *, debug=False):
     else:
         return 0
 
-
 def get_channel_heat(channel: discord.TextChannel, *, debug=False):
     heat = get_heat_store(channel.guild.id, debug)["channels"].get(channel.id)
     if heat:
         return len(heat)
     else:
         return 0
-
 
 def get_custom_heat(guild: discord.Guild, key: str, *, debug=False):
     key = key.lower()
@@ -105,18 +94,15 @@ def get_custom_heat(guild: discord.Guild, key: str, *, debug=False):
     else:
         return 0
 
-
 def empty_user_heat(user: discord.Member, *, debug=False):
     heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)
     if heat:
         discard_heatlevel(heat, debug=debug)
 
-
 def empty_channel_heat(channel: discord.TextChannel, *, debug=False):
     heat = get_heat_store(channel.guild.id, debug)["channels"].get(channel.id)
     if heat:
         discard_heatlevel(heat, debug=debug)
-
 
 def empty_custom_heat(guild: discord.Guild, key: str, *, debug=False):
     key = key.lower()
@@ -124,28 +110,21 @@ def empty_custom_heat(guild: discord.Guild, key: str, *, debug=False):
     if heat:
         discard_heatlevel(heat, debug=debug)
 
-
 def increase_user_heat(user: discord.Member, td: timedelta, *, debug=False):
     heat = get_heat_store(user.guild.id, debug)["users"].get(user.id)
     if heat:
         heat.increase_heat(td)
     else:
-        get_heat_store(user.guild.id, debug)["users"][user.id] = HeatLevel(
-            user.guild.id, user.id, "users"
-        )
+        get_heat_store(user.guild.id, debug)["users"][user.id] = HeatLevel(user.guild.id, user.id, "users")
         get_heat_store(user.guild.id, debug)["users"][user.id].increase_heat(td)
-
 
 def increase_channel_heat(channel: discord.TextChannel, td: timedelta, *, debug=False):
     heat = get_heat_store(channel.guild.id, debug)["channels"].get(channel.id)
     if heat:
         heat.increase_heat(td)
     else:
-        get_heat_store(channel.guild.id, debug)["channels"][channel.id] = HeatLevel(
-            channel.guild.id, channel.id, "channels"
-        )
+        get_heat_store(channel.guild.id, debug)["channels"][channel.id] = HeatLevel(channel.guild.id, channel.id, "channels")
         get_heat_store(channel.guild.id, debug)["channels"][channel.id].increase_heat(td)
-
 
 def increase_custom_heat(guild: discord.Guild, key: str, td: timedelta, *, debug=False):
     key = key.lower()
@@ -156,13 +135,11 @@ def increase_custom_heat(guild: discord.Guild, key: str, td: timedelta, *, debug
         get_heat_store(guild.id, debug)["custom"][key] = HeatLevel(guild.id, key, "custom")
         get_heat_store(guild.id, debug)["custom"][key].increase_heat(td)
 
-
 def discard_heatlevel(heatlevel: HeatLevel, *, debug=False):
     try:
         del get_heat_store(heatlevel.guild, debug)[heatlevel.type][heatlevel.id]
     except Exception as e:
         pass
-
 
 async def remove_stale_heat():
     # In case you're wondering wtf am I doing here:
@@ -176,13 +153,11 @@ async def remove_stale_heat():
                     len(heat_level)
             await asyncio.sleep(0)
 
-
 def get_state(guild, debug=False):
     if not debug:
         return _heat_store[guild.id].copy()
     else:
         return _sandbox_heat_store[guild.id].copy()
-
 
 def empty_state(guild, debug=False):
     try:
@@ -192,7 +167,6 @@ def empty_state(guild, debug=False):
             del _sandbox_heat_store[guild.id]
     except KeyError:
         pass
-
 
 def get_custom_heat_keys(guild: discord.Guild):
     return list(_heat_store[guild.id]["custom"].keys())
