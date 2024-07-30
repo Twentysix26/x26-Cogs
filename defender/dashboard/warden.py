@@ -7,6 +7,7 @@ from ..core.warden.rule import WardenRule, InvalidRule
 
 log = logging.getLogger("red.x26cogs.defender")
 
+
 def dashboard_page(*args, **kwargs):
     def decorator(func: typing.Callable):
         func.__dashboard_decorator_params__ = (args, kwargs)
@@ -16,10 +17,19 @@ def dashboard_page(*args, **kwargs):
 
 
 class WardenIntegration:
-    @dashboard_page(name="warden-rules", description="Manage Warden rules.", methods=("GET", "POST"))
-    async def dashboard_warden_page(self, user: discord.User, guild: discord.Guild, **kwargs) -> typing.Dict[str, typing.Any]:
+    @dashboard_page(
+        name="warden-rules", description="Manage Warden rules.", methods=("GET", "POST")
+    )
+    async def dashboard_warden_page(
+        self, user: discord.User, guild: discord.Guild, **kwargs
+    ) -> typing.Dict[str, typing.Any]:
         member = guild.get_member(user.id)
-        if member is None or user.id != guild.owner.id and not await self.bot.is_admin(member) and user.id not in self.bot.owner_ids:
+        if (
+            member is None
+            or user.id != guild.owner.id
+            and not await self.bot.is_admin(member)
+            and user.id not in self.bot.owner_ids
+        ):
             return {
                 "status": 1,
                 "error_code": 403,
@@ -42,6 +52,7 @@ class WardenIntegration:
 
         import wtforms
         from markupsafe import Markup
+
         class MarkdownTextAreaField(wtforms.TextAreaField):
             def __call__(
                 self,
@@ -55,23 +66,46 @@ class WardenIntegration:
                 if disable_toolbar:
                     kwargs["class"] += " markdown-text-area-field-toolbar-disabled"
                 return super().__call__(**kwargs)
+
         class WardenRuleForm(kwargs["Form"]):
-            rule: MarkdownTextAreaField = MarkdownTextAreaField("Rule", validators=[wtforms.validators.InputRequired()])
+            rule: MarkdownTextAreaField = MarkdownTextAreaField(
+                "Rule", validators=[wtforms.validators.InputRequired()]
+            )
+
         class WardenRulesForm(kwargs["Form"]):
             def __init__(self, warden_rules: typing.Dict[str, str]) -> None:
                 super().__init__(prefix="warden_rules_form_")
                 for rule in warden_rules:
                     self.warden_rules.append_entry({"rule": rule})
-                self.warden_rules.default = [entry for entry in self.warden_rules.entries if entry.csrf_token.data is None]
-                self.warden_rules.entries = [entry for entry in self.warden_rules.entries if entry.csrf_token.data is not None]
+                self.warden_rules.default = [
+                    entry for entry in self.warden_rules.entries if entry.csrf_token.data is None
+                ]
+                self.warden_rules.entries = [
+                    entry
+                    for entry in self.warden_rules.entries
+                    if entry.csrf_token.data is not None
+                ]
+
             warden_rules: wtforms.FieldList = wtforms.FieldList(wtforms.FormField(WardenRuleForm))
             submit: wtforms.SubmitField = wtforms.SubmitField("Save Modifications")
 
         existing_warden_rules = self.active_warden_rules[guild.id].copy()
-        warden_rules_form: WardenRulesForm = WardenRulesForm([warden_rule.raw_rule for warden_rule in sorted(existing_warden_rules.values(), key=lambda warden_rule: warden_rule.name)])
-        if warden_rules_form.validate_on_submit() and await warden_rules_form.validate_dpy_converters():
+        warden_rules_form: WardenRulesForm = WardenRulesForm(
+            [
+                warden_rule.raw_rule
+                for warden_rule in sorted(
+                    existing_warden_rules.values(), key=lambda warden_rule: warden_rule.name
+                )
+            ]
+        )
+        if (
+            warden_rules_form.validate_on_submit()
+            and await warden_rules_form.validate_dpy_converters()
+        ):
             notifications = []
-            warden_rules = [warden_rule.rule.data for warden_rule in warden_rules_form.warden_rules]
+            warden_rules = [
+                warden_rule.rule.data for warden_rule in warden_rules_form.warden_rules
+            ]
             rules_names = []
             for raw_rule in warden_rules:
                 try:
@@ -82,10 +116,15 @@ class WardenIntegration:
                     continue
                 except Exception as e:
                     log.error("Warden - unexpected error during rule parsing", exc_info=e)
-                    notifications.append({"message": "Unexpected error during rule parsing.", "category": "error"})
+                    notifications.append(
+                        {"message": "Unexpected error during rule parsing.", "category": "error"}
+                    )
                     continue
                 rules_names.append(rule.name)
-                if rule.name not in existing_warden_rules or raw_rule != existing_warden_rules[rule.name].raw_rule:
+                if (
+                    rule.name not in existing_warden_rules
+                    or raw_rule != existing_warden_rules[rule.name].raw_rule
+                ):
                     async with self.config.guild(guild).wd_rules() as warden_rules:
                         warden_rules[rule.name] = raw_rule
                     self.active_warden_rules[guild.id][rule.name] = rule
@@ -97,7 +136,12 @@ class WardenIntegration:
                     async with self.config.guild(guild).wd_rules() as warden_rules:
                         del warden_rules[rule_name]
             if not notifications:
-                notifications.append({"message": "Warden rules have been successfully updated.", "category": "success"})
+                notifications.append(
+                    {
+                        "message": "Warden rules have been successfully updated.",
+                        "category": "success",
+                    }
+                )
             return {
                 "status": 0,
                 "notifications": notifications,
@@ -125,7 +169,9 @@ class WardenIntegration:
                     "    </div>",
                 ]
             )
-        warden_rules_form.submit.render_kw = {"class": "btn mb-0 bg-gradient-success btn-md w-100 my-4"}
+        warden_rules_form.submit.render_kw = {
+            "class": "btn mb-0 bg-gradient-success btn-md w-100 my-4"
+        }
         html_form.extend(
             [
                 '    <a href="javascript:void(0);" onclick="createWardenRule(this);" class="text-success mr-3"><i class="fa fa-plus-circle"></i> Create Warden Rule</a>'
@@ -141,11 +187,13 @@ class WardenIntegration:
             "status": 0,
             "web_content": {
                 "source": WEB_CONTENT,
-                "warden_enabled": await self.config.guild(guild).enabled() and await self.config.guild(guild).warden_enabled(),
+                "warden_enabled": await self.config.guild(guild).enabled()
+                and await self.config.guild(guild).warden_enabled(),
                 "warden_rules_form": warden_rules_form_str,
                 "warden_rules_form_length": len(warden_rules_form.warden_rules.default),
             },
         }
+
 
 WEB_CONTENT = """
     <div class="alert alert-{{ "success" if warden_enabled else "danger" }} text-white d-flex justify-content-between" role="alert">

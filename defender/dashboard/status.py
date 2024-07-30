@@ -11,6 +11,7 @@ from ..enums import Rank
 
 log = logging.getLogger("red.x26cogs.defender")
 
+
 def dashboard_page(*args, **kwargs):
     def decorator(func: typing.Callable):
         func.__dashboard_decorator_params__ = (args, kwargs)
@@ -21,9 +22,16 @@ def dashboard_page(*args, **kwargs):
 
 class StatusIntegration:
     @dashboard_page(name=None, description="Defender status.", methods=("GET", "POST"))
-    async def dashboard_status_page(self, user: discord.User, guild: discord.Guild, **kwargs) -> typing.Dict[str, typing.Any]:
+    async def dashboard_status_page(
+        self, user: discord.User, guild: discord.Guild, **kwargs
+    ) -> typing.Dict[str, typing.Any]:
         member = guild.get_member(user.id)
-        if member is None or user.id != guild.owner.id and not await self.bot.is_admin(member) and user.id not in self.bot.owner_ids:
+        if (
+            member is None
+            or user.id != guild.owner.id
+            and not await self.bot.is_admin(member)
+            and user.id not in self.bot.owner_ids
+        ):
             return {
                 "status": 1,
                 "error_code": 403,
@@ -41,7 +49,9 @@ class StatusIntegration:
 
         monitor = "\n".join(self.monitor[guild.id])
         freshmeat = ""
-        x_hours_ago = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(hours=24)
+        x_hours_ago = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
+            hours=24
+        )
         new_members = sorted(
             [m for m in guild.members if m.joined_at is not None and m.joined_at > x_hours_ago],
             key=lambda m: m.joined_at,
@@ -64,7 +74,9 @@ class StatusIntegration:
                 continue
             rank = await self.rank_user(m)
             ranks[rank] += 1
-        member_ranks = "\n".join(f"- Rank {rank}: {count} Members" for rank, count in ranks.items())
+        member_ranks = "\n".join(
+            f"- Rank {rank}: {count} Members" for rank, count in ranks.items()
+        )
 
         return {
             "status": 0,
@@ -78,6 +90,7 @@ class StatusIntegration:
                 "member_ranks": member_ranks,
             },
         }
+
 
 WEB_CONTENT = """
     <div class="alert alert-{{ ("success" if not possible_config_issue else "warning") if d_enabled else "danger" }} text-white" role="alert">
