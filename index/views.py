@@ -68,7 +68,7 @@ class IndexReposView(IndexView):
 
     async def show_repos(self):
         is_owner = await self.ctx.bot.is_owner(self.ctx.author) and self.ctx.bot.get_cog("Downloader")
-        self._embeds = build_embeds(self.repos, prefix=self.ctx.prefix, is_owner=is_owner)
+        self._embeds = build_embeds(self.repos, prefix=self.ctx.prefix, colour = await self.ctx.embed_colour(), is_owner=is_owner)
         if not is_owner:
             self.remove_item(self.install_repo)
         self._message = await self.ctx.send(embed=self._embeds[self._selected], view=self)
@@ -131,7 +131,7 @@ class IndexCogsView(IndexView):
             pass
         else:
             raise ValueError()
-        self._embeds = build_embeds(self.cogs, prefix=self.ctx.prefix, is_owner=is_owner)
+        self._embeds = build_embeds(self.cogs, prefix=self.ctx.prefix, colour = await self.ctx.embed_colour(), is_owner=is_owner)
         if not is_owner:
             self.remove_item(self.install_cog)
         if len(self._embeds) == 0:
