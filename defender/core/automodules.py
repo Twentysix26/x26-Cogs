@@ -155,7 +155,7 @@ class AutoModules(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
             notif_text = f"I have {ACTIONS_VERBS[action]} a user for posting this message:\n{content}\n{invite_data}"
 
         quick_action = QAView(self, author.id, "Posting an invite link")
-        heat_key = f"core-if-{author.id}-{message.channel.id}"
+        heat_key = f"core-if-{author.id}"
         await self.send_notification(
             guild,
             notif_text,
