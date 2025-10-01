@@ -240,7 +240,7 @@ class Events(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
                     log.warning("Unexpected error in InviteFilter", exc_info=e)
 
         ca_enabled = await self.config.guild(guild).ca_enabled()
-        if ca_enabled and not is_staff:
+        if ca_enabled:
             rank_ca = await self.config.guild(guild).ca_rank()
             if rank_ca and rank >= rank_ca:
                 try:
