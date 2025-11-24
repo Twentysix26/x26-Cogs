@@ -764,6 +764,17 @@ class WardenRule:
         async def message_has_attachment(params: models.IsBool):
             return bool(message.attachments) is params.value
 
+        @checker(Condition.AttachmentNameHasAny)
+        async def attachment_name_has_any(params: models.NonEmptyListStr):
+            attachments = message.attachments
+            if not attachments:
+                return False
+            for attachment in attachments:
+                for pattern in params.value:
+                    if fnmatch.fnmatch(attachment.filename.lower(), pattern.lower()):
+                        return True
+
+
         @checker(Condition.UserHasAnyRoleIn)
         async def user_has_any_role_in(params: models.NonEmptyList):
             for role_id_or_name in params.value:

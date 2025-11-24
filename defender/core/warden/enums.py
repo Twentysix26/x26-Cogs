@@ -100,6 +100,7 @@ class Condition(enum.Enum):
     CategoryMatchesAny = "category-matches-any"
     ChannelIsPublic = "channel-is-public"
     MessageHasAttachment = "message-has-attachment"
+    AttachmentNameHasAny = "attachment-name-matches-any"
     InEmergencyMode = "in-emergency-mode"
     UserHasAnyRoleIn = "user-has-any-role-in"
     MessageContainsInvite = "message-contains-invite"
