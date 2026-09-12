@@ -218,7 +218,7 @@ class Defender(Commands, AutoModules, Events, commands.Cog, metaclass=CompositeM
                         _log.append(f"[{ts}]({channel})[{entry}] {content}")
                 else:
                     _log.append(f"[{ts}]({channel}) {content}")
-        elif isinstance(obj, (discord.TextChannel, discord.Thread)):
+        elif isinstance(obj, (discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread)):
             messages = df_cache.get_channel_messages(obj)
 
             async for m in AsyncIter(messages, steps=20):
