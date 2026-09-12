@@ -114,7 +114,9 @@ class StaffTools(MixinMeta, metaclass=CompositeMetaClass):  # type: ignore
 
     @defmessagesgroup.command(name="channel")
     async def defmessagesgroupuserchannel(
-        self, ctx: commands.Context, channel: Union[discord.TextChannel, discord.Thread]
+        self,
+        ctx: commands.Context,
+        channel: Union[discord.TextChannel, discord.VoiceChannel, discord.StageChannel, discord.Thread],
     ):
         """Shows recent messages of a channel"""
         author = ctx.author
